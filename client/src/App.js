@@ -1,4 +1,3 @@
-// src/App.js
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
@@ -9,12 +8,11 @@ import {
 } from "./systemHierarchy";
 
 function ralToHex(ral, ralColors) {
-  const match = ralColors.find(c => c.ral === ral.toUpperCase());
-  return match ? match.hex : "#CCCCCC";
+  const m = ralColors.find(c => c.ral === ral.toUpperCase());
+  return m ? m.hex : "#CCCCCC";
 }
 
 export default function App() {
-  // --- selection hooks ---
   const {
     systemType,
     setSystemType,
@@ -28,81 +26,84 @@ export default function App() {
     validBrands
   } = useSystemSelection();
 
-  // derive the list of architectural systems for the current brand & type
+  // derive valid architectural systems
   const validSystems = systemArchitecture[brand]?.[systemType] || [];
 
-  // --- form state ---
+  // form state
   const [form, setForm] = useState({
-    type: "Fixed",
     widthIn: 36,
     heightIn: 72,
     quantity: 1
   });
-  const [globalColor, setGlobalColor] = useState("RAL 9010");
   const [finish, setFinish] = useState("Powder Coated");
   const [finishStyle, setFinishStyle] = useState("Standard");
+  const [globalColor, setGlobalColor] = useState("RAL 9010");
   const [marginPercent, setMarginPercent] = useState(0);
-
-  // --- data state ---
-  const [summary, setSummary] = useState(null);
-  const [itemColors, setItemColors] = useState({});
-  const [ralColors, setRalColors] = useState([]);
   const [updateIndex, setUpdateIndex] = useState(null);
 
-  // on mount: select first type
+  // data state
+  const [ralColors, setRalColors] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [itemColors, setItemColors] = useState({});
+
+  // 1) pick default systemType
   useEffect(() => {
-    if (systemTypesList.length) {
-      setSystemType(systemTypesList[0]);
-    }
+    if (systemTypesList.length) setSystemType(systemTypesList[0]);
   }, [systemTypesList, setSystemType]);
 
-  // when systemType changes: pick first valid brand
+  // 2) when type changes, pick first brand
   useEffect(() => {
-    if (validBrands.length) {
-      setBrand(validBrands[0]);
-    }
+    if (validBrands.length) setBrand(validBrands[0]);
   }, [systemType, validBrands, setBrand]);
 
-  // when brand or type changes: pick first valid architectural system
+  // 3) when brand/type changes, pick first architectural system
   useEffect(() => {
-    if (validSystems.length) {
-      setSystem(validSystems[0]);
-    } else {
-      setSystem("");
-    }
+    if (validSystems.length) setSystem(validSystems[0]);
+    else setSystem("");
   }, [brand, systemType, validSystems, setSystem]);
 
-  // load RAL color list
+  // 4) load RAL list
   useEffect(() => {
     fetch(
       "https://raw.githubusercontent.com/martinring/ral-colors/main/ral-colors.json"
     )
-      .then(res => res.json())
+      .then(r => r.json())
       .then(setRalColors)
       .catch(console.error);
   }, []);
 
-  // fetch summary from server
+  // 5) whenever typology changes, rebuild panelType entries in form
+  useEffect(() => {
+    setForm(f => {
+      const base = {
+        widthIn: f.widthIn,
+        heightIn: f.heightIn,
+        quantity: f.quantity
+      };
+      typology.split("").forEach((ch, i) => {
+        base[`panelType_${i}`] = ch === "O" ? "Fixed" : f[`panelType_${i}`] || "Tilt & Turn";
+      });
+      return base;
+    });
+  }, [typology]);
+
   const fetchSummary = async () => {
     const res = await axios.get("http://localhost:3033/summary", {
-      params: { margin: parseFloat(marginPercent) || 0 }
+      params: { margin: marginPercent }
     });
     setSummary(res.data);
   };
 
-  // add or update window
   const handleSubmit = async () => {
-    // gather any panelType_* entries
     const panelTypes = Object.fromEntries(
       Object.entries(form).filter(([k]) => k.startsWith("panelType_"))
     );
-    // override type with panelType_0 if present
-    const actualType = panelTypes["panelType_0"] || form.type;
-
+    // the 'type' we send is ignored by server when panelTypes present,
+    // but we still send something:
     const payload = {
       brand,
       system,
-      type: actualType,
+      typology,
       widthIn: parseFloat(form.widthIn),
       heightIn: parseFloat(form.heightIn),
       quantity: parseInt(form.quantity, 10),
@@ -115,10 +116,19 @@ export default function App() {
         payload
       );
       setUpdateIndex(null);
+      
     } else {
       await axios.post("http://localhost:3033/add-window", payload);
     }
-    fetchSummary();
+
+    // setTypology(systemType === "Windows" ? "O" : "");
+    await fetchSummary();
+    // reset form & typology
+    setForm({ widthIn: 36, heightIn: 72, quantity: 1 });
+    setTypology("");
+    setFinish("Powder Coated");
+    setFinishStyle("Standard");
+    setGlobalColor("RAL 9010");
   };
 
   const handleChange = e => {
@@ -133,12 +143,8 @@ export default function App() {
   const handleEdit = idx => {
     const win = summary.itemized[idx];
     const [w, h] = win.Dimensions.split("x").map(Number);
-    setForm({
-      type: win.Type,
-      widthIn: w,
-      heightIn: h,
-      quantity: win.Quantity
-    });
+    setForm({ widthIn: w, heightIn: h, quantity: win.Quantity });
+    setTypology(win.Typology);
     setUpdateIndex(idx);
   };
 
@@ -146,9 +152,8 @@ export default function App() {
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">Window Pricing Tool</h1>
 
-      {/* System selection */}
+      {/* System / Finish / Dims */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* System Type */}
         <div>
           <label className="font-medium">System Type:</label>
           <select
@@ -157,14 +162,11 @@ export default function App() {
             className="border p-2 w-full"
           >
             {systemTypesList.map(t => (
-              <option key={t} value={t}>
-                {t}
-              </option>
+              <option key={t} value={t}>{t}</option>
             ))}
           </select>
         </div>
 
-        {/* Brand */}
         <div>
           <label className="font-medium">System Brand:</label>
           <select
@@ -173,14 +175,11 @@ export default function App() {
             className="border p-2 w-full"
           >
             {validBrands.map(b => (
-              <option key={b} value={b}>
-                {b}
-              </option>
+              <option key={b} value={b}>{b}</option>
             ))}
           </select>
         </div>
 
-        {/* Architectural System */}
         <div>
           <label className="font-medium">Architectural System:</label>
           <select
@@ -189,31 +188,56 @@ export default function App() {
             className="border p-2 w-full"
           >
             {validSystems.map(s => (
-              <option key={s} value={s}>
-                {s}
-              </option>
+              <option key={s} value={s}>{s}</option>
             ))}
           </select>
         </div>
 
-        {/* Typology */}
+        {/* Typology field */}
         <div>
           <label className="font-medium">
-            Typology (X = operable, O = fixed, max 5):
+            Typology <span className="text-red-500">*</span> (X=operable, O=fixed, max 5):
           </label>
           <input
             value={typology}
             onChange={e =>
-              setTypology(
-                e.target.value.replace(/[^XO]/gi, "").slice(0, 5)
-              )
+              setTypology(e.target.value.replace(/[^XO]/gi, "").slice(0, 5))
             }
             className="border p-2 w-full"
-            placeholder="e.g., XOXO"
+            placeholder="e.g. XOOX"
+            required
           />
         </div>
 
-        {/* Finish Category */}
+        {/* Panel dropdowns */}
+      {typology.split("").map((ch, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <label className="font-medium">Panel {i + 1}:</label>
+          {ch === "O" ? (
+            <select
+              name={`panelType_${i}`}
+              value="Fixed"
+              disabled
+              className="border p-2 flex-1"
+            >
+              <option>Fixed</option>
+            </select>
+          ) : (
+            <select
+              name={`panelType_${i}`}
+              value={form[`panelType_${i}`]}
+              onChange={handleChange}
+              className="border p-2 flex-1"
+            >
+              <option>Tilt & Turn</option>
+              <option>Casement</option>
+              <option>Awning</option>
+              <option>Tilt Only</option>
+            </select>
+          )}
+        </div>
+      ))}
+
         <div>
           <label className="font-medium">Finish Category:</label>
           <select
@@ -222,14 +246,11 @@ export default function App() {
             className="border p-2 w-full"
           >
             {Object.keys(finishOptions).map(opt => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
+              <option key={opt} value={opt}>{opt}</option>
             ))}
           </select>
         </div>
 
-        {/* Finish Style */}
         <div>
           <label className="font-medium">Finish Style:</label>
           <select
@@ -238,14 +259,11 @@ export default function App() {
             className="border p-2 w-full"
           >
             {finishOptions[finish].map(opt => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
+              <option key={opt} value={opt}>{opt}</option>
             ))}
           </select>
         </div>
 
-        {/* Global RAL */}
         <div>
           <label className="font-medium">Global RAL Color:</label>
           <input
@@ -257,7 +275,6 @@ export default function App() {
           />
         </div>
 
-        {/* Width */}
         <div>
           <label className="font-medium">Width (in):</label>
           <input
@@ -268,7 +285,6 @@ export default function App() {
           />
         </div>
 
-        {/* Height */}
         <div>
           <label className="font-medium">Height (in):</label>
           <input
@@ -279,7 +295,6 @@ export default function App() {
           />
         </div>
 
-        {/* Quantity */}
         <div>
           <label className="font-medium">Quantity:</label>
           <input
@@ -291,37 +306,17 @@ export default function App() {
         </div>
       </div>
 
-      {/* Panel Types (for each 'X' in typology) */}
-      {typology.split("").map((c, i) =>
-        c === "X" ? (
-          <div key={i} className="flex items-center gap-2">
-            <label className="font-medium">Panel {i + 1} Type:</label>
-            <select
-              className="border p-2"
-              onChange={e =>
-                setForm(prev => ({
-                  ...prev,
-                  [`panelType_${i}`]: e.target.value
-                }))
-              }
-            >
-              <option value="Casement">Casement</option>
-              <option value="Tilt & Turn">Tilt & Turn</option>
-              <option value="Awning">Awning</option>
-            </select>
-          </div>
-        ) : null
-      )}
-
-      {/* Add / Update button */}
+      {/* Submit button */}
       <button
         onClick={handleSubmit}
-        className="bg-blue-600 text-white p-2 rounded w-full"
+        disabled={!typology}                // ← disable unless typology has at least one character
+        className={`w-full p-2 rounded text-white 
+          ${typology ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-400 cursor-not-allowed"}`}
       >
         {updateIndex !== null ? "Update Window" : "Add Window"}
       </button>
 
-      {/* Margin */}
+      {/* margin */}
       <div className="mt-4">
         <label className="block mb-1 font-medium">
           Margin % on Grand Total:
@@ -341,7 +336,7 @@ export default function App() {
         </button>
       </div>
 
-      {/* Panel Configuration Summary */}
+      {/* Panel config summary */}
       <div>
         <h3 className="font-semibold text-lg mt-6">
           Panel Configuration:
@@ -351,22 +346,29 @@ export default function App() {
             .filter(([k]) => k.startsWith("panelType_"))
             .map(([k, v]) => (
               <li key={k}>
-                Panel {parseInt(k.split("_")[1], 10) + 1}: {v}
+                {k.replace("panelType_", "Panel ")}: {v}
               </li>
             ))}
         </ul>
       </div>
 
-      {/* Order Summary */}
+      {/* Order summary */}
       <h2 className="text-lg font-semibold">Order Summary</h2>
       {summary && (
         <>
           <ul className="list-disc pl-6">
             {summary.itemized.map((item, idx) => {
+              // build panel sequence string
+              const seq = Object.entries(item.PanelTypes)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([_, t]) => t)
+                .join(", ");
               const perFt2 = (
-                parseFloat(item.TotalWithMargin) / parseFloat(item.AreaFt2)
+                parseFloat(item.TotalWithMargin) /
+                parseFloat(item.AreaFt2)
               ).toFixed(2);
               const hex = ralToHex(itemColors[idx] || globalColor, ralColors);
+
               return (
                 <li
                   key={idx}
@@ -378,10 +380,10 @@ export default function App() {
                       style={{ backgroundColor: hex }}
                     />
                     <div>
-                      {item.Quantity}×{item.Type} {item.Dimensions} → $
+                      {item.Quantity}× {seq}, Dimentsions(WxH): {item.Dimensions} → $
                       {item.TotalCost} + ${item.LaborCost} = $
                       {item.GrandTotal} → margin = ${item.TotalWithMargin} → $
-                      {perFt2}/ft²
+                      {perFt2/item.Quantity}/ft²
                     </div>
                   </div>
                   <div className="space-x-2">
@@ -402,7 +404,8 @@ export default function App() {
               );
             })}
           </ul>
-          {/* Totals */}
+
+          {/* totals */}
           <div className="mt-4 space-y-1">
             <p>
               <strong>Total Area:</strong> {summary.totalArea} ft²
@@ -414,7 +417,7 @@ export default function App() {
               <strong>Labor Cost:</strong> ${summary.laborTotal}
             </p>
             <p>
-              <strong>Grand Total (with margin):</strong> $
+              <strong>Grand Total (w/ margin):</strong> $
               {summary.grandTotal}
             </p>
             <p>

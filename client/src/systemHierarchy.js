@@ -19,9 +19,19 @@ export const systemHierarchy = {
     const [brand, setBrand] = React.useState("Alumil");
     const [system, setSystem] = React.useState("");
     const [typology, setTypology] = React.useState("");
+    
   
     const systemTypesList = Object.keys(systemHierarchy);
     const validBrands = systemHierarchy[systemType];
+
+    // whenever you switch *back* to Windows, reset typology to "O"
+    React.useEffect(() => {
+      if (systemType === "Windows") {
+        setTypology("");
+      } else {
+        setTypology("");
+      }
+    }, [systemType]);
   
     return {
       systemType,

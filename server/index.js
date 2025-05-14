@@ -1,3 +1,4 @@
+// server/index.js
 const express = require("express");
 const cors = require("cors");
 const app = express();
@@ -9,56 +10,69 @@ class WindowOrder {
   constructor() {
     this.windows = [];
     this.unitCostPerSqft = {
-      "Alumil": {
-        "S67": { "Fixed": 22.70, "Tilt & Turn": 37.30, "Casement": 35.00 },
-        "S77": { "Fixed": 24.54, "Tilt & Turn": 41.00 , "Casement": 38.00 },
-        "S67 PHOS": { "Fixed": 25.00, "Tilt & Turn": 42.00, "Casement": 40.00 },
-        "S77 PHOS": { "Fixed": 27.00, "Tilt & Turn": 45.00, "Casement": 42.00 }
+      Alumil: {
+        "S67": { Fixed: 22.7, "Tilt & Turn": 37.3, Casement: 30, Awning: 28, "Tilt Only": 35 },
+        "S77": { Fixed: 24.54, "Tilt & Turn": 41, Casement: 32, Awning: 29, "Tilt Only": 38 },
+        "S67 PHOS": { Fixed: 25, "Tilt & Turn": 42, Casement: 31, Awning: 30, "Tilt Only": 37 },
+        "S77 PHOS": { Fixed: 27, "Tilt & Turn": 45, Casement: 33, Awning: 31, "Tilt Only": 39 }
       },
-      "Reynaers": {
-        "SL38 Classic": { "Fixed": 26.00, "Tilt & Turn": 39.50, "Casement": 37.00 },
-        "SL38 Cubic": { "Fixed": 26.00, "Tilt & Turn": 39.50, "Casement": 37.00 },
-        "SL38 Ferro": { "Fixed": 26.00, "Tilt & Turn": 39.50, "Casement": 37.00 },
-        "SL68": { "Fixed": 28.00, "Tilt & Turn": 43.75, "Casement": 40.00 },
+      Reynaers: {
+        "SL38 Classic": { Fixed: 22.7, "Tilt & Turn": 37.3, Casement: 30, Awning: 28, "Tilt Only": 35 },
+        "SL38 Cubic": { Fixed: 24.54, "Tilt & Turn": 41, Casement: 32, Awning: 29, "Tilt Only": 38 },
+        "SL38 Ferro": { Fixed: 25, "Tilt & Turn": 42, Casement: 31, Awning: 30, "Tilt Only": 37 },
+        "SL68": { Fixed: 27, "Tilt & Turn": 45, Casement: 33, Awning: 31, "Tilt Only": 39 }
       }
+      // etc for other brands/systems…
     };
     this.laborRates = {
-      "Fixed": 3.5,
+      Fixed: 3.5,
       "Tilt & Turn": 4.65,
-      "Casement": 4.0,
-      "Top Hung Awning": 3.75,
-      "Bottom Hung Tilt": 4.2
+      Casement: 4.0,
+      Awning: 3.75,
+      "Tilt Only": 4.3
     };
   }
 
-  addWindow({ brand, system, type, widthIn, heightIn, quantity, panelTypes }) {
+  addWindow({ brand, system, typology, widthIn, heightIn, quantity, panelTypes }) {
     const areaFt2 = (widthIn * heightIn) / 144;
-    const costPerSqft = this.unitCostPerSqft[brand]?.[system]?.[type] || 25;
-    const laborRate = this.laborRates[type] || 3.5;
+
+    let costPerSqft, laborRate;
+    const panels = Object.values(panelTypes || {});
+    if (panels.length) {
+      // average across panels
+      const cps = panels.map(t => this.unitCostPerSqft[brand]?.[system]?.[t] || 0);
+      costPerSqft = cps.reduce((a, b) => a + b, 0) / cps.length;
+      const lrs = panels.map(t => this.laborRates[t] || 0);
+      laborRate = lrs.reduce((a, b) => a + b, 0) / lrs.length;
+    } else {
+      // fallback if no panels provided
+      costPerSqft = this.unitCostPerSqft[brand]?.[system]?.Fixed || 0;
+      laborRate = this.laborRates.Fixed;
+    }
 
     const costPerWindow = costPerSqft * areaFt2;
     const laborCost = laborRate * areaFt2;
     const totalCost = (costPerWindow + laborCost) * quantity;
 
     this.windows.push({
-      brand,
-      system,
-      type,
-      widthIn,
-      heightIn,
-      quantity,
-      areaFt2,
-      costPerWindow,
-      laborCost,
-      totalCost,
-      panelTypes: panelTypes || {}
+      Brand: brand,
+      System: system,
+      Typology: typology,
+      Dimensions: `${widthIn}x${heightIn}`,
+      Quantity: quantity,
+      AreaFt2: areaFt2.toFixed(2),
+      CostPerWindow: costPerWindow.toFixed(2),
+      LaborCost: laborCost.toFixed(2),
+      TotalCost: (costPerWindow * quantity).toFixed(2),
+      GrandTotal: totalCost.toFixed(2),
+      PanelTypes: panelTypes || {}
     });
   }
 
-  updateWindow(index, update) {
+  updateWindow(index, payload) {
     if (!this.windows[index]) throw new Error("Window not found");
     this.windows.splice(index, 1);
-    this.addWindow(update);
+    this.addWindow(payload);
   }
 
   deleteWindow(index) {
@@ -67,47 +81,29 @@ class WindowOrder {
   }
 
   getItemizedBreakdown(margin = 0) {
-    const marginFactor = 1 + margin / 100;
-    return this.windows.map((win, i) => {
-      const total = (win.costPerWindow + win.laborCost) * win.quantity;
-      const totalWithMargin = total * marginFactor;
+    const factor = 1 + margin / 100;
+    return this.windows.map((w, i) => {
+      const grand = parseFloat(w.GrandTotal);
       return {
-        Index: i,
-        Brand: win.brand,
-        System: win.system,
-        Type: win.type,
-        Dimensions: `${win.widthIn}x${win.heightIn}`,
-        Quantity: win.quantity,
-        AreaFt2: win.areaFt2.toFixed(2),
-        CostPerWindow: win.costPerWindow.toFixed(2),
-        LaborCost: (win.laborCost * win.quantity).toFixed(2),
-        TotalCost: (win.costPerWindow * win.quantity).toFixed(2),
-        GrandTotal: total.toFixed(2),
-        TotalWithMargin: totalWithMargin.toFixed(2),
-        PanelTypes: win.panelTypes || {}
+        ...w,
+        TotalWithMargin: (grand * factor).toFixed(2),
+        PanelTypes: w.PanelTypes || {}
       };
     });
   }
 
-  getTotalCost() {
-    return this.windows.reduce((sum, w) => sum + w.costPerWindow * w.quantity, 0).toFixed(2);
-  }
-
-  getTotalLaborCost() {
-    return this.windows.reduce((sum, w) => sum + w.laborCost * w.quantity, 0).toFixed(2);
-  }
-
-  getTotalArea() {
-    return this.windows.reduce((sum, w) => sum + w.areaFt2 * w.quantity, 0).toFixed(2);
-  }
-
-  getAverageCostPerSqft() {
-    const total = parseFloat(this.getTotalCost()) + parseFloat(this.getTotalLaborCost());
-    return (total / parseFloat(this.getTotalArea())).toFixed(2);
-  }
-
-  getGrandTotal() {
-    return (parseFloat(this.getTotalCost()) + parseFloat(this.getTotalLaborCost())).toFixed(2);
+  getTotals(margin = 0) {
+    const items = this.getItemizedBreakdown(margin);
+    const totalCost = items.reduce((sum, w) => sum + parseFloat(w.TotalCost), 0);
+    const totalWithMargin = items.reduce((sum, w) => sum + parseFloat(w.TotalWithMargin), 0);
+    const totalArea = this.windows.reduce((sum, w) => sum + parseFloat(w.AreaFt2) * w.Quantity, 0);
+    return {
+      totalCost: totalCost.toFixed(2),
+      laborTotal: items.reduce((s, w) => s + parseFloat(w.LaborCost), 0).toFixed(2),
+      totalArea: totalArea.toFixed(2),
+      averageCostPerSqft: (totalWithMargin / totalArea).toFixed(2),
+      grandTotal: totalWithMargin.toFixed(2)
+    };
   }
 }
 
@@ -116,44 +112,37 @@ const order = new WindowOrder();
 app.post("/add-window", (req, res) => {
   try {
     order.addWindow(req.body);
-    res.status(200).json({ message: "Window added successfully." });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.sendStatus(200);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 });
 
-app.put("/update-window/:index", (req, res) => {
+app.put("/update-window/:idx", (req, res) => {
   try {
-    order.updateWindow(parseInt(req.params.index), req.body);
-    res.status(200).json({ message: "Window updated successfully." });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+    order.updateWindow(+req.params.idx, req.body);
+    res.sendStatus(200);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 });
 
-app.delete("/delete-window/:index", (req, res) => {
+app.delete("/delete-window/:idx", (req, res) => {
   try {
-    order.deleteWindow(parseInt(req.params.index));
-    res.status(200).json({ message: "Window deleted successfully." });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+    order.deleteWindow(+req.params.idx);
+    res.sendStatus(200);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 });
 
 app.get("/summary", (req, res) => {
-  const margin = parseFloat(req.query.margin || 0);
-  const itemized = order.getItemizedBreakdown(margin);
-  const totalWithMargin = itemized.reduce((sum, item) => sum + parseFloat(item.TotalWithMargin), 0);
-  const totalArea = parseFloat(order.getTotalArea());
-
-  res.json({
-    itemized: order.getItemizedBreakdown(margin),
-    totalCost: order.getTotalCost(),
-    laborTotal: order.getTotalLaborCost(),
-    totalArea: order.getTotalArea(),
-    averageCostPerSqft: (totalWithMargin / totalArea).toFixed(2),
-    grandTotal: totalWithMargin.toFixed(2)
-  });
+  const m = parseFloat(req.query.margin) || 0;
+  const itemized = order.getItemizedBreakdown(m);
+  const totals = order.getTotals(m);
+  res.json({ itemized, ...totals });
 });
 
-app.listen(3033, () => console.log("Window pricing API running on port 3033"));
+app.listen(3033, () =>
+  console.log("Window pricing API running on port 3033")
+);
