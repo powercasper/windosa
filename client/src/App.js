@@ -1,7 +1,12 @@
-import React, { useState } from "react";
+// src/App.js
+import React, { useState, useEffect } from "react";
 import axios from "axios";
-
-import { useEffect } from "react";
+import {
+  useSystemSelection,
+  systemHierarchy,
+  systemArchitecture,
+  finishOptions
+} from "./systemHierarchy";
 
 function ralToHex(ral, ralColors) {
   const match = ralColors.find(c => c.ral === ral.toUpperCase());
@@ -9,150 +14,416 @@ function ralToHex(ral, ralColors) {
 }
 
 export default function App() {
-  const [form, setForm] = useState({ type: "Fixed", widthIn: 36, heightIn: 72, quantity: 1 });
+  // --- selection hooks ---
+  const {
+    systemType,
+    setSystemType,
+    brand,
+    setBrand,
+    system,
+    setSystem,
+    typology,
+    setTypology,
+    systemTypesList,
+    validBrands
+  } = useSystemSelection();
+
+  // derive the list of architectural systems for the current brand & type
+  const validSystems = systemArchitecture[brand]?.[systemType] || [];
+
+  // --- form state ---
+  const [form, setForm] = useState({
+    type: "Fixed",
+    widthIn: 36,
+    heightIn: 72,
+    quantity: 1
+  });
   const [globalColor, setGlobalColor] = useState("RAL 9010");
+  const [finish, setFinish] = useState("Powder Coated");
+  const [finishStyle, setFinishStyle] = useState("Standard");
+  const [marginPercent, setMarginPercent] = useState(0);
+
+  // --- data state ---
   const [summary, setSummary] = useState(null);
   const [itemColors, setItemColors] = useState({});
   const [ralColors, setRalColors] = useState([]);
   const [updateIndex, setUpdateIndex] = useState(null);
-  const [marginPercent, setMarginPercent] = useState(0);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
+  // on mount: select first type
   useEffect(() => {
-    const fetchRAL = async () => {
-      try {
-        const res = await fetch("https://raw.githubusercontent.com/martinring/ral-colors/main/ral-colors.json");
-        const data = await res.json();
-        setRalColors(data);
-      } catch (err) {
-        console.error("Failed to load RAL colors", err);
-      }
-    };
-    fetchRAL();
+    if (systemTypesList.length) {
+      setSystemType(systemTypesList[0]);
+    }
+  }, [systemTypesList, setSystemType]);
+
+  // when systemType changes: pick first valid brand
+  useEffect(() => {
+    if (validBrands.length) {
+      setBrand(validBrands[0]);
+    }
+  }, [systemType, validBrands, setBrand]);
+
+  // when brand or type changes: pick first valid architectural system
+  useEffect(() => {
+    if (validSystems.length) {
+      setSystem(validSystems[0]);
+    } else {
+      setSystem("");
+    }
+  }, [brand, systemType, validSystems, setSystem]);
+
+  // load RAL color list
+  useEffect(() => {
+    fetch(
+      "https://raw.githubusercontent.com/martinring/ral-colors/main/ral-colors.json"
+    )
+      .then(res => res.json())
+      .then(setRalColors)
+      .catch(console.error);
   }, []);
 
+  // fetch summary from server
   const fetchSummary = async () => {
-    const res = await axios.get("http://localhost:3033/summary", { params: { margin: marginPercent } });
+    const res = await axios.get("http://localhost:3033/summary", {
+      params: { margin: parseFloat(marginPercent) || 0 }
+    });
     setSummary(res.data);
   };
 
+  // add or update window
   const handleSubmit = async () => {
+    // gather any panelType_* entries
+    const panelTypes = Object.fromEntries(
+      Object.entries(form).filter(([k]) => k.startsWith("panelType_"))
+    );
+    // override type with panelType_0 if present
+    const actualType = panelTypes["panelType_0"] || form.type;
+
+    const payload = {
+      brand,
+      system,
+      type: actualType,
+      widthIn: parseFloat(form.widthIn),
+      heightIn: parseFloat(form.heightIn),
+      quantity: parseInt(form.quantity, 10),
+      panelTypes
+    };
+
     if (updateIndex !== null) {
-      await axios.put(`http://localhost:3033/update-window/${updateIndex}`, {
-        type: form.type,
-        widthIn: parseFloat(form.widthIn),
-        heightIn: parseFloat(form.heightIn),
-        quantity: parseInt(form.quantity)
-      });
+      await axios.put(
+        `http://localhost:3033/update-window/${updateIndex}`,
+        payload
+      );
       setUpdateIndex(null);
     } else {
-      await axios.post("http://localhost:3033/add-window", {
-        type: form.type,
-        widthIn: parseFloat(form.widthIn),
-        heightIn: parseFloat(form.heightIn),
-        quantity: parseInt(form.quantity)
-      });
+      await axios.post("http://localhost:3033/add-window", payload);
     }
     fetchSummary();
   };
 
-  const handleDelete = async (index) => {
-    await axios.delete(`http://localhost:3033/delete-window/${index}`);
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleDelete = async idx => {
+    await axios.delete(`http://localhost:3033/delete-window/${idx}`);
     fetchSummary();
   };
 
-  const handleEdit = (index) => {
-    const win = summary.itemized[index];
+  const handleEdit = idx => {
+    const win = summary.itemized[idx];
     const [w, h] = win.Dimensions.split("x").map(Number);
-    setForm({ type: win.Type, widthIn: w, heightIn: h, quantity: win.Quantity });
-    setUpdateIndex(index);
+    setForm({
+      type: win.Type,
+      widthIn: w,
+      heightIn: h,
+      quantity: win.Quantity
+    });
+    setUpdateIndex(idx);
   };
 
-  return (<>
-      <h1 className="text-xl font-bold mb-4">Window Pricing Tool</h1>
-      <div>
-        <label className="font-medium">System Brand:</label>
-        <select name="brand" onChange={handleChange} className="border p-2">
-          <option value="Alumil">Alumil</option>
-          <option value="Reynaers">Reynaers</option>
-        </select>
+  return (
+    <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold">Window Pricing Tool</h1>
 
-        <label className="font-medium">System:</label>
-        <select name="system" onChange={handleChange} className="border p-2">
-          <option value="S67">S67</option>
-          <option value="S77">S77</option>
-          <option value="S67 PHOS">S67 PHOS</option>
-          <option value="S77 PHOS">S77 PHOS</option>
-        </select>
+      {/* System selection */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* System Type */}
+        <div>
+          <label className="font-medium">System Type:</label>
+          <select
+            value={systemType}
+            onChange={e => setSystemType(e.target.value)}
+            className="border p-2 w-full"
+          >
+            {systemTypesList.map(t => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <label className="font-medium">Window Typology:</label>
-        <select name="type" value={form.type} onChange={handleChange} className="border p-2">
-          <option value="Fixed">Fixed</option>
-          <option value="Tilt & Turn">Tilt & Turn</option>
-          <option value="Casement">Casement</option>
-          <option value="Top Hung Awning">Top Hung Awning</option>
-          <option value="Bottom Hung Tilt">Bottom Hung Tilt</option>
-        </select>
-        <input name="widthIn" value={form.widthIn} onChange={handleChange} className="border p-2" placeholder="Width (in)" />
-        <input name="heightIn" value={form.heightIn} onChange={handleChange} className="border p-2" placeholder="Height (in)" />
-        <input name="quantity" value={form.quantity} onChange={handleChange} className="border p-2" placeholder="Quantity" />
-        <button onClick={handleSubmit} className="bg-blue-600 text-white p-2">
-          {updateIndex !== null ? "Update Window" : "Add Window"}
-        </button>
+        {/* Brand */}
+        <div>
+          <label className="font-medium">System Brand:</label>
+          <select
+            value={brand}
+            onChange={e => setBrand(e.target.value)}
+            className="border p-2 w-full"
+          >
+            {validBrands.map(b => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Architectural System */}
+        <div>
+          <label className="font-medium">Architectural System:</label>
+          <select
+            value={system}
+            onChange={e => setSystem(e.target.value)}
+            className="border p-2 w-full"
+          >
+            {validSystems.map(s => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Typology */}
+        <div>
+          <label className="font-medium">
+            Typology (X = operable, O = fixed, max 5):
+          </label>
+          <input
+            value={typology}
+            onChange={e =>
+              setTypology(
+                e.target.value.replace(/[^XO]/gi, "").slice(0, 5)
+              )
+            }
+            className="border p-2 w-full"
+            placeholder="e.g., XOXO"
+          />
+        </div>
+
+        {/* Finish Category */}
+        <div>
+          <label className="font-medium">Finish Category:</label>
+          <select
+            value={finish}
+            onChange={e => setFinish(e.target.value)}
+            className="border p-2 w-full"
+          >
+            {Object.keys(finishOptions).map(opt => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Finish Style */}
+        <div>
+          <label className="font-medium">Finish Style:</label>
+          <select
+            value={finishStyle}
+            onChange={e => setFinishStyle(e.target.value)}
+            className="border p-2 w-full"
+          >
+            {finishOptions[finish].map(opt => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Global RAL */}
+        <div>
+          <label className="font-medium">Global RAL Color:</label>
+          <input
+            type="text"
+            value={globalColor}
+            onChange={e => setGlobalColor(e.target.value)}
+            className="border p-2 w-full"
+            placeholder="RAL 9010"
+          />
+        </div>
+
+        {/* Width */}
+        <div>
+          <label className="font-medium">Width (in):</label>
+          <input
+            name="widthIn"
+            value={form.widthIn}
+            onChange={handleChange}
+            className="border p-2 w-full"
+          />
+        </div>
+
+        {/* Height */}
+        <div>
+          <label className="font-medium">Height (in):</label>
+          <input
+            name="heightIn"
+            value={form.heightIn}
+            onChange={handleChange}
+            className="border p-2 w-full"
+          />
+        </div>
+
+        {/* Quantity */}
+        <div>
+          <label className="font-medium">Quantity:</label>
+          <input
+            name="quantity"
+            value={form.quantity}
+            onChange={handleChange}
+            className="border p-2 w-full"
+          />
+        </div>
       </div>
-        <div className="mt-4">
-        <label className="block mb-1 font-medium">Margin % on Grand Total:</label>
+
+      {/* Panel Types (for each 'X' in typology) */}
+      {typology.split("").map((c, i) =>
+        c === "X" ? (
+          <div key={i} className="flex items-center gap-2">
+            <label className="font-medium">Panel {i + 1} Type:</label>
+            <select
+              className="border p-2"
+              onChange={e =>
+                setForm(prev => ({
+                  ...prev,
+                  [`panelType_${i}`]: e.target.value
+                }))
+              }
+            >
+              <option value="Casement">Casement</option>
+              <option value="Tilt & Turn">Tilt & Turn</option>
+              <option value="Awning">Awning</option>
+            </select>
+          </div>
+        ) : null
+      )}
+
+      {/* Add / Update button */}
+      <button
+        onClick={handleSubmit}
+        className="bg-blue-600 text-white p-2 rounded w-full"
+      >
+        {updateIndex !== null ? "Update Window" : "Add Window"}
+      </button>
+
+      {/* Margin */}
+      <div className="mt-4">
+        <label className="block mb-1 font-medium">
+          Margin % on Grand Total:
+        </label>
         <input
           type="number"
           value={marginPercent}
-          onChange={(e) => setMarginPercent(e.target.value)}
+          onChange={e => setMarginPercent(parseFloat(e.target.value) || 0)}
           className="border p-2 w-full mb-2"
           placeholder="Enter margin percent"
         />
-        <button onClick={fetchSummary} className="bg-green-600 text-white p-2 w-full">Apply Margin</button>
+        <button
+          onClick={fetchSummary}
+          className="bg-green-600 text-white p-2 w-full"
+        >
+          Apply Margin
+        </button>
       </div>
 
+      {/* Panel Configuration Summary */}
+      <div>
+        <h3 className="font-semibold text-lg mt-6">
+          Panel Configuration:
+        </h3>
+        <ul className="list-disc pl-6">
+          {Object.entries(form)
+            .filter(([k]) => k.startsWith("panelType_"))
+            .map(([k, v]) => (
+              <li key={k}>
+                Panel {parseInt(k.split("_")[1], 10) + 1}: {v}
+              </li>
+            ))}
+        </ul>
+      </div>
+
+      {/* Order Summary */}
+      <h2 className="text-lg font-semibold">Order Summary</h2>
       {summary && (
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-2">Order Summary</h2>
+        <>
           <ul className="list-disc pl-6">
-            {summary.itemized.map((item, i) => {
-              const sellingPricePerSqft = (parseFloat(item.TotalWithMargin) / parseFloat(item.AreaFt2)).toFixed(2);
-              const itemColor = itemColors[i] || globalColor;
-              const colorHex = ralToHex(itemColor, ralColors);
+            {summary.itemized.map((item, idx) => {
+              const perFt2 = (
+                parseFloat(item.TotalWithMargin) / parseFloat(item.AreaFt2)
+              ).toFixed(2);
+              const hex = ralToHex(itemColors[idx] || globalColor, ralColors);
               return (
-                <li key={i} className="mb-1 flex items-center">
-                  <div
-                    className="w-[50px] h-[50px] min-w-[50px] min-h-[50px] md:w-20 md:h-20 rounded shadow border mr-3 flex-shrink-0"
-                    style={{ backgroundColor: colorHex }}
-                  ></div>
-                  <input
-                    type="text"
-                    value={itemColors[i] || globalColor}
-                    onChange={(e) => setItemColors({ ...itemColors, [i]: e.target.value })}
-                    className="ml-2 border p-1 w-28"
-                    placeholder="RAL code"
-                  />
-                  {item.Quantity} x {item.Type} {item.Dimensions} → ${item.TotalCost} + ${item.LaborCost} labor = ${item.GrandTotal} → with margin = ${item.TotalWithMargin} → per ft² = ${sellingPricePerSqft}
-                  <button onClick={() => handleEdit(i)} className="ml-2 text-blue-600 underline">Edit</button>
-                  <button onClick={() => handleDelete(i)} className="ml-2 text-red-600 underline">Delete</button>
+                <li
+                  key={idx}
+                  className="mb-2 flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    <div
+                      className="w-[50px] h-[50px] rounded border mr-3"
+                      style={{ backgroundColor: hex }}
+                    />
+                    <div>
+                      {item.Quantity}×{item.Type} {item.Dimensions} → $
+                      {item.TotalCost} + ${item.LaborCost} = $
+                      {item.GrandTotal} → margin = ${item.TotalWithMargin} → $
+                      {perFt2}/ft²
+                    </div>
+                  </div>
+                  <div className="space-x-2">
+                    <button
+                      onClick={() => handleEdit(idx)}
+                      className="text-blue-600 underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(idx)}
+                      className="text-red-600 underline"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </li>
               );
             })}
           </ul>
-          <p className="mt-2">Total Area: {summary.totalArea} ft²</p>
-          <p>Material Total Cost: ${summary.totalCost}</p>
-          <p>Labor Cost: ${summary.laborTotal}</p>
-          <p>Grand Total: ${summary.grandTotal}</p>
-          
-          <p>Selling Price Total with Margin: ${(summary.grandTotal / (1 - marginPercent / 100)).toFixed(2)}</p>
-          <p>Avg. Cost per ft²: ${summary.averageCostPerSqft}</p>
-          <p>Selling Price Total with Margin: ${(summary.grandTotal / (1 - marginPercent / 100)).toFixed(2)}</p>
-          <p>Selling Price per ft² with Margin: ${((summary.grandTotal / summary.totalArea) / (1 - marginPercent / 100)).toFixed(2)}</p>
-        </div>
+          {/* Totals */}
+          <div className="mt-4 space-y-1">
+            <p>
+              <strong>Total Area:</strong> {summary.totalArea} ft²
+            </p>
+            <p>
+              <strong>Material Cost:</strong> ${summary.totalCost}
+            </p>
+            <p>
+              <strong>Labor Cost:</strong> ${summary.laborTotal}
+            </p>
+            <p>
+              <strong>Grand Total (with margin):</strong> $
+              {summary.grandTotal}
+            </p>
+            <p>
+              <strong>Avg. Cost per ft²:</strong> $
+              {summary.averageCostPerSqft}
+            </p>
+          </div>
+        </>
       )}
-    </>)
+    </div>
+  );
 }
