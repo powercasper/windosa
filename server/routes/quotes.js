@@ -75,16 +75,33 @@ const calculatePricing = (configuration) => {
 // Generate a quote
 router.post('/quotes/generate', async (req, res) => {
   try {
-    const configuration = req.body;
+    const { items, totalAmount } = req.body;
     
-    // Validate required fields
-    if (!configuration.brand || !configuration.systemType || !configuration.systemModel || 
-        !configuration.dimensions || !configuration.glassType) {
-      return res.status(400).json({ error: 'Missing required configuration fields' });
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'At least one item is required' });
     }
 
-    // Calculate pricing
-    const pricing = calculatePricing(configuration);
+    // Validate all items
+    for (const item of items) {
+      if (!item.brand || !item.systemType || !item.systemModel || 
+          !item.dimensions || !item.glassType) {
+        return res.status(400).json({ error: 'Missing required configuration fields in one or more items' });
+      }
+    }
+
+    // Calculate pricing for each item
+    const itemsWithPricing = items.map(item => ({
+      configuration: item,
+      pricing: calculatePricing(item)
+    }));
+
+    // Calculate totals
+    const totals = itemsWithPricing.reduce((acc, { pricing }) => ({
+      systemCost: acc.systemCost + pricing.systemCost,
+      glassCost: acc.glassCost + pricing.glassCost,
+      laborCost: acc.laborCost + pricing.laborCost,
+      total: acc.total + pricing.total
+    }), { systemCost: 0, glassCost: 0, laborCost: 0, total: 0 });
 
     // Generate quote number
     const quoteNumber = `Q${Date.now()}`;
@@ -93,8 +110,8 @@ router.post('/quotes/generate', async (req, res) => {
     const quote = {
       quoteNumber,
       date: new Date(),
-      configuration,
-      pricing,
+      items: itemsWithPricing,
+      totals,
       status: 'pending'
     };
 

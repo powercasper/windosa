@@ -31,39 +31,53 @@ function generateQuotePDF(quote) {
          .text(`Date: ${new Date(quote.date).toLocaleDateString()}`)
          .moveDown();
 
-      // Configuration Details
+      // Items
       doc.fontSize(14)
-         .text('Configuration Details', { underline: true })
+         .text('Items', { underline: true })
+         .moveDown();
+
+      quote.items.forEach((item, index) => {
+        doc.fontSize(12)
+           .text(`Item ${index + 1}`, { underline: true })
+           .moveDown();
+
+        // Configuration Details
+        doc.text(`Brand: ${item.configuration.brand}`)
+           .text(`System Type: ${item.configuration.systemType}`)
+           .text(`Model: ${item.configuration.systemModel}`);
+
+        if (item.configuration.operationType) {
+          doc.text(`Operation Type: ${item.configuration.operationType}`);
+        }
+
+        doc.text(`Dimensions: ${item.configuration.dimensions.width}" × ${item.configuration.dimensions.height}"`)
+           .text(`Glass Type: ${item.configuration.glassType}`)
+           .text(`Finish: ${item.configuration.finish.type} - ${item.configuration.finish.color}`)
+           .moveDown();
+
+        // Item Cost Breakdown
+        doc.text('Cost Breakdown:')
+           .text(`  System Cost: ${formatCurrency(item.pricing.systemCost)}`)
+           .text(`  Glass Package: ${formatCurrency(item.pricing.glassCost)}`)
+           .text(`  Labor: ${formatCurrency(item.pricing.laborCost)}`)
+           .text(`  Item Total: ${formatCurrency(item.pricing.total)}`)
+           .moveDown();
+      });
+
+      // Total Cost Breakdown
+      doc.fontSize(14)
+         .text('Total Cost Breakdown', { underline: true })
          .moveDown();
 
       doc.fontSize(12)
-         .text(`Brand: ${quote.configuration.brand}`)
-         .text(`System Type: ${quote.configuration.systemType}`)
-         .text(`Model: ${quote.configuration.systemModel}`);
-
-      if (quote.configuration.operationType) {
-        doc.text(`Operation Type: ${quote.configuration.operationType}`);
-      }
-
-      doc.text(`Dimensions: ${quote.configuration.dimensions.width}" × ${quote.configuration.dimensions.height}"`)
-         .text(`Glass Type: ${quote.configuration.glassType}`)
-         .text(`Finish: ${quote.configuration.finish.type} - ${quote.configuration.finish.color}`)
+         .text(`Total System Cost: ${formatCurrency(quote.totals.systemCost)}`)
+         .text(`Total Glass Package: ${formatCurrency(quote.totals.glassCost)}`)
+         .text(`Total Labor: ${formatCurrency(quote.totals.laborCost)}`)
          .moveDown();
 
-      // Cost Breakdown
-      doc.fontSize(14)
-         .text('Cost Breakdown', { underline: true })
-         .moveDown();
-
-      doc.fontSize(12)
-         .text(`System Cost: ${formatCurrency(quote.pricing.systemCost)}`)
-         .text(`Glass Package: ${formatCurrency(quote.pricing.glassCost)}`)
-         .text(`Labor: ${formatCurrency(quote.pricing.laborCost)}`)
-         .moveDown();
-
-      // Total
+      // Grand Total
       doc.fontSize(16)
-         .text(`Total Price: ${formatCurrency(quote.pricing.total)}`, { underline: true })
+         .text(`Grand Total: ${formatCurrency(quote.totals.total)}`, { underline: true })
          .moveDown();
 
       // Terms and Conditions
