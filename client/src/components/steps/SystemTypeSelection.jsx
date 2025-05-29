@@ -39,13 +39,21 @@ const SystemTypeSelection = ({ configuration, onUpdate }) => {
       <Grid container spacing={3}>
         {systemTypes.map((type) => {
           const Icon = type.icon;
+          const isSelected = configuration.systemType === type.name;
           return (
             <Grid item xs={12} sm={6} md={4} key={type.name}>
               <Card 
                 sx={{
                   opacity: configuration.brand ? 1 : 0.5,
-                  transition: 'all 0.3s'
+                  transition: 'all 0.3s ease-in-out',
+                  transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+                  bgcolor: isSelected ? 'primary.light' : 'background.paper',
+                  '&:hover': {
+                    transform: 'scale(1.02)',
+                    bgcolor: isSelected ? 'primary.light' : 'grey.100',
+                  }
                 }}
+                elevation={isSelected ? 6 : 1}
               >
                 <CardActionArea 
                   onClick={() => handleSystemTypeSelect(type.name)}
@@ -58,8 +66,21 @@ const SystemTypeSelection = ({ configuration, onUpdate }) => {
                       alignItems="center"
                       p={2}
                     >
-                      <Icon sx={{ fontSize: 60, mb: 2 }} />
-                      <Typography variant="h6" align="center">
+                      <Icon 
+                        sx={{ 
+                          fontSize: 60, 
+                          mb: 2,
+                          color: isSelected ? 'primary.contrastText' : 'inherit'
+                        }} 
+                      />
+                      <Typography 
+                        variant="h6" 
+                        align="center"
+                        sx={{
+                          color: isSelected ? 'primary.contrastText' : 'inherit',
+                          fontWeight: isSelected ? 600 : 400
+                        }}
+                      >
                         {type.name}
                       </Typography>
                     </Box>

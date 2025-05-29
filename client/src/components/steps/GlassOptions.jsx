@@ -56,37 +56,75 @@ const GlassOptions = ({ configuration, onUpdate }) => {
         Select Glass Package
       </Typography>
       <Grid container spacing={3}>
-        {glassOptions.map((glass) => (
-          <Grid item xs={12} sm={6} key={glass.type}>
-            <Card>
-              <CardActionArea onClick={() => handleGlassSelect(glass.type)}>
-                <CardContent>
-                  <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Typography variant="h6">
-                      {glass.type}
+        {glassOptions.map((glass) => {
+          const isSelected = configuration.glassType === glass.type;
+          return (
+            <Grid item xs={12} sm={6} key={glass.type}>
+              <Card
+                sx={{
+                  transition: 'all 0.3s ease-in-out',
+                  transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+                  bgcolor: isSelected ? 'primary.light' : 'background.paper',
+                  '&:hover': {
+                    transform: 'scale(1.02)',
+                    bgcolor: isSelected ? 'primary.light' : 'grey.100',
+                  }
+                }}
+                elevation={isSelected ? 6 : 1}
+              >
+                <CardActionArea onClick={() => handleGlassSelect(glass.type)}>
+                  <CardContent>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Typography 
+                        variant="h6"
+                        sx={{
+                          color: isSelected ? 'primary.contrastText' : 'inherit',
+                          fontWeight: isSelected ? 600 : 400
+                        }}
+                      >
+                        {glass.type}
+                      </Typography>
+                      <Radio
+                        checked={isSelected}
+                        value={glass.type}
+                        name="glass-selection"
+                        sx={{
+                          color: isSelected ? 'primary.contrastText' : 'inherit',
+                          '&.Mui-checked': {
+                            color: isSelected ? 'primary.contrastText' : 'primary.main'
+                          }
+                        }}
+                      />
+                    </Box>
+                    <Typography 
+                      color={isSelected ? 'primary.contrastText' : 'textSecondary'} 
+                      gutterBottom
+                    >
+                      {glass.description}
                     </Typography>
-                    <Radio
-                      checked={configuration.glassType === glass.type}
-                      value={glass.type}
-                      name="glass-selection"
-                    />
-                  </Box>
-                  <Typography color="textSecondary" gutterBottom>
-                    {glass.description}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Specifications: {glass.specs}
-                  </Typography>
-                  <Box mt={2}>
-                    <Typography variant="subtitle1" color="primary">
-                      ${glass.price.toFixed(2)} per sq ft
+                    <Typography 
+                      variant="body2" 
+                      color={isSelected ? 'primary.contrastText' : 'textSecondary'}
+                    >
+                      Specifications: {glass.specs}
                     </Typography>
-                  </Box>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          </Grid>
-        ))}
+                    <Box mt={2}>
+                      <Typography 
+                        variant="subtitle1" 
+                        sx={{
+                          color: isSelected ? 'primary.contrastText' : 'primary.main',
+                          fontWeight: isSelected ? 600 : 500
+                        }}
+                      >
+                        ${glass.price.toFixed(2)} per sq ft
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
       {configuration.glassType && (

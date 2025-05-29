@@ -7,6 +7,7 @@ import {
   Typography,
   Box,
   Paper,
+  StepButton,
 } from '@mui/material';
 import BrandSelection from './steps/BrandSelection';
 import SystemTypeSelection from './steps/SystemTypeSelection';
@@ -42,8 +43,24 @@ const ConfigurationStepper = ({ metadata }) => {
     setActiveStep((prevStep) => prevStep - 1);
   };
 
+  const handleStepClick = (step) => {
+    // Only allow clicking on completed steps or the next available step
+    if (step <= getLastCompletedStep() + 1) {
+      setActiveStep(step);
+    }
+  };
+
   const handleConfigurationUpdate = (update) => {
     setConfiguration((prev) => ({ ...prev, ...update }));
+  };
+
+  // Helper function to determine the last completed step
+  const getLastCompletedStep = () => {
+    if (!configuration.brand) return -1;
+    if (!configuration.systemType) return 0;
+    if (!configuration.systemModel || !configuration.dimensions.width || !configuration.dimensions.height) return 1;
+    if (!configuration.glassType) return 2;
+    return 3;
   };
 
   const getStepContent = (step) => {
@@ -96,41 +113,54 @@ const ConfigurationStepper = ({ metadata }) => {
   };
 
   return (
-    <Paper elevation={3} sx={{ p: 4, m: 2 }}>
+    <Box sx={{ width: '100%' }}>
       <Stepper activeStep={activeStep} alternativeLabel>
-        {steps.map((label) => (
-          <Step key={label}>
-            <StepLabel>{label}</StepLabel>
-          </Step>
-        ))}
+        {steps.map((label, index) => {
+          const stepProps = {};
+          const labelProps = {};
+          const completed = index <= getLastCompletedStep();
+          
+          return (
+            <Step key={label} {...stepProps} completed={completed}>
+              <StepButton 
+                onClick={() => handleStepClick(index)}
+                disabled={index > getLastCompletedStep() + 1}
+                optional={
+                  index === activeStep ? (
+                    <Typography variant="caption" color="primary">
+                      {index < steps.length - 1 ? 'Current step' : ''}
+                    </Typography>
+                  ) : null
+                }
+              >
+                {label}
+              </StepButton>
+            </Step>
+          );
+        })}
       </Stepper>
       <Box sx={{ mt: 4, mb: 2 }}>
-        {activeStep === steps.length ? (
-          <Typography variant="h6" align="center">
-            Configuration complete! You can now generate the quote.
-          </Typography>
-        ) : (
-          <>
-            {getStepContent(activeStep)}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-              <Button
-                disabled={activeStep === 0}
-                onClick={handleBack}
-              >
-                Back
-              </Button>
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                disabled={!isStepValid(activeStep)}
-              >
-                {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
-              </Button>
-            </Box>
-          </>
-        )}
+        {getStepContent(activeStep)}
       </Box>
-    </Paper>
+      <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
+        <Button
+          color="inherit"
+          disabled={activeStep === 0}
+          onClick={handleBack}
+          sx={{ mr: 1 }}
+        >
+          Back
+        </Button>
+        <Box sx={{ flex: '1 1 auto' }} />
+        <Button
+          onClick={handleNext}
+          disabled={!isStepValid(activeStep)}
+          sx={{ mr: 1 }}
+        >
+          {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
+        </Button>
+      </Box>
+    </Box>
   );
 };
 
