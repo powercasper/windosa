@@ -2,10 +2,7 @@
 
 const systemBrands = [
   "Alumil",
-  "Aluprof",
-  "Cortizo",
-  "Reynaers",
-  "Schuco"
+  "Reynaers"
 ];
 
 const systemHierarchy = {
@@ -24,33 +21,12 @@ const systemArchitecture = {
     "Folding Doors":   ["SMARTIA M19800","SUPREME SF85"],
     "Curtain Wall Systems":["SMARTIA M6","SUPREME S86 PHOS"]
   },
-  Aluprof: {
-    Windows:           ["MB-60","MB-70","MB-86","MB-104 Passive"],
-    "Entrance Doors":  ["MB-70 Doors","MB-86 Doors","MB-104 Doors"],
-    "Sliding Doors":   ["MB-Slide"],
-    "Folding Doors":   ["MB-86 Fold Line"],
-    "Curtain Wall Systems":["MB-SR50N","MB-TT50","MB-SR60"]
-  },
-  Cortizo: {
-    Windows:           ["COR 60","COR 70 Industrial","COR 80 Hidden Sash"],
-    "Entrance Doors":  ["Millennium 2000","Millennium 70"],
-    "Sliding Doors":   ["COR Vision"],
-    "Folding Doors":   ["BiFold Plus"],
-    "Curtain Wall Systems":["TP52","ST52","CW CT70"]
-  },
   Reynaers: {
     Windows:           ["SlimLine 38 Classic","SlimLine 38 Cube","SlimLine 38 Ferro","SlimLine 68"],
     "Entrance Doors":  ["SlimLine 38", "SlimLine 68", "MasterLine 8","CS 77"],
     "Sliding Doors":   ["Hi-Finity"],
     "Folding Doors":   ["CF 77","CF 68"],
     "Curtain Wall Systems":["CW 50","Element Façade"]
-  },
-  Schuco: {
-    Windows:           ["AWS 65","AWS 75.SI+","AWS 90.SI+"],
-    "Entrance Doors":  ["ADS 65","ADS 75.SI+"],
-    "Sliding Doors":   ["ASS 70.HI"],
-    "Folding Doors":   ["ASS 70 FD","ASS 80 FD.HI"],
-    "Curtain Wall Systems":["FW 50+","FW 60+"]
   }
 };
 
