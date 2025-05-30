@@ -9,12 +9,13 @@ import {
   InputLabel,
   Select,
   Paper,
+  Button
 } from '@mui/material';
 
 // Import the system architecture data
 import { systemArchitecture, windowOperables, doorOperables, finishOptions } from '../../utils/metadata';
 
-const SystemConfigurationForm = ({ configuration, onUpdate }) => {
+const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   const [availableModels, setAvailableModels] = useState([]);
   const [availableOperables, setAvailableOperables] = useState([]);
 
@@ -56,6 +57,16 @@ const SystemConfigurationForm = ({ configuration, onUpdate }) => {
         [finishField]: event.target.value
       }
     });
+  };
+
+  const isFormValid = () => {
+    const hasValidDimensions = configuration.dimensions.width > 0 && configuration.dimensions.height > 0;
+    const hasValidFinish = configuration.finish.type && configuration.finish.color;
+    const hasValidModel = !!configuration.systemModel;
+    const needsOperationType = configuration.systemType === 'Windows' || configuration.systemType === 'Entrance Doors';
+    const hasValidOperationType = !needsOperationType || !!configuration.operationType;
+
+    return hasValidDimensions && hasValidFinish && hasValidModel && hasValidOperationType;
   };
 
   if (!configuration.brand || !configuration.systemType) {
@@ -164,6 +175,17 @@ const SystemConfigurationForm = ({ configuration, onUpdate }) => {
                 ))}
               </Select>
             </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={onNext}
+              disabled={!isFormValid()}
+            >
+              Next
+            </Button>
           </Grid>
         </Grid>
       </Paper>

@@ -4,7 +4,6 @@ import {
   Typography,
   Box,
   Divider,
-  Grid,
   Button,
   Dialog,
   DialogTitle,
@@ -16,6 +15,8 @@ import {
   ListItem,
   ListItemText,
   IconButton,
+  Stack,
+  Grid,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -139,14 +140,17 @@ const PricingSummary = ({
 
     try {
       const quote = await generateQuote({
-        items: [...quoteItems, configuration].filter(item => item.systemModel && item.glassType),
+        items: quoteItems,
         totalAmount: pricing.grandTotal
       });
       setQuoteDialog({
         open: true,
         loading: false,
         error: null,
-        quote
+        quote: {
+          ...quote,
+          totalAmount: pricing.grandTotal
+        }
       });
     } catch (error) {
       setQuoteDialog({
@@ -191,323 +195,226 @@ const PricingSummary = ({
 
   const isConfigurationEmpty = !configuration.systemModel;
 
-  if (pricing.items.length === 0) {
+  if (pricing.items.length === 0 && isConfigurationEmpty) {
     return (
-      <Typography color="error">
-        Please add at least one item to the quote
-      </Typography>
+      <Box>
+        <Typography variant="h5" gutterBottom>
+          Quote Summary
+        </Typography>
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography color="text.secondary" align="center">
+            Your quote is empty. Add items by configuring windows or doors in the previous steps.
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => onStartNew()}
+              startIcon={<AddIcon />}
+            >
+              Add New Item
+            </Button>
+          </Box>
+        </Paper>
+      </Box>
     );
   }
 
   return (
     <Box>
+      <Typography variant="h5" gutterBottom>
+        Quote Summary
+      </Typography>
+
       {!isConfigurationEmpty && (
-        <>
-          <Typography variant="h5" gutterBottom>
-            Current Item Summary
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Current Item
           </Typography>
-          <Paper sx={{ p: 3, mb: 3 }}>
-            {showAddSuccess && (
-              <Alert severity="success" sx={{ mb: 2 }}>
-                Item added to quote successfully!
-              </Alert>
-            )}
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="h6">
-                  {configuration.brand} - {configuration.systemModel}
-                </Typography>
-                <Box sx={{ pl: 2, mt: 1 }}>
-                  <Typography>System Type: {configuration.systemType}</Typography>
-                  {configuration.panels ? (
-                    <>
-                      <Typography>Panels:</Typography>
-                      {configuration.panels.map((panel, index) => (
-                        <Box key={index} sx={{ pl: 2 }}>
-                          <Typography>
-                            Panel {index + 1}: {panel.operationType} - {panel.width}"
-                          </Typography>
-                        </Box>
-                      ))}
-                    </>
-                  ) : configuration.operationType && (
-                    <Typography>Operation: {configuration.operationType}</Typography>
-                  )}
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Typography>
+                {configuration.brand} - {configuration.systemModel} ({configuration.systemType})
+              </Typography>
+              <Typography color="text.secondary">
+                {configuration.dimensions.width}" × {configuration.dimensions.height}"
+                {configuration.operationType && ` - ${configuration.operationType}`}
+              </Typography>
+              <Typography color="text.secondary">
+                Glass: {configuration.glassType}
+              </Typography>
+              <Typography color="text.secondary">
+                Finish: {configuration.finish.type} - {configuration.finish.color}
+              </Typography>
+              {currentItemPrice && (
+                <Box sx={{ mt: 2 }}>
                   <Typography>
-                    Dimensions: {configuration.dimensions.width}" × {configuration.dimensions.height}"
+                    System Cost: ${currentItemPrice.systemCost.toFixed(2)}
                   </Typography>
-                  <Typography>Glass: {configuration.glassType}</Typography>
                   <Typography>
-                    Finish: {configuration.finish.type} - {configuration.finish.color}
+                    Glass Cost: ${currentItemPrice.glassCost.toFixed(2)}
+                  </Typography>
+                  <Typography>
+                    Labor Cost: ${currentItemPrice.laborCost.toFixed(2)}
+                  </Typography>
+                  <Typography variant="h6" sx={{ mt: 1 }}>
+                    Total: ${currentItemPrice.total.toFixed(2)}
                   </Typography>
                 </Box>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Box sx={{ pl: 2 }}>
-                  <Grid container spacing={1}>
-                    <Grid item xs={8}>
-                      <Typography>System Cost:</Typography>
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Typography align="right">${currentItemPrice?.systemCost.toFixed(2) || '0.00'}</Typography>
-                    </Grid>
-
-                    <Grid item xs={8}>
-                      <Typography>Glass Package:</Typography>
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Typography align="right">${currentItemPrice?.glassCost.toFixed(2) || '0.00'}</Typography>
-                    </Grid>
-
-                    <Grid item xs={8}>
-                      <Typography>Labor:</Typography>
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Typography align="right">${currentItemPrice?.laborCost.toFixed(2) || '0.00'}</Typography>
-                    </Grid>
-
-                    <Grid item xs={8}>
-                      <Typography variant="subtitle1" fontWeight="bold">
-                        Item Total:
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Typography variant="subtitle1" fontWeight="bold" align="right">
-                        ${currentItemPrice?.total.toFixed(2) || '0.00'}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </Box>
-              </Grid>
+              )}
             </Grid>
-          </Paper>
-        </>
-      )}
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        {!isConfigurationEmpty ? (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleAddToQuote}
-            startIcon={<AddIcon />}
-          >
-            Add to Quote
-          </Button>
-        ) : (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={onStartNew}
-            startIcon={<AddIcon />}
-          >
-            Configure New Item
-          </Button>
-        )}
-      </Box>
-
-      {quoteItems.length > 0 && (
-        <Box>
-          <Typography variant="h5" gutterBottom>
-            Quote Summary
-          </Typography>
-          <Paper sx={{ p: 3 }}>
-            <List>
-              {pricing.items.map((pricedItem, index) => (
-                <React.Fragment key={pricedItem.item.id}>
-                  <ListItem
-                    sx={{
-                      flexDirection: 'column',
-                      alignItems: 'stretch',
-                      position: 'relative',
-                      pr: 8 // Make room for the action buttons
-                    }}
-                  >
-                    <Box sx={{ 
-                      position: 'absolute',
-                      right: 16,
-                      top: 16,
-                      display: 'flex',
-                      gap: 1
-                    }}>
-                      <IconButton 
-                        size="small"
-                        onClick={() => onEditItem(pricedItem.item)}
-                        color="primary"
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton 
-                        size="small"
-                        onClick={() => onRemoveItem(pricedItem.item.id)}
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                    <Box sx={{ width: '100%' }}>
-                      <Typography variant="h6">
-                        Item {index + 1}: {pricedItem.item.brand} - {pricedItem.item.systemModel}
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid item xs={12}>
-                          <Box sx={{ pl: 2, mt: 1 }}>
-                            <Typography>System Type: {pricedItem.item.systemType}</Typography>
-                            {pricedItem.item.operationType && (
-                              <Typography>Operation: {pricedItem.item.operationType}</Typography>
-                            )}
-                            <Typography>
-                              Dimensions: {pricedItem.item.dimensions.width}" × {pricedItem.item.dimensions.height}"
-                            </Typography>
-                            <Typography>Glass: {pricedItem.item.glassType}</Typography>
-                            <Typography>
-                              Finish: {pricedItem.item.finish.type} - {pricedItem.item.finish.color}
-                            </Typography>
-                          </Box>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                          <Box sx={{ pl: 2 }}>
-                            <Grid container spacing={1}>
-                              <Grid item xs={8}>
-                                <Typography>System Cost:</Typography>
-                              </Grid>
-                              <Grid item xs={4}>
-                                <Typography align="right">${pricedItem.systemCost.toFixed(2)}</Typography>
-                              </Grid>
-
-                              <Grid item xs={8}>
-                                <Typography>Glass Package:</Typography>
-                              </Grid>
-                              <Grid item xs={4}>
-                                <Typography align="right">${pricedItem.glassCost.toFixed(2)}</Typography>
-                              </Grid>
-
-                              <Grid item xs={8}>
-                                <Typography>Labor:</Typography>
-                              </Grid>
-                              <Grid item xs={4}>
-                                <Typography align="right">${pricedItem.laborCost.toFixed(2)}</Typography>
-                              </Grid>
-
-                              <Grid item xs={8}>
-                                <Typography variant="subtitle1" fontWeight="bold">
-                                  Item Total:
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={4}>
-                                <Typography variant="subtitle1" fontWeight="bold" align="right">
-                                  ${pricedItem.total.toFixed(2)}
-                                </Typography>
-                              </Grid>
-                            </Grid>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Box>
-                  </ListItem>
-                  {index < pricing.items.length - 1 && <Divider />}
-                </React.Fragment>
-              ))}
-            </List>
-
-            <Divider sx={{ my: 3 }} />
-            
-            <Box sx={{ pl: 2 }}>
-              <Grid container spacing={1}>
-                <Grid item xs={8}>
-                  <Typography variant="h6">Total System Cost:</Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="h6" align="right">${pricing.totalSystemCost.toFixed(2)}</Typography>
-                </Grid>
-
-                <Grid item xs={8}>
-                  <Typography variant="h6">Total Glass Cost:</Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="h6" align="right">${pricing.totalGlassCost.toFixed(2)}</Typography>
-                </Grid>
-
-                <Grid item xs={8}>
-                  <Typography variant="h6">Total Labor Cost:</Typography>
-                </Grid>
-                <Grid item xs={4}>
-                  <Typography variant="h6" align="right">${pricing.totalLaborCost.toFixed(2)}</Typography>
-                </Grid>
-              </Grid>
-            </Box>
-
-            <Divider sx={{ my: 3 }} />
-            
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h5">
-                Grand Total:
-              </Typography>
-              <Typography variant="h5" color="primary">
-                ${pricing.grandTotal.toFixed(2)}
-              </Typography>
-            </Box>
-
-            <Box sx={{ mt: 3 }}>
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
               <Button
                 variant="contained"
                 color="primary"
-                fullWidth
-                size="large"
-                onClick={handleGenerateQuote}
+                onClick={handleAddToQuote}
+                startIcon={<AddIcon />}
               >
-                Generate Quote
+                Add to Quote
               </Button>
-            </Box>
-          </Paper>
-        </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
+
+      {pricing.items.length > 0 && (
+        <Paper sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Quote Items
+            </Typography>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={onStartNew}
+              startIcon={<AddIcon />}
+              size="small"
+            >
+              Add Another Item
+            </Button>
+          </Box>
+          <List>
+            {pricing.items.map(({ item, total }, index) => (
+              <React.Fragment key={item.id}>
+                {index > 0 && <Divider />}
+                <ListItem
+                  secondaryAction={
+                    <Stack direction="row" spacing={1}>
+                      <IconButton edge="end" aria-label="edit" onClick={() => onEditItem(item)}>
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton edge="end" aria-label="delete" onClick={() => onRemoveItem(item.id)}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </Stack>
+                  }
+                >
+                  <ListItemText
+                    primary={
+                      <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                        {item.brand} - {item.systemModel} (${total.toFixed(2)})
+                      </Typography>
+                    }
+                    secondary={
+                      <>
+                        <Typography component="span" variant="body2" color="text.secondary">
+                          {item.systemType}
+                          <br />
+                          {item.dimensions.width}" × {item.dimensions.height}"
+                          {item.operationType && ` - ${item.operationType}`}
+                          <br />
+                          Glass: {item.glassType}
+                          <br />
+                          Finish: {item.finish.type} - {item.finish.color}
+                        </Typography>
+                      </>
+                    }
+                  />
+                </ListItem>
+              </React.Fragment>
+            ))}
+          </List>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Cost Breakdown
+              </Typography>
+              <Typography>System Cost: ${pricing.totalSystemCost.toFixed(2)}</Typography>
+              <Typography>Glass Cost: ${pricing.totalGlassCost.toFixed(2)}</Typography>
+              <Typography>Labor Cost: ${pricing.totalLaborCost.toFixed(2)}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} sx={{ display: 'flex', flexDirection: 'column', alignItems: { sm: 'flex-end' } }}>
+              <Typography variant="h5" sx={{ mb: 2 }}>
+                Total: ${pricing.grandTotal.toFixed(2)}
+              </Typography>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={onStartNew}
+                  startIcon={<AddIcon />}
+                >
+                  Add Another Item
+                </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleGenerateQuote}
+                >
+                  Generate Quote
+                </Button>
+              </Stack>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
+
+      {showAddSuccess && (
+        <Alert severity="success" sx={{ mt: 2 }}>
+          Item added to quote successfully!
+        </Alert>
       )}
 
       <Dialog
         open={quoteDialog.open}
-        onClose={() => setQuoteDialog({ ...quoteDialog, open: false })}
+        onClose={() => setQuoteDialog(prev => ({ ...prev, open: false }))}
         maxWidth="sm"
         fullWidth
+        disableScrollLock
       >
         <DialogTitle>
           {quoteDialog.loading ? 'Generating Quote...' : 'Quote Generated'}
         </DialogTitle>
         <DialogContent>
           {quoteDialog.loading ? (
-            <Box display="flex" justifyContent="center" p={3}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
               <CircularProgress />
             </Box>
           ) : quoteDialog.error ? (
             <Alert severity="error">{quoteDialog.error}</Alert>
-          ) : (
-            <Box>
-              <Typography gutterBottom>
-                Quote #{quoteDialog.quote?.quoteNumber} has been generated successfully.
+          ) : quoteDialog.quote ? (
+            <>
+              <Typography variant="body1" paragraph>
+                Quote Number: {quoteDialog.quote.quoteNumber}
               </Typography>
-              <Typography color="textSecondary">
-                You can now download the PDF version of your quote.
+              <Typography variant="body1" paragraph>
+                Total Amount: ${pricing.grandTotal.toFixed(2)}
               </Typography>
-            </Box>
-          )}
+            </>
+          ) : null}
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={() => setQuoteDialog({ ...quoteDialog, open: false })}
-            color="inherit"
-          >
-            Close
-          </Button>
-          {!quoteDialog.loading && !quoteDialog.error && (
-            <Button
-              onClick={handleDownloadPDF}
-              color="primary"
-              variant="contained"
-            >
+          {!quoteDialog.loading && !quoteDialog.error && quoteDialog.quote && (
+            <Button onClick={handleDownloadPDF} color="primary">
               Download PDF
             </Button>
           )}
+          <Button onClick={() => setQuoteDialog(prev => ({ ...prev, open: false }))} color="primary">
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

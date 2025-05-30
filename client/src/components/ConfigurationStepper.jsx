@@ -107,6 +107,7 @@ const ConfigurationStepper = ({ metadata }) => {
         return <SystemConfigurationForm 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
+          onNext={handleNext}
           metadata={metadata}
         />;
       case 3:
