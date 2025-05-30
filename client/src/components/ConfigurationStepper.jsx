@@ -93,12 +93,14 @@ const ConfigurationStepper = ({ metadata }) => {
         return <BrandSelection 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
+          onNext={handleNext}
           brands={metadata?.systemHierarchy ? Object.keys(metadata.systemHierarchy) : []}
         />;
       case 1:
         return <SystemTypeSelection 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
+          onNext={handleNext}
           systemTypes={metadata?.systemTypes || []}
         />;
       case 2:
@@ -111,6 +113,7 @@ const ConfigurationStepper = ({ metadata }) => {
         return <GlassOptions 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
+          onNext={handleNext}
         />;
       case 4:
         return <PricingSummary 
@@ -185,15 +188,6 @@ const ConfigurationStepper = ({ metadata }) => {
             sx={{ mr: 1 }}
           >
             Back
-          </Button>
-          <Box sx={{ flex: '1 1 auto' }} />
-          <Button
-            onClick={handleNext}
-            disabled={!isStepValid(activeStep)}
-            variant={activeStep === steps.length - 1 ? "contained" : "text"}
-            sx={{ mr: 1 }}
-          >
-            {activeStep === steps.length - 1 ? 'Review & Price' : 'Next'}
           </Button>
         </Box>
       </Box>

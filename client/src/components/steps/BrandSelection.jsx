@@ -12,9 +12,10 @@ import {
 } from '@mui/material';
 import { systemBrands } from '../../utils/metadata';
 
-const BrandSelection = ({ configuration, onUpdate }) => {
+const BrandSelection = ({ configuration, onUpdate, onNext }) => {
   const handleBrandSelect = (brandName) => {
     onUpdate({ brand: brandName });
+    onNext();
   };
 
   return (
@@ -22,12 +23,16 @@ const BrandSelection = ({ configuration, onUpdate }) => {
       <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
         Select Brand
       </Typography>
-      <Grid container spacing={3}>
+      <Grid container spacing={3} justifyContent="center">
         {systemBrands.map((brandName) => (
-          <Grid item xs={12} sm={6} md={4} key={brandName}>
+          <Grid item xs={12} sm={6} key={brandName}>
             <Card 
               elevation={configuration.brand === brandName ? 6 : 1}
               sx={{
+                height: '100%',
+                minHeight: 320,
+                display: 'flex',
+                flexDirection: 'column',
                 transition: 'all 0.3s ease-in-out',
                 transform: configuration.brand === brandName ? 'scale(1.02)' : 'scale(1)',
                 '&:hover': {
@@ -36,7 +41,10 @@ const BrandSelection = ({ configuration, onUpdate }) => {
                 }
               }}
             >
-              <CardActionArea onClick={() => handleBrandSelect(brandName)}>
+              <CardActionArea 
+                onClick={() => handleBrandSelect(brandName)}
+                sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
+              >
                 <Box position="relative">
                   <CardMedia
                     component="div"
@@ -78,8 +86,8 @@ const BrandSelection = ({ configuration, onUpdate }) => {
                     />
                   </Box>
                 </Box>
-                <CardContent sx={{ pt: 3, pb: 3 }}>
-                  <Box sx={{ mb: 1.5 }}>
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <Box sx={{ mb: 2 }}>
                     <Typography 
                       variant="h6" 
                       align="center"
@@ -97,6 +105,9 @@ const BrandSelection = ({ configuration, onUpdate }) => {
                       bgcolor: 'grey.50',
                       p: 1.5,
                       borderRadius: 1,
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
                     }}
                   >
                     <Typography 
@@ -125,10 +136,7 @@ const BrandSelection = ({ configuration, onUpdate }) => {
 const getBrandDescription = (brandName) => {
   const descriptions = {
     'Alumil': 'Leading aluminum systems manufacturer in Southeast Europe, known for innovative designs and superior quality',
-    'Aluprof': 'Premium European aluminum systems provider with cutting-edge technology and sustainable solutions',
-    'Cortizo': 'Spain\'s largest aluminum systems manufacturer, combining aesthetics with advanced engineering',
-    'Reynaers': 'Leading European aluminum solutions provider, specializing in high-performance architectural systems',
-    'Schuco': 'German engineering excellence in window and door systems with precision and innovative technology'
+    'Reynaers': 'Leading European aluminum solutions provider, specializing in high-performance architectural systems'
   };
   return descriptions[brandName] || '';
 };

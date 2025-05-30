@@ -37,9 +37,10 @@ const glassOptions = [
   }
 ];
 
-const GlassOptions = ({ configuration, onUpdate }) => {
+const GlassOptions = ({ configuration, onUpdate, onNext }) => {
   const handleGlassSelect = (glassType) => {
     onUpdate({ glassType });
+    onNext();
   };
 
   if (!configuration.systemModel) {

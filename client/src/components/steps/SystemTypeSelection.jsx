@@ -21,9 +21,10 @@ const systemTypes = [
   { name: 'Curtain Wall Systems', icon: ViewQuiltIcon },
 ];
 
-const SystemTypeSelection = ({ configuration, onUpdate }) => {
+const SystemTypeSelection = ({ configuration, onUpdate, onNext }) => {
   const handleSystemTypeSelect = (systemType) => {
     onUpdate({ systemType });
+    onNext();
   };
 
   return (
@@ -49,8 +50,8 @@ const SystemTypeSelection = ({ configuration, onUpdate }) => {
                   transform: isSelected ? 'scale(1.02)' : 'scale(1)',
                   bgcolor: isSelected ? 'primary.light' : 'background.paper',
                   '&:hover': {
-                    transform: 'scale(1.02)',
-                    bgcolor: isSelected ? 'primary.light' : 'grey.100',
+                    transform: configuration.brand ? 'scale(1.02)' : 'scale(1)',
+                    bgcolor: isSelected ? 'primary.light' : configuration.brand ? 'grey.100' : 'background.paper',
                   }
                 }}
                 elevation={isSelected ? 6 : 1}
