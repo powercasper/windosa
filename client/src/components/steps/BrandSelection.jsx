@@ -9,8 +9,10 @@ import {
   Radio,
   CardActionArea,
   Paper,
+  Divider,
 } from '@mui/material';
 import { systemBrands } from '../../utils/metadata';
+import DefaultFinishOptions from '../DefaultFinishOptions';
 
 const BrandSelection = ({ configuration, onUpdate, onNext }) => {
   const handleBrandSelect = (brandName) => {
@@ -18,8 +20,30 @@ const BrandSelection = ({ configuration, onUpdate, onNext }) => {
     onNext();
   };
 
+  const handleSaveDefaultFinish = (finishValues) => {
+    // Save to localStorage for persistence
+    localStorage.setItem('defaultFinishOptions', JSON.stringify(finishValues));
+    // Update the current configuration with these values
+    onUpdate({ 
+      finish: finishValues
+    });
+  };
+
+  // Get default finish options from localStorage if they exist
+  const defaultFinish = React.useMemo(() => {
+    const saved = localStorage.getItem('defaultFinishOptions');
+    return saved ? JSON.parse(saved) : null;
+  }, []);
+
   return (
     <Box>
+      <DefaultFinishOptions 
+        defaultFinish={defaultFinish}
+        onSaveDefaults={handleSaveDefaultFinish}
+      />
+
+      <Divider sx={{ my: 6 }} />
+
       <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
         Select Brand
       </Typography>

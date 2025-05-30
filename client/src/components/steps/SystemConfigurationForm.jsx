@@ -56,6 +56,17 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         }]
       });
     }
+
+    // Apply default finish options if they exist and no finish is set
+    if (!configuration.finish?.type) {
+      const savedFinish = localStorage.getItem('defaultFinishOptions');
+      if (savedFinish) {
+        const defaultFinish = JSON.parse(savedFinish);
+        onUpdate({
+          finish: defaultFinish
+        });
+      }
+    }
   }, [configuration.systemType]);
 
   const handleChange = (field) => (event) => {

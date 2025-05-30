@@ -17,10 +17,14 @@ import {
   IconButton,
   Stack,
   Grid,
+  Chip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import WindowIcon from '@mui/icons-material/Window';
+import ColorLensIcon from '@mui/icons-material/ColorLens';
+import SquareFootIcon from '@mui/icons-material/SquareFoot';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote, generatePDF } from '../../api/config';
 
@@ -294,11 +298,27 @@ const PricingSummary = ({
             </Button>
           </Box>
           <List>
-            {pricing.items.map(({ item, total }, index) => (
+            {pricing.items.map(({ item, systemCost, glassCost, laborCost, total }, index) => (
               <React.Fragment key={item.id}>
                 {index > 0 && <Divider />}
                 <ListItem
-                  secondaryAction={
+                  sx={{
+                    flexDirection: 'column',
+                    alignItems: 'stretch',
+                    gap: 2,
+                    py: 3
+                  }}
+                >
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                    <Box>
+                      <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <WindowIcon color="primary" />
+                        {item.brand} - {item.systemModel}
+                      </Typography>
+                      <Typography variant="subtitle1" color="primary" sx={{ mt: 1 }}>
+                        ${total.toFixed(2)}
+                      </Typography>
+                    </Box>
                     <Stack direction="row" spacing={1}>
                       <IconButton edge="end" aria-label="edit" onClick={() => onEditItem(item)}>
                         <EditIcon />
@@ -307,29 +327,96 @@ const PricingSummary = ({
                         <DeleteIcon />
                       </IconButton>
                     </Stack>
-                  }
-                >
-                  <ListItemText
-                    primary={
-                      <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                        {item.brand} - {item.systemModel} (${total.toFixed(2)})
-                      </Typography>
-                    }
-                    secondary={
-                      <>
-                        <Typography component="span" variant="body2" color="text.secondary">
-                          {item.systemType}
-                          <br />
-                          {item.dimensions.width}" × {item.dimensions.height}"
-                          {item.operationType && ` - ${item.operationType}`}
-                          <br />
-                          Glass: {item.glassType}
-                          <br />
-                          Finish: {item.finish.type} - {item.finish.color}
+                  </Stack>
+
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          System Details
                         </Typography>
-                      </>
-                    }
-                  />
+                        <Stack spacing={1}>
+                          <Typography variant="body2">
+                            Type: {item.systemType}
+                          </Typography>
+                          {item.systemType === 'Windows' && item.panels ? (
+                            <Box>
+                              <Typography variant="body2" gutterBottom>
+                                Panes:
+                              </Typography>
+                              <Stack spacing={1} sx={{ pl: 2 }}>
+                                {item.panels.map((panel, idx) => (
+                                  <Typography key={idx} variant="body2">
+                                    Pane {idx + 1}: {panel.width}" wide - {panel.operationType}
+                                  </Typography>
+                                ))}
+                              </Stack>
+                            </Box>
+                          ) : (
+                            <Typography variant="body2">
+                              Operation: {item.operationType}
+                            </Typography>
+                          )}
+                        </Stack>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Dimensions
+                        </Typography>
+                        <Stack direction="row" spacing={2} alignItems="center">
+                          <Chip 
+                            icon={<SquareFootIcon />} 
+                            label={`Width: ${item.dimensions.width}"`}
+                            variant="outlined"
+                            size="small"
+                          />
+                          <Chip 
+                            icon={<SquareFootIcon />} 
+                            label={`Height: ${item.dimensions.height}"`}
+                            variant="outlined"
+                            size="small"
+                          />
+                        </Stack>
+                      </Box>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <ColorLensIcon fontSize="small" /> Finish Details
+                        </Typography>
+                        <Stack spacing={1}>
+                          <Typography variant="body2">
+                            Type: {item.finish.type}
+                          </Typography>
+                          <Typography variant="body2">
+                            Style: {item.finish.color}
+                          </Typography>
+                          <Typography variant="body2">
+                            RAL Color: {item.finish.ralColor}
+                          </Typography>
+                        </Stack>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Cost Breakdown
+                        </Typography>
+                        <Stack spacing={1}>
+                          <Typography variant="body2">
+                            System Cost: ${systemCost.toFixed(2)}
+                          </Typography>
+                          <Typography variant="body2">
+                            Glass Cost: ${glassCost.toFixed(2)}
+                          </Typography>
+                          <Typography variant="body2">
+                            Labor Cost: ${laborCost.toFixed(2)}
+                          </Typography>
+                        </Stack>
+                      </Box>
+                    </Grid>
+                  </Grid>
                 </ListItem>
               </React.Fragment>
             ))}
