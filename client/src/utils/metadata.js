@@ -35,7 +35,7 @@ const finishOptions = {
   Anodized:       ["Standard","Brushed"]
 };
 
-const windowOperables = ["Tilt & Turn","Casement","Awning","Tilt Only"];
+const windowOperables = ["Fixed", "Tilt & Turn", "Casement", "Awning", "Tilt Only"];
 const doorOperables   = ["Hinged Left Open In","Hinged Right Open Out","Hinged Right Open In","Hinged Left Open Out"];
 
 const laborRates = {
