@@ -28,6 +28,13 @@ import SquareFootIcon from '@mui/icons-material/SquareFoot';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote, generatePDF } from '../../api/config';
 
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(amount);
+};
+
 const calculateItemPrice = (item) => {
   const height = item.dimensions.height;
   let totalSystemCost = 0;
@@ -232,52 +239,100 @@ const PricingSummary = ({
 
       {!isConfigurationEmpty && (
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Current Item
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Typography>
-                {configuration.brand} - {configuration.systemModel} ({configuration.systemType})
-              </Typography>
-              <Typography color="text.secondary">
-                {configuration.dimensions.width}" × {configuration.dimensions.height}"
-                {configuration.operationType && ` - ${configuration.operationType}`}
-              </Typography>
-              <Typography color="text.secondary">
-                Glass: {configuration.glassType}
-              </Typography>
-              <Typography color="text.secondary">
-                Finish: {configuration.finish.type} - {configuration.finish.color}
-              </Typography>
-              {currentItemPrice && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography>
-                    System Cost: ${currentItemPrice.systemCost.toFixed(2)}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Current Item
+            </Typography>
+            <Typography variant="h6" color="primary">
+              {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
+            </Typography>
+          </Box>
+
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  System Details
+                </Typography>
+                <Stack spacing={1}>
+                  <Typography variant="body2">
+                    {configuration.brand} - {configuration.systemModel}
                   </Typography>
-                  <Typography>
-                    Glass Cost: ${currentItemPrice.glassCost.toFixed(2)}
+                  <Typography variant="body2">
+                    Type: {configuration.systemType}
                   </Typography>
-                  <Typography>
-                    Labor Cost: ${currentItemPrice.laborCost.toFixed(2)}
-                  </Typography>
-                  <Typography variant="h6" sx={{ mt: 1 }}>
-                    Total: ${currentItemPrice.total.toFixed(2)}
-                  </Typography>
-                </Box>
-              )}
+                  {configuration.systemType === 'Windows' && configuration.panels ? (
+                    <Box>
+                      <Typography variant="body2" gutterBottom>
+                        Panes:
+                      </Typography>
+                      <Stack spacing={1} sx={{ pl: 2 }}>
+                        {configuration.panels.map((panel, idx) => (
+                          <Typography key={idx} variant="body2">
+                            Pane {idx + 1}: {panel.width}" wide - {panel.operationType}
+                          </Typography>
+                        ))}
+                      </Stack>
+                    </Box>
+                  ) : configuration.operationType ? (
+                    <Typography variant="body2">
+                      Operation: {configuration.operationType}
+                    </Typography>
+                  ) : null}
+                </Stack>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Dimensions
+                </Typography>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Chip 
+                    icon={<SquareFootIcon />} 
+                    label={`Width: ${configuration.dimensions.width}"`}
+                    variant="outlined"
+                    size="small"
+                  />
+                  <Chip 
+                    icon={<SquareFootIcon />} 
+                    label={`Height: ${configuration.dimensions.height}"`}
+                    variant="outlined"
+                    size="small"
+                  />
+                </Stack>
+              </Box>
             </Grid>
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleAddToQuote}
-                startIcon={<AddIcon />}
-              >
-                Add to Quote
-              </Button>
+
+            <Grid item xs={12} md={6}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ColorLensIcon fontSize="small" /> Finish Details
+                </Typography>
+                <Stack spacing={1}>
+                  <Typography variant="body2">
+                    Type: {configuration.finish.type}
+                  </Typography>
+                  <Typography variant="body2">
+                    Style: {configuration.finish.color}
+                  </Typography>
+                  <Typography variant="body2">
+                    RAL Color: {configuration.finish.ralColor || 'N/A'}
+                  </Typography>
+                </Stack>
+              </Box>
             </Grid>
           </Grid>
+
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleAddToQuote}
+              startIcon={<AddIcon />}
+            >
+              Add to Quote
+            </Button>
+          </Box>
         </Paper>
       )}
 

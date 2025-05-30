@@ -21,68 +21,97 @@ function generateQuotePDF(quote) {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
 
       // Header
-      doc.fontSize(20)
+      doc.fontSize(24)
          .text('Window & Door Quote', { align: 'center' })
          .moveDown();
 
       // Quote Details
       doc.fontSize(12)
-         .text(`Quote Number: ${quote.quoteNumber}`)
-         .text(`Date: ${new Date(quote.date).toLocaleDateString()}`)
-         .moveDown();
+         .text(`Quote Number: ${quote.quoteNumber}`, { continued: true })
+         .text(`Date: ${new Date(quote.date).toLocaleDateString()}`, { align: 'right' })
+         .moveDown(2);
 
       // Items
-      doc.fontSize(14)
-         .text('Items', { underline: true })
-         .moveDown();
-
       quote.items.forEach((item, index) => {
-        doc.fontSize(12)
-           .text(`Item ${index + 1}`, { underline: true })
+        // Item Header with Price
+        doc.fontSize(16)
+           .text(`Item ${index + 1}`, { continued: true })
+           .text(formatCurrency(item.pricing.total), { align: 'right' })
            .moveDown();
 
-        // Configuration Details
-        doc.text(`Brand: ${item.configuration.brand}`)
-           .text(`System Type: ${item.configuration.systemType}`)
-           .text(`Model: ${item.configuration.systemModel}`);
+        // Two-column layout for each item
+        const startY = doc.y;
+        let maxY = startY;
 
-        if (item.configuration.operationType) {
-          doc.text(`Operation Type: ${item.configuration.operationType}`);
+        // Left column - System Details
+        doc.fontSize(14)
+           .text('System Details', { underline: true })
+           .moveDown(0.5);
+        
+        doc.fontSize(12)
+           .text(`${item.configuration.brand} - ${item.configuration.systemModel}`)
+           .text(`Type: ${item.configuration.systemType}`);
+
+        // Handle window panes if present
+        if (item.configuration.systemType === 'Windows' && item.configuration.panels) {
+          doc.moveDown(0.5)
+             .text('Panes:');
+          item.configuration.panels.forEach((panel, idx) => {
+            doc.text(`  Pane ${idx + 1}: ${panel.width}" wide - ${panel.operationType}`);
+          });
+        } else if (item.configuration.operationType) {
+          doc.text(`Operation: ${item.configuration.operationType}`);
         }
 
-        doc.text(`Dimensions: ${item.configuration.dimensions.width}" × ${item.configuration.dimensions.height}"`)
-           .text(`Glass Type: ${item.configuration.glassType}`)
-           .text(`Finish: ${item.configuration.finish.type} - ${item.configuration.finish.color}`)
-           .moveDown();
+        // Dimensions
+        doc.moveDown(0.5)
+           .text('Dimensions')
+           .text(`  Width: ${item.configuration.dimensions.width}"`)
+           .text(`  Height: ${item.configuration.dimensions.height}"`);
 
-        // Item Cost Breakdown
-        doc.text('Cost Breakdown:')
-           .text(`  System Cost: ${formatCurrency(item.pricing.systemCost)}`)
-           .text(`  Glass Package: ${formatCurrency(item.pricing.glassCost)}`)
-           .text(`  Labor: ${formatCurrency(item.pricing.laborCost)}`)
-           .text(`  Item Total: ${formatCurrency(item.pricing.total)}`)
-           .moveDown();
+        const leftColumnY = doc.y;
+
+        // Right column - Finish Details
+        doc.y = startY;
+        doc.x = 350;
+
+        doc.fontSize(14)
+           .text('Finish Details', { underline: true })
+           .moveDown(0.5);
+
+        doc.fontSize(12)
+           .text(`Type: ${item.configuration.finish.type}`)
+           .text(`Style: ${item.configuration.finish.color}`)
+           .text(`RAL Color: ${item.configuration.finish.ralColor || 'N/A'}`);
+
+        const rightColumnY = doc.y;
+
+        // Update maxY for the taller column
+        maxY = Math.max(leftColumnY, rightColumnY);
+
+        // Move to the end of the taller column and add spacing
+        doc.y = maxY + 30;
+
+        // Add a divider between items
+        if (index < quote.items.length - 1) {
+          doc.moveTo(50, doc.y)
+             .lineTo(550, doc.y)
+             .stroke()
+             .moveDown(2);
+        }
       });
 
-      // Total Cost Breakdown
-      doc.fontSize(14)
-         .text('Total Cost Breakdown', { underline: true })
-         .moveDown();
-
-      doc.fontSize(12)
-         .text(`Total System Cost: ${formatCurrency(quote.totals.systemCost)}`)
-         .text(`Total Glass Package: ${formatCurrency(quote.totals.glassCost)}`)
-         .text(`Total Labor: ${formatCurrency(quote.totals.laborCost)}`)
-         .moveDown();
-
       // Grand Total
-      doc.fontSize(16)
-         .text(`Grand Total: ${formatCurrency(quote.totals.total)}`, { underline: true })
-         .moveDown();
+      doc.moveDown()
+         .fontSize(18)
+         .text('Grand Total:', { continued: true })
+         .text(formatCurrency(quote.totals.total), { align: 'right' })
+         .moveDown(2);
 
       // Terms and Conditions
       doc.fontSize(10)
          .text('Terms and Conditions:', { underline: true })
+         .moveDown(0.5)
          .fontSize(8)
          .text('1. All prices are subject to change without notice.')
          .text('2. Quote valid for 30 days from the date of issue.')
