@@ -79,12 +79,17 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
 
   useEffect(() => {
     // Initialize panels array if it doesn't exist and we're configuring a window
-    if (configuration.systemType === 'Windows' && !configuration.panels) {
+    if (configuration.systemType === 'Windows' && (!configuration.panels || configuration.panels.length === 0)) {
       onUpdate({
         panels: [{
           width: configuration.dimensions?.width || 0,
           operationType: 'Fixed'
-        }]
+        }],
+        dimensions: {
+          ...configuration.dimensions,
+          width: configuration.dimensions?.width || 0,
+          height: configuration.dimensions?.height || 0
+        }
       });
     }
 
@@ -394,23 +399,30 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                         // Add new panels
                         while (newPanels.length < count) {
                           newPanels.push({ 
-                            width: useEqualWidths ? (configuration.dimensions.width || 0) / count : 0,
-                            operationType: 'Fixed'
+                            width: useEqualWidths ? (configuration.dimensions?.width || 0) / count : 0,
+                            operationType: 'Fixed'  // Default to Fixed operation type
                           });
                         }
                       } else {
                         // Remove panels from the end
                         newPanels = newPanels.slice(0, count);
                         if (useEqualWidths) {
-                          const equalWidth = (configuration.dimensions.width || 0) / count;
+                          const equalWidth = (configuration.dimensions?.width || 0) / count;
                           newPanels = newPanels.map(panel => ({
                             ...panel,
-                            width: equalWidth
+                            width: equalWidth,
+                            operationType: panel.operationType || 'Fixed'  // Ensure operationType exists
                           }));
                         }
                       }
                       
-                      onUpdate({ panels: newPanels });
+                      onUpdate({ 
+                        panels: newPanels,
+                        dimensions: {
+                          ...configuration.dimensions,
+                          width: configuration.dimensions?.width || 0
+                        }
+                      });
                     }}
                     label="Number of Panes"
                   >
