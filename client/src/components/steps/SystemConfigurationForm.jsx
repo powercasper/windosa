@@ -415,44 +415,116 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
             </Grid>
           </Box>
         ) : configuration.systemType === 'Sliding Doors' ? (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Configuration Type</InputLabel>
-                <Select
-                  value={configuration.operationType || ''}
-                  onChange={handleChange('operationType')}
-                  label="Configuration Type"
-                >
-                  {availableOperables.map((typology) => (
-                    <MenuItem key={typology} value={typology}>
-                      {typology} ({typology.replace(/O/g, 'Fixed ').replace(/X/g, 'Sliding ')})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              Configuration Details
+            </Typography>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Panel Configuration Guide:
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    O = Fixed Panel | X = Sliding Panel
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Configuration is viewed from outside, left to right
+                  </Typography>
+                </Box>
+                <FormControl fullWidth>
+                  <InputLabel>Configuration Type</InputLabel>
+                  <Select
+                    value={configuration.operationType || ''}
+                    onChange={handleChange('operationType')}
+                    label="Configuration Type"
+                  >
+                    {availableOperables.map((typology) => (
+                      <MenuItem key={typology} value={typology}>
+                        <Box>
+                          <Typography>{typology}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {typology.split('').map((type, index) => 
+                              `${type === 'O' ? 'Fixed' : 'Sliding'} Panel${index < typology.length - 1 ? ' + ' : ''}`
+                            ).join('')}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              
+              {configuration.operationType && (
+                <Grid item xs={12}>
+                  <Paper 
+                    variant="outlined" 
+                    sx={{ 
+                      p: 2,
+                      bgcolor: 'background.default',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1
+                    }}
+                  >
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Selected Configuration:
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      {configuration.operationType.split('').map((type, index) => (
+                        <Paper
+                          key={index}
+                          sx={{
+                            p: 1,
+                            flex: 1,
+                            bgcolor: type === 'O' ? 'grey.100' : 'primary.light',
+                            color: type === 'O' ? 'text.primary' : 'primary.contrastText',
+                            textAlign: 'center',
+                            border: '1px solid',
+                            borderColor: type === 'O' ? 'grey.300' : 'primary.main'
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {type === 'O' ? 'Fixed' : 'Sliding'}
+                          </Typography>
+                          <Typography variant="caption">
+                            Panel {index + 1}
+                          </Typography>
+                        </Paper>
+                      ))}
+                    </Box>
+                  </Paper>
+                </Grid>
+              )}
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Width (inches)"
+                  type="number"
+                  value={configuration.dimensions.width || ''}
+                  onChange={handleDimensionChange('width')}
+                  InputProps={{ 
+                    inputProps: { min: 0, step: 0.1 },
+                    sx: { height: '56px' }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Height (inches)"
+                  type="number"
+                  value={configuration.dimensions.height || ''}
+                  onChange={handleDimensionChange('height')}
+                  InputProps={{ 
+                    inputProps: { min: 0, step: 0.1 },
+                    sx: { height: '56px' }
+                  }}
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Width (inches)"
-                type="number"
-                value={configuration.dimensions.width || ''}
-                onChange={handleDimensionChange('width')}
-                InputProps={{ inputProps: { min: 0, step: 0.1 } }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Height (inches)"
-                type="number"
-                value={configuration.dimensions.height || ''}
-                onChange={handleDimensionChange('height')}
-                InputProps={{ inputProps: { min: 0, step: 0.1 } }}
-              />
-            </Grid>
-          </Grid>
+          </Box>
         ) : (
           <>
             <Grid item xs={12}>
