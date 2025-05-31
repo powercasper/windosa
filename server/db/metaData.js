@@ -82,7 +82,10 @@ const unitCostPerSqft = {
       "Fixed": 32, // Keep fixed panel rate for sidelights
       "Pivot Door": 85 // Added higher rate for pivot configuration
     },
-    SD115: { "Left Pivot": 55, "Right Pivot": 55, "Center Pivot": 58 },
+    SD115: { 
+      "Pivot Door": 90, // Main pivot door rate
+      "Fixed": 35 // Fixed panel rate for sidelights
+    },
     // — Sliding Doors —
     "SMARTIA M450": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
     "SMARTIA M630": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
