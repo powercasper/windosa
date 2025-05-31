@@ -37,7 +37,7 @@ import {
 const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   const [availableModels, setAvailableModels] = useState([]);
   const [availableOperables, setAvailableOperables] = useState([]);
-  const [maxPanels, setMaxPanels] = useState(4);
+  const [maxPanels, setMaxPanels] = useState(6);
   const [panelConfigs, setPanelConfigs] = useState([]);
   const [useEqualWidths, setUseEqualWidths] = useState(true);
 
@@ -106,7 +106,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         setAvailableOperables(doorOperables);
       } else if (configuration.systemType === 'Sliding Doors') {
         // For sliding doors, we use typologies
-        setAvailableOperables(['OX', 'XX', 'OXX', 'XXX', 'OXXO', 'OXXX', 'XXXX']);
+        setAvailableOperables(['OX', 'XX', 'OXX', 'XXX', 'OXXO', 'OXXX', 'XXXX', 'OXXXX', 'XXXXO', 'OXXXO', 'OOXXX', 'XXXOO', 'OXXXXO', 'XXXXXX', 'OOXXOO']);
       }
     }
   }, [configuration.systemType]);
@@ -856,7 +856,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                     onChange={handlePanelCountChange}
                     label="Number of Panels"
                   >
-                    {[2,3,4,6].map((num) => (
+                    {[2,3,4,5,6].map((num) => (
                       <MenuItem 
                         key={num} 
                         value={num}

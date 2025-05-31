@@ -108,7 +108,41 @@ const calculateItemPrice = (item) => {
     const area = (item.dimensions.width * item.dimensions.height) / 144;
     totalArea = area;
     
-    const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][item.operationType];
+    const costs = unitCostPerSqft[item.brand][item.systemModel];
+    const systemUnitCost = costs[item.operationType];
+    
+    if (!systemUnitCost) {
+      console.warn('No direct cost found for configuration:', item.operationType);
+      // Determine fallback cost based on panel composition
+      const numFixed = (item.operationType.match(/O/g) || []).length;
+      const numSliding = (item.operationType.match(/X/g) || []).length;
+      const totalPanels = numFixed + numSliding;
+
+      if (totalPanels === 5) {
+        if (numFixed === 1) {
+          systemUnitCost = costs['OXXXX'] || 33.9;
+        } else if (numFixed === 2) {
+          systemUnitCost = item.operationType.includes('OO') ? 
+            (costs['OOXXX'] || 33.2) : 
+            (costs['OXXXO'] || 33.5);
+        } else {
+          systemUnitCost = costs['OXXXX'] || 33.9;
+        }
+      } else if (totalPanels === 6) {
+        if (numFixed === 0) {
+          systemUnitCost = costs['XXXXXX'] || 35.5;
+        } else if (numFixed === 2) {
+          systemUnitCost = costs['OXXXXO'] || 34.32;
+        } else if (numFixed === 4) {
+          systemUnitCost = costs['OOXXOO'] || 33.8;
+        } else {
+          systemUnitCost = costs['OXXXXO'] || 34.32;
+        }
+      } else {
+        systemUnitCost = costs['OXXO'] || 31.16; // Default fallback
+      }
+    }
+
     totalSystemCost = systemUnitCost * area;
     totalGlassCost = glassUnitCost * area;
 

@@ -89,7 +89,23 @@ const unitCostPerSqft = {
     // — Sliding Doors —
     "SMARTIA M450": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
     "SMARTIA M630": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
-    "SMARTIA S650": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.6, "OXXXXO": 34.32}
+    "SMARTIA S650": {
+      "OX": 40.62,
+      "XX": 43.33,
+      "OXX": 41.45,
+      "XXX": 43.44,
+      "OXXO": 31.16,
+      "OXXX": 32.83,
+      "XXXX": 33.6,
+      "OXXXX": 33.9,  // 1 fixed + 4 sliding
+      "XXXXO": 33.9,  // 4 sliding + 1 fixed
+      "OXXXO": 33.5,  // 2 fixed + 3 sliding
+      "OOXXX": 33.2,  // 2 fixed + 3 sliding (grouped)
+      "XXXOO": 33.2,  // 3 sliding + 2 fixed (grouped)
+      "OXXXXO": 34.32,
+      "XXXXXX": 35.5,  // 6 sliding panels
+      "OOXXOO": 33.8   // 2 sliding panels with fixed ends and sides
+    }
   },
   Aluprof: {
     // Windows
