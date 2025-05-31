@@ -38,18 +38,17 @@ const finishOptions = {
 const windowOperables = ["Fixed", "Tilt & Turn", "Casement", "Awning", "Tilt Only"];
 
 const doorModelCapabilities = {
-  "SD67": ["Single Door", "Double Door", "Double Door with Fixed Panel"],
-  "SD77": ["Single Door", "Double Door", "Double Door with Fixed Panel", "Pivot Door"],
+  "SD67": ["Single Door", "Double Door"],
+  "SD77": ["Single Door", "Double Door", "Pivot Door"],
   "SD115": ["Pivot Door"]
 };
 
 const doorOperables = {
-  openingTypes: ["Single Door", "Double Door", "Double Door with Fixed Panel", "Pivot Door"],
+  openingTypes: ["Single Door", "Double Door", "Pivot Door"],
   swingDirections: {
-    "Single Door": ["Left Hand In", "Right Hand In", "Left Hand Out", "Right Hand Out"],
+    "Single Door": ["Left Hand In", "Left Hand Out", "Right Hand In", "Right Hand Out"],
     "Double Door": ["Active Left", "Active Right"],
-    "Double Door with Fixed Panel": ["Left Active + Right Fixed", "Right Active + Left Fixed"],
-    "Pivot Door": ["Left Pivot", "Right Pivot", "Center Pivot"]
+    "Pivot Door": ["Center Pivot", "Left Pivot", "Right Pivot"]
   },
   handleTypes: ["Lever Handle", "Pull Handle", "Push Bar"],
   lockTypes: ["Multi-Point Lock", "Single Point Lock", "Electric Strike", "Magnetic Lock"],
