@@ -15,6 +15,12 @@ import {
 } from '@mui/material';
 import { systemBrands } from '../../utils/metadata';
 import DefaultFinishOptions from '../DefaultFinishOptions';
+import BusinessIcon from '@mui/icons-material/Business';
+
+const brandLogos = {
+  'Alumil': 'https://www.alumil.com/media/1455/alumil-logo.png',
+  'Reynaers': 'https://www.reynaers.com/sites/default/files/styles/header_logo/public/2019-01/reynaers-aluminium-logo.png'
+};
 
 const BrandSelection = ({ configuration, onUpdate, onNext, brands, isEditing }) => {
   const handleBrandSelect = (brand) => {
@@ -50,35 +56,114 @@ const BrandSelection = ({ configuration, onUpdate, onNext, brands, isEditing }) 
         Select Brand
       </Typography>
       <Grid container spacing={3}>
-        {brands.map((brand) => (
-          <Grid item xs={12} sm={6} md={4} key={brand}>
-            <Card 
-              sx={{ 
-                cursor: 'pointer',
-                bgcolor: configuration.brand === brand ? 'primary.light' : 'background.paper',
-                '&:hover': {
-                  bgcolor: configuration.brand === brand ? 'primary.light' : 'action.hover',
-                }
-              }}
-              onClick={() => handleBrandSelect(brand)}
-            >
-              <CardContent>
-                <Typography variant="h6" component="div">
-                  {brand}
-                </Typography>
-                {configuration.brand === brand && (
-                  <Box sx={{ mt: 1 }}>
-                    <Chip 
-                      label="Selected" 
-                      color="primary" 
-                      size="small"
-                    />
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+        {brands.map((brand) => {
+          const isSelected = configuration.brand === brand;
+          const description = getBrandDescription(brand);
+          
+          return (
+            <Grid item xs={12} sm={6} key={brand}>
+              <Card 
+                sx={{ 
+                  height: '100%',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease-in-out',
+                  transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+                  bgcolor: isSelected ? 'primary.light' : 'background.paper',
+                  '&:hover': {
+                    transform: 'scale(1.02)',
+                    bgcolor: isSelected ? 'primary.light' : 'action.hover',
+                  },
+                  position: 'relative'
+                }}
+                onClick={() => handleBrandSelect(brand)}
+                elevation={isSelected ? 6 : 1}
+              >
+                <CardActionArea sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      mb: 2,
+                      justifyContent: 'space-between'
+                    }}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        gap: 2
+                      }}>
+                        <BusinessIcon 
+                          sx={{ 
+                            fontSize: 40,
+                            color: isSelected ? 'primary.contrastText' : 'primary.main'
+                          }} 
+                        />
+                        <Typography 
+                          variant="h5" 
+                          component="div"
+                          sx={{
+                            color: isSelected ? 'primary.contrastText' : 'inherit',
+                            fontWeight: isSelected ? 600 : 500
+                          }}
+                        >
+                          {brand}
+                        </Typography>
+                      </Box>
+                      {isSelected && (
+                        <Chip 
+                          label="Selected" 
+                          color="primary"
+                          sx={{
+                            bgcolor: 'primary.dark',
+                            color: 'primary.contrastText'
+                          }}
+                        />
+                      )}
+                    </Box>
+                    <Typography 
+                      variant="body1" 
+                      sx={{
+                        color: isSelected ? 'primary.contrastText' : 'text.secondary',
+                        mb: 2
+                      }}
+                    >
+                      {description}
+                    </Typography>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      gap: 1, 
+                      flexWrap: 'wrap'
+                    }}>
+                      <Chip 
+                        label="Windows" 
+                        size="small"
+                        sx={{
+                          bgcolor: isSelected ? 'primary.dark' : 'grey.100',
+                          color: isSelected ? 'primary.contrastText' : 'text.primary'
+                        }}
+                      />
+                      <Chip 
+                        label="Doors" 
+                        size="small"
+                        sx={{
+                          bgcolor: isSelected ? 'primary.dark' : 'grey.100',
+                          color: isSelected ? 'primary.contrastText' : 'text.primary'
+                        }}
+                      />
+                      <Chip 
+                        label="Curtain Walls" 
+                        size="small"
+                        sx={{
+                          bgcolor: isSelected ? 'primary.dark' : 'grey.100',
+                          color: isSelected ? 'primary.contrastText' : 'text.primary'
+                        }}
+                      />
+                    </Box>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
       {isEditing && (

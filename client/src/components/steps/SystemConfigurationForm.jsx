@@ -51,12 +51,13 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         setMaxPanels(maxPanelCount || 4);
         
         // Initialize default panel configuration if none exists
-        if (!configuration.panels) {
+        if (!configuration.panels || configuration.panels.length === 0) {
           onUpdate({
             panels: [
               { type: 'Fixed', direction: null },
               { type: 'Sliding', direction: 'right' }
-            ]
+            ],
+            operationType: 'OX'  // Set default operationType
           });
         }
       }
@@ -184,12 +185,16 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         }
       });
     } else {
-      onUpdate({ panels: newPanels });
+      // Generate operationType string (e.g., "OX", "OXXO")
+      const operationType = newPanels.map(panel => 
+        panel.type === 'Fixed' ? 'O' : 'X'
+      ).join('');
+      
+      onUpdate({ 
+        panels: newPanels,
+        operationType // Update operationType whenever panel types change
+      });
     }
-
-    // Generate operationType string (e.g., "OX", "OXXO")
-    const operationType = newPanels.map(panel => panel.type === 'Fixed' ? 'O' : 'X').join('');
-    onUpdate({ operationType });
   };
 
   const handlePanelCountChange = (event) => {
