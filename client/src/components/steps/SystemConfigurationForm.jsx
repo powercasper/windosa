@@ -16,6 +16,7 @@ import {
   CardContent,
   Divider,
   InputAdornment,
+  Switch,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -36,6 +37,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   const [availableOperables, setAvailableOperables] = useState([]);
   const [maxPanels, setMaxPanels] = useState(4);
   const [panelConfigs, setPanelConfigs] = useState([]);
+  const [useEqualWidths, setUseEqualWidths] = useState(true);
 
   useEffect(() => {
     if (configuration.brand && configuration.systemType) {
@@ -134,6 +136,36 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
     }
   };
 
+  const distributeWidth = (totalWidth, numberOfPanels) => {
+    const equalWidth = parseFloat((totalWidth / numberOfPanels).toFixed(1));
+    return Array(numberOfPanels).fill(equalWidth);
+  };
+
+  const handleTotalWidthChange = (event) => {
+    const totalWidth = parseFloat(event.target.value) || 0;
+    if (useEqualWidths && configuration.panels) {
+      const equalWidths = distributeWidth(totalWidth, configuration.panels.length);
+      const newPanels = configuration.panels.map((panel, index) => ({
+        ...panel,
+        width: equalWidths[index]
+      }));
+      onUpdate({
+        panels: newPanels,
+        dimensions: {
+          ...configuration.dimensions,
+          width: totalWidth
+        }
+      });
+    } else {
+      onUpdate({
+        dimensions: {
+          ...configuration.dimensions,
+          width: totalWidth
+        }
+      });
+    }
+  };
+
   const handlePanelChange = (index, field, value) => {
     const newPanels = [...(configuration.panels || [])];
     newPanels[index] = {
@@ -142,7 +174,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
     };
     
     // Calculate total width when panel widths change
-    if (field === 'width') {
+    if (field === 'width' && !useEqualWidths) {
       const totalWidth = newPanels.reduce((sum, panel) => sum + (panel.width || 0), 0);
       onUpdate({ 
         panels: newPanels,
@@ -357,13 +389,20 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                         // Add new panels
                         while (newPanels.length < count) {
                           newPanels.push({ 
-                            width: 0,
+                            width: useEqualWidths ? (configuration.dimensions.width || 0) / count : 0,
                             operationType: 'Fixed'
                           });
                         }
                       } else {
                         // Remove panels from the end
                         newPanels = newPanels.slice(0, count);
+                        if (useEqualWidths) {
+                          const equalWidth = (configuration.dimensions.width || 0) / count;
+                          newPanels = newPanels.map(panel => ({
+                            ...panel,
+                            width: equalWidth
+                          }));
+                        }
                       }
                       
                       onUpdate({ panels: newPanels });
@@ -377,6 +416,73 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                     ))}
                   </Select>
                 </FormControl>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="System Height (inches)"
+                  type="number"
+                  value={configuration.dimensions.height || ''}
+                  onChange={handleDimensionChange('height')}
+                  InputProps={{ 
+                    inputProps: { min: 0, step: 0.1 },
+                    sx: { height: '56px' }
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  p: 2, 
+                  border: '1px solid rgba(0, 0, 0, 0.12)', 
+                  borderRadius: 1,
+                  bgcolor: 'background.paper'
+                }}>
+                  <Stack spacing={2}>
+                    <FormControl>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Width Distribution
+                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Typography>Custom</Typography>
+                          <Switch
+                            checked={useEqualWidths}
+                            onChange={(e) => {
+                              setUseEqualWidths(e.target.checked);
+                              if (e.target.checked && configuration.dimensions.width) {
+                                // Distribute total width equally
+                                const equalWidths = distributeWidth(
+                                  configuration.dimensions.width,
+                                  configuration.panels.length
+                                );
+                                const newPanels = configuration.panels.map((panel, index) => ({
+                                  ...panel,
+                                  width: equalWidths[index]
+                                }));
+                                onUpdate({ panels: newPanels });
+                              }
+                            }}
+                          />
+                          <Typography>Equal</Typography>
+                        </Stack>
+                      </Stack>
+                    </FormControl>
+
+                    <TextField
+                      fullWidth
+                      label="Total System Width (inches)"
+                      type="number"
+                      value={configuration.dimensions.width || ''}
+                      onChange={handleTotalWidthChange}
+                      InputProps={{ 
+                        inputProps: { min: 0, step: 0.1 },
+                        sx: { height: '56px' }
+                      }}
+                    />
+                  </Stack>
+                </Box>
               </Grid>
 
               {configuration.panels?.map((panel, index) => (
@@ -400,6 +506,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                             type="number"
                             value={panel.width || ''}
                             onChange={(e) => handlePanelChange(index, 'width', parseFloat(e.target.value) || 0)}
+                            disabled={useEqualWidths}
                             InputProps={{ 
                               inputProps: { min: 0, step: 0.1 },
                               sx: { height: '56px' }
@@ -467,20 +574,6 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                     ))}
                   </Box>
                 </Paper>
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Height (inches)"
-                  type="number"
-                  value={configuration.dimensions.height || ''}
-                  onChange={handleDimensionChange('height')}
-                  InputProps={{ 
-                    inputProps: { min: 0, step: 0.1 },
-                    sx: { height: '56px' }
-                  }}
-                />
               </Grid>
             </Grid>
           </Box>
