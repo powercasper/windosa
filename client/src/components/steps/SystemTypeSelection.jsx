@@ -6,6 +6,8 @@ import {
   Typography,
   CardActionArea,
   Box,
+  Chip,
+  Button,
 } from '@mui/material';
 import WindowIcon from '@mui/icons-material/Window';
 import DoorFrontIcon from '@mui/icons-material/DoorFront';
@@ -13,24 +15,32 @@ import ViewStreamIcon from '@mui/icons-material/ViewStream';
 import ViewComfyIcon from '@mui/icons-material/ViewComfy';
 import ViewQuiltIcon from '@mui/icons-material/ViewQuilt';
 
-const systemTypes = [
-  { name: 'Windows', icon: WindowIcon },
-  { name: 'Entrance Doors', icon: DoorFrontIcon },
-  { name: 'Sliding Doors', icon: ViewStreamIcon },
-  { name: 'Folding Doors', icon: ViewComfyIcon },
-  { name: 'Curtain Wall Systems', icon: ViewQuiltIcon },
-];
+// Define the mapping of system types to their icons
+const systemTypeIcons = {
+  'Windows': WindowIcon,
+  'Entrance Doors': DoorFrontIcon,
+  'Sliding Doors': ViewStreamIcon,
+  'Folding Doors': ViewComfyIcon,
+  'Curtain Wall Systems': ViewQuiltIcon,
+};
 
-const SystemTypeSelection = ({ configuration, onUpdate, onNext }) => {
-  const handleSystemTypeSelect = (systemType) => {
-    onUpdate({ systemType });
+const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isEditing }) => {
+  const handleTypeSelect = (type) => {
+    onUpdate({ 
+      systemType: type,
+      // Reset dependent fields when changing system type
+      systemModel: '',
+      operationType: '',
+      dimensions: { width: 0, height: 0 },
+      panels: []
+    });
     onNext();
   };
 
   return (
     <Box>
       <Typography variant="h5" gutterBottom>
-        Select System Type
+        Choose System Type
       </Typography>
       {!configuration.brand && (
         <Typography color="error" gutterBottom>
@@ -39,10 +49,10 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext }) => {
       )}
       <Grid container spacing={3}>
         {systemTypes.map((type) => {
-          const Icon = type.icon;
-          const isSelected = configuration.systemType === type.name;
+          const IconComponent = systemTypeIcons[type] || WindowIcon; // Fallback to WindowIcon if no mapping found
+          const isSelected = configuration.systemType === type;
           return (
-            <Grid item xs={12} sm={6} md={4} key={type.name}>
+            <Grid item xs={12} sm={6} md={4} key={type}>
               <Card 
                 sx={{
                   opacity: configuration.brand ? 1 : 0.5,
@@ -57,7 +67,7 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext }) => {
                 elevation={isSelected ? 6 : 1}
               >
                 <CardActionArea 
-                  onClick={() => handleSystemTypeSelect(type.name)}
+                  onClick={() => handleTypeSelect(type)}
                   disabled={!configuration.brand}
                 >
                   <CardContent>
@@ -67,7 +77,7 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext }) => {
                       alignItems="center"
                       p={2}
                     >
-                      <Icon 
+                      <IconComponent 
                         sx={{ 
                           fontSize: 60, 
                           mb: 2,
@@ -82,7 +92,7 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext }) => {
                           fontWeight: isSelected ? 600 : 400
                         }}
                       >
-                        {type.name}
+                        {type}
                       </Typography>
                     </Box>
                   </CardContent>
@@ -92,6 +102,17 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext }) => {
           );
         })}
       </Grid>
+
+      {isEditing && (
+        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="contained"
+            onClick={onNext}
+          >
+            Next
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 };

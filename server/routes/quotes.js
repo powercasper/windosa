@@ -8,7 +8,8 @@ const {
   systemArchitecture,
   finishOptions,
   windowOperables,
-  doorOperables 
+  doorOperables,
+  systemBrands 
 } = require('../db/metaData');
 
 // Get metadata endpoint
@@ -20,7 +21,8 @@ router.get('/metadata', (req, res) => {
       systemArchitecture,
       finishOptions,
       windowOperables,
-      doorOperables
+      doorOperables,
+      systemBrands
     });
   } catch (error) {
     console.error('Error fetching metadata:', error);

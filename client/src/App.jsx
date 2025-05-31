@@ -9,9 +9,14 @@ import {
   Box,
   CircularProgress,
   Alert,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from '@mui/material';
 import ConfigurationStepper from './components/ConfigurationStepper';
 import { fetchMetadata } from './api/config';
+import SavedQuotes from './components/SavedQuotes';
 
 const theme = createTheme({
   palette: {
@@ -47,10 +52,14 @@ const theme = createTheme({
   },
 });
 
-function App() {
+const App = () => {
   const [metadata, setMetadata] = useState(null);
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [savedQuotesOpen, setSavedQuotesOpen] = useState(false);
+  const [configStepperKey, setConfigStepperKey] = useState(0);
+  const [isEditingQuote, setIsEditingQuote] = useState(false);
+  const [loadedQuote, setLoadedQuote] = useState(null);
 
   useEffect(() => {
     const loadMetadata = async () => {
@@ -69,6 +78,20 @@ function App() {
     loadMetadata();
   }, []);
 
+  const handleLoadQuote = (quote, isEdit = false) => {
+    setSavedQuotesOpen(false);
+    setIsEditingQuote(isEdit);
+    setLoadedQuote(quote);
+    // Force a remount of ConfigurationStepper to ensure it loads with the saved quote
+    setConfigStepperKey(prev => prev + 1);
+  };
+
+  const handleQuoteSaved = () => {
+    // Reset the loaded quote after saving
+    setLoadedQuote(null);
+    setIsEditingQuote(false);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -78,24 +101,44 @@ function App() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Window & Door Pricing System
             </Typography>
+            <Button color="inherit" onClick={() => setSavedQuotesOpen(true)}>
+              Saved Quotes
+            </Button>
           </Toolbar>
         </AppBar>
-        <Container maxWidth="lg" sx={{ mt: 4 }}>
+
+        <Box sx={{ p: 3 }}>
           {loading ? (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
               <CircularProgress />
             </Box>
           ) : error ? (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {error}
-            </Alert>
+            <Alert severity="error">{error}</Alert>
           ) : (
-            <ConfigurationStepper metadata={metadata} />
+            <ConfigurationStepper 
+              key={configStepperKey}
+              metadata={metadata} 
+              onLoadSavedQuote={handleLoadQuote}
+              onQuoteSaved={handleQuoteSaved}
+              isEditingQuote={isEditingQuote}
+              loadedQuote={loadedQuote}
+            />
           )}
-        </Container>
+        </Box>
+
+        <Dialog
+          open={savedQuotesOpen}
+          onClose={() => setSavedQuotesOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogContent>
+            <SavedQuotes onLoadQuote={handleLoadQuote} />
+          </DialogContent>
+        </Dialog>
       </Box>
     </ThemeProvider>
   );
-}
+};
 
 export default App; 

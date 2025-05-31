@@ -18,6 +18,7 @@ import {
   Stack,
   Grid,
   Chip,
+  Snackbar
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -27,13 +28,7 @@ import ColorLensIcon from '@mui/icons-material/ColorLens';
 import SquareFootIcon from '@mui/icons-material/SquareFoot';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote, generatePDF } from '../../api/config';
-
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(amount);
-};
+import { formatCurrency, saveQuote } from '../../utils/helpers';
 
 const calculateItemPrice = (item) => {
   const height = item.dimensions.height;
@@ -111,7 +106,9 @@ const PricingSummary = ({
   onAddToQuote, 
   onStartNew,
   onEditItem,
-  onRemoveItem
+  onRemoveItem,
+  onQuoteSaved,
+  savedQuote = null
 }) => {
   const [pricing, setPricing] = useState({
     items: [],
@@ -127,6 +124,7 @@ const PricingSummary = ({
     quote: null
   });
   const [showAddSuccess, setShowAddSuccess] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     // Only calculate pricing for items in the quote
@@ -219,6 +217,31 @@ const PricingSummary = ({
     }, 3000);
   };
 
+  const handleSaveQuote = () => {
+    try {
+      const quoteToSave = {
+        ...quoteDialog.quote,
+        items: quoteItems,
+        totalAmount: pricing.grandTotal,
+        id: savedQuote?.id // Preserve the ID if editing an existing quote
+      };
+      
+      saveQuote(quoteToSave);
+      setSaveSuccess(true);
+      setQuoteDialog(prev => ({ ...prev, open: false }));
+      
+      // Notify parent components that the quote was saved
+      if (onQuoteSaved) {
+        onQuoteSaved();
+      }
+    } catch (error) {
+      setQuoteDialog(prev => ({
+        ...prev,
+        error: 'Failed to save quote. Please try again.'
+      }));
+    }
+  };
+
   const isConfigurationEmpty = !configuration.systemModel;
 
   if (pricing.items.length === 0 && isConfigurationEmpty) {
@@ -249,7 +272,7 @@ const PricingSummary = ({
   return (
     <Box>
       <Typography variant="h5" gutterBottom>
-        Quote Summary
+        {savedQuote ? `Edit Quote #${savedQuote.id}` : 'Quote Summary'}
       </Typography>
 
       {!isConfigurationEmpty && (
@@ -641,40 +664,67 @@ const PricingSummary = ({
         onClose={() => setQuoteDialog(prev => ({ ...prev, open: false }))}
         maxWidth="sm"
         fullWidth
-        disableScrollLock
       >
         <DialogTitle>
-          {quoteDialog.loading ? 'Generating Quote...' : 'Quote Generated'}
+          {savedQuote ? 'Update Quote' : 'Save Quote'}
         </DialogTitle>
         <DialogContent>
-          {quoteDialog.loading ? (
+          {quoteDialog.loading && (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
               <CircularProgress />
             </Box>
-          ) : quoteDialog.error ? (
-            <Alert severity="error">{quoteDialog.error}</Alert>
-          ) : quoteDialog.quote ? (
+          )}
+          {quoteDialog.error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {quoteDialog.error}
+            </Alert>
+          )}
+          {quoteDialog.quote ? (
             <>
               <Typography variant="body1" paragraph>
-                Quote Number: {quoteDialog.quote.quoteNumber}
+                Quote Number: {savedQuote?.id || quoteDialog.quote.quoteNumber}
               </Typography>
               <Typography variant="body1" paragraph>
-                Total Amount: ${pricing.grandTotal.toFixed(2)}
+                Total Amount: {formatCurrency(pricing.grandTotal)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {savedQuote ? 
+                  'Click Save Quote to update this quote with the current items and pricing.' :
+                  'Click Save Quote to save this quote for later reference.'}
               </Typography>
             </>
           ) : null}
         </DialogContent>
         <DialogActions>
           {!quoteDialog.loading && !quoteDialog.error && quoteDialog.quote && (
-            <Button onClick={handleDownloadPDF} color="primary">
-              Download PDF
-            </Button>
+            <>
+              <Button onClick={handleSaveQuote} color="primary" variant="contained">
+                {savedQuote ? 'Update Quote' : 'Save Quote'}
+              </Button>
+              <Button onClick={handleDownloadPDF} color="primary">
+                Download PDF
+              </Button>
+            </>
           )}
           <Button onClick={() => setQuoteDialog(prev => ({ ...prev, open: false }))} color="primary">
             Close
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={saveSuccess}
+        autoHideDuration={3000}
+        onClose={() => setSaveSuccess(false)}
+        message={savedQuote ? "Quote updated successfully" : "Quote saved successfully"}
+      />
+
+      <Snackbar
+        open={showAddSuccess}
+        autoHideDuration={3000}
+        onClose={() => setShowAddSuccess(false)}
+        message="Item added to quote successfully"
+      />
     </Box>
   );
 };

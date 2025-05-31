@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Stepper,
   Step,
@@ -41,10 +41,27 @@ const emptyConfiguration = {
   finish: { type: '', color: '' }
 };
 
-const ConfigurationStepper = ({ metadata }) => {
-  const [activeStep, setActiveStep] = useState(0);
+const ConfigurationStepper = ({ 
+  metadata, 
+  onLoadSavedQuote, 
+  onQuoteSaved,
+  isEditingQuote, 
+  loadedQuote 
+}) => {
+  const [activeStep, setActiveStep] = useState(isEditingQuote ? 4 : 0);
   const [currentConfiguration, setCurrentConfiguration] = useState(emptyConfiguration);
-  const [quoteItems, setQuoteItems] = useState([]);
+  const [quoteItems, setQuoteItems] = useState(loadedQuote ? loadedQuote.items : []);
+  const [currentQuote, setCurrentQuote] = useState(loadedQuote);
+  const [isEditingItem, setIsEditingItem] = useState(false);
+
+  // Effect to handle quote loading
+  useEffect(() => {
+    if (loadedQuote) {
+      setQuoteItems(loadedQuote.items);
+      setCurrentQuote(loadedQuote);
+      setActiveStep(4);
+    }
+  }, [loadedQuote]);
 
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
@@ -55,7 +72,12 @@ const ConfigurationStepper = ({ metadata }) => {
   };
 
   const handleStepClick = (step) => {
-    if (step <= getLastCompletedStep() + 1) {
+    // When editing a quote (not an item), only allow moving to the Quote Summary step
+    if (currentQuote && !isEditingItem && step !== 4) {
+      return;
+    }
+    // When editing an item, allow free navigation through steps
+    if (isEditingItem || step <= getLastCompletedStep() + 1) {
       setActiveStep(step);
     }
   };
@@ -67,6 +89,7 @@ const ConfigurationStepper = ({ metadata }) => {
   const handleAddToQuote = () => {
     setQuoteItems(prev => [...prev, { ...currentConfiguration, id: Date.now() }]);
     setCurrentConfiguration(emptyConfiguration);
+    setIsEditingItem(false);
   };
 
   const handleRemoveFromQuote = (itemId) => {
@@ -76,10 +99,27 @@ const ConfigurationStepper = ({ metadata }) => {
   const handleEditItem = (item) => {
     setCurrentConfiguration(item);
     setQuoteItems(prev => prev.filter(i => i.id !== item.id));
+    setIsEditingItem(true);
+    setActiveStep(0);
+  };
+
+  const handleQuoteSaved = () => {
+    if (onQuoteSaved) {
+      onQuoteSaved();
+    }
+    setCurrentQuote(null);
+    setQuoteItems([]);
+    setCurrentConfiguration(emptyConfiguration);
+    setIsEditingItem(false);
     setActiveStep(0);
   };
 
   const getLastCompletedStep = () => {
+    // When editing an item, all previous steps are considered complete
+    if (isEditingItem) {
+      return activeStep;
+    }
+    // Normal completion check for new items
     if (!currentConfiguration.brand) return -1;
     if (!currentConfiguration.systemType) return 0;
     if (!currentConfiguration.systemModel || !currentConfiguration.dimensions.width || !currentConfiguration.dimensions.height) return 1;
@@ -94,14 +134,16 @@ const ConfigurationStepper = ({ metadata }) => {
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
           onNext={handleNext}
-          brands={metadata?.systemHierarchy ? Object.keys(metadata.systemHierarchy) : []}
+          brands={metadata?.systemBrands || []}
+          isEditing={isEditingItem}
         />;
       case 1:
         return <SystemTypeSelection 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
           onNext={handleNext}
-          systemTypes={metadata?.systemTypes || []}
+          systemTypes={Object.keys(metadata?.systemHierarchy || {})}
+          isEditing={isEditingItem}
         />;
       case 2:
         return <SystemConfigurationForm 
@@ -109,12 +151,14 @@ const ConfigurationStepper = ({ metadata }) => {
           onUpdate={handleConfigurationUpdate}
           onNext={handleNext}
           metadata={metadata}
+          isEditing={isEditingItem}
         />;
       case 3:
         return <GlassOptions 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
           onNext={handleNext}
+          isEditing={isEditingItem}
         />;
       case 4:
         return <PricingSummary 
@@ -123,10 +167,17 @@ const ConfigurationStepper = ({ metadata }) => {
           onAddToQuote={handleAddToQuote}
           onStartNew={() => {
             setCurrentConfiguration(emptyConfiguration);
+            setCurrentQuote(null);
+            setIsEditingItem(false);
             setActiveStep(0);
+            if (onQuoteSaved) {
+              onQuoteSaved();
+            }
           }}
           onEditItem={handleEditItem}
           onRemoveItem={handleRemoveFromQuote}
+          onQuoteSaved={handleQuoteSaved}
+          savedQuote={currentQuote}
         />;
       default:
         return 'Unknown step';
@@ -157,13 +208,21 @@ const ConfigurationStepper = ({ metadata }) => {
           {steps.map((label, index) => {
             const stepProps = {};
             const labelProps = {};
-            const completed = index <= getLastCompletedStep();
+            // When editing an item, show all previous steps as completed
+            const completed = isEditingItem ? 
+              index < activeStep : 
+              index <= getLastCompletedStep();
             
             return (
               <Step key={label} {...stepProps} completed={completed}>
                 <StepButton 
                   onClick={() => handleStepClick(index)}
-                  disabled={index > getLastCompletedStep() + 1}
+                  disabled={
+                    // When editing a quote (not an item), only allow Quote Summary
+                    (currentQuote && !isEditingItem && index !== 4) || 
+                    // When not editing an item, require step completion
+                    (!isEditingItem && index > getLastCompletedStep() + 1)
+                  }
                   optional={
                     index === activeStep ? (
                       <Typography variant="caption" color="primary">
@@ -184,7 +243,7 @@ const ConfigurationStepper = ({ metadata }) => {
         <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
           <Button
             color="inherit"
-            disabled={activeStep === 0}
+            disabled={activeStep === 0 || (currentQuote && !isEditingItem && activeStep === 4)}
             onClick={handleBack}
             sx={{ mr: 1 }}
           >

@@ -10,13 +10,15 @@ import {
   CardActionArea,
   Paper,
   Divider,
+  Chip,
+  Button,
 } from '@mui/material';
 import { systemBrands } from '../../utils/metadata';
 import DefaultFinishOptions from '../DefaultFinishOptions';
 
-const BrandSelection = ({ configuration, onUpdate, onNext }) => {
-  const handleBrandSelect = (brandName) => {
-    onUpdate({ brand: brandName });
+const BrandSelection = ({ configuration, onUpdate, onNext, brands, isEditing }) => {
+  const handleBrandSelect = (brand) => {
+    onUpdate({ brand });
     onNext();
   };
 
@@ -44,114 +46,51 @@ const BrandSelection = ({ configuration, onUpdate, onNext }) => {
 
       <Divider sx={{ my: 6 }} />
 
-      <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
+      <Typography variant="h5" gutterBottom>
         Select Brand
       </Typography>
-      <Grid container spacing={3} justifyContent="center">
-        {systemBrands.map((brandName) => (
-          <Grid item xs={12} sm={6} key={brandName}>
+      <Grid container spacing={3}>
+        {brands.map((brand) => (
+          <Grid item xs={12} sm={6} md={4} key={brand}>
             <Card 
-              elevation={configuration.brand === brandName ? 6 : 1}
-              sx={{
-                height: '100%',
-                minHeight: 320,
-                display: 'flex',
-                flexDirection: 'column',
-                transition: 'all 0.3s ease-in-out',
-                transform: configuration.brand === brandName ? 'scale(1.02)' : 'scale(1)',
+              sx={{ 
+                cursor: 'pointer',
+                bgcolor: configuration.brand === brand ? 'primary.light' : 'background.paper',
                 '&:hover': {
-                  transform: 'scale(1.02)',
-                  boxShadow: 6,
+                  bgcolor: configuration.brand === brand ? 'primary.light' : 'action.hover',
                 }
               }}
+              onClick={() => handleBrandSelect(brand)}
             >
-              <CardActionArea 
-                onClick={() => handleBrandSelect(brandName)}
-                sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
-              >
-                <Box position="relative">
-                  <CardMedia
-                    component="div"
-                    sx={{
-                      height: 160,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: configuration.brand === brandName ? 'primary.light' : 'grey.100',
-                      transition: 'background-color 0.3s ease-in-out',
-                    }}
-                  >
-                    <Typography 
-                      variant="h3" 
-                      sx={{
-                        color: configuration.brand === brandName ? 'primary.contrastText' : 'text.secondary',
-                        fontWeight: configuration.brand === brandName ? 600 : 500,
-                        letterSpacing: '0.02em',
-                      }}
-                    >
-                      {brandName}
-                    </Typography>
-                  </CardMedia>
-                  <Box
-                    position="absolute"
-                    top={8}
-                    right={8}
-                    sx={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      borderRadius: '50%',
-                      padding: '2px',
-                    }}
-                  >
-                    <Radio
-                      checked={configuration.brand === brandName}
-                      value={brandName}
-                      name="brand-selection"
-                      color="primary"
+              <CardContent>
+                <Typography variant="h6" component="div">
+                  {brand}
+                </Typography>
+                {configuration.brand === brand && (
+                  <Box sx={{ mt: 1 }}>
+                    <Chip 
+                      label="Selected" 
+                      color="primary" 
+                      size="small"
                     />
                   </Box>
-                </Box>
-                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography 
-                      variant="h6" 
-                      align="center"
-                      sx={{
-                        fontWeight: configuration.brand === brandName ? 600 : 500,
-                        color: configuration.brand === brandName ? 'primary.main' : 'text.primary',
-                      }}
-                    >
-                      {brandName}
-                    </Typography>
-                  </Box>
-                  <Paper 
-                    elevation={0} 
-                    sx={{ 
-                      bgcolor: 'grey.50',
-                      p: 1.5,
-                      borderRadius: 1,
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Typography 
-                      variant="body2" 
-                      color="text.secondary" 
-                      align="center"
-                      sx={{
-                        lineHeight: 1.4,
-                        fontWeight: 400,
-                      }}
-                    >
-                      {getBrandDescription(brandName)}
-                    </Typography>
-                  </Paper>
-                </CardContent>
-              </CardActionArea>
+                )}
+              </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
+
+      {isEditing && (
+        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="contained"
+            onClick={onNext}
+          >
+            Next
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 };
