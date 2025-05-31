@@ -10,7 +10,18 @@ const PORT = process.env.PORT || 5001;
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000', // Allow React dev server
+  // Allow any origin on port 3000
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if(!origin) return callback(null, true);
+    
+    // Allow any origin that matches our expected pattern
+    if(origin.match(/^http:\/\/.*:3000$/)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -40,6 +51,9 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-app.listen(PORT, () => {
+// Update the listen call to bind to all network interfaces
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`Access the API at http://localhost:${PORT}`);
+  console.log('For local network access, use your machine\'s IP address');
 });

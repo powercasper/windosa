@@ -748,39 +748,41 @@ const PricingSummary = ({
                   </Box>
 
                   {/* Door Panel Dimensions */}
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="subtitle1" color="primary" gutterBottom>
-                      Door Panel Dimensions
-                    </Typography>
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} sm={6}>
-                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Door Width
-                          </Typography>
-                          <Typography variant="h5">
-                            {configuration.dimensions?.width || 0}"
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {configuration.openingType === 'Double Door' ? 'Total width of both panels' : 'Single panel width'}
-                          </Typography>
-                        </Paper>
+                  {configuration.systemType === 'Entrance Doors' && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="subtitle1" color="primary" gutterBottom>
+                        Door Panel Dimensions
+                      </Typography>
+                      <Grid container spacing={3}>
+                        <Grid item xs={12} sm={6}>
+                          <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Door Width
+                            </Typography>
+                            <Typography variant="h5">
+                              {configuration.dimensions?.width || 0}"
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {configuration.openingType === 'Double Door' ? 'Total width of both panels' : 'Single panel width'}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Door Height
+                            </Typography>
+                            <Typography variant="h5">
+                              {configuration.dimensions?.height || 0}"
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Excluding transom
+                            </Typography>
+                          </Paper>
+                        </Grid>
                       </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Door Height
-                          </Typography>
-                          <Typography variant="h5">
-                            {configuration.dimensions?.height || 0}"
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Excluding transom
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                    </Grid>
-                  </Box>
+                    </Box>
+                  )}
 
                   {/* Area Calculations */}
                   <Box>
