@@ -22,6 +22,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CommentIcon from '@mui/icons-material/Comment';
 import { formatCurrency, formatDate, loadSavedQuotes } from '../utils/helpers';
+import AddIcon from '@mui/icons-material/Add';
 
 const SavedQuotes = ({ onLoadQuote }) => {
   const [savedQuotes, setSavedQuotes] = useState([]);

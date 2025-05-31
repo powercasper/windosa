@@ -91,7 +91,7 @@ const calculateItemPrice = (item) => {
       laborRates['Hinged Left Open In']; // Use standard hinge rate for regular doors
     totalLaborCost = laborRate * totalArea;
   } else if (item.systemType === 'Windows' && item.panels) {
-    // Calculate costs for each panel if it's a window with multiple panels
+  // Calculate costs for each panel if it's a window with multiple panels
     item.panels.forEach(panel => {
       const panelArea = (panel.width * item.dimensions.height) / 144;
       totalArea += panelArea;
@@ -440,10 +440,10 @@ const PricingSummary = ({
                                     minHeight: '40px',
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    alignItems: 'center',
+                            alignItems: 'center',
                                     justifyContent: 'center'
-                                  }}
-                                >
+                          }}
+                        >
                                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                     Transom
                                   </Typography>
@@ -494,9 +494,9 @@ const PricingSummary = ({
                                     bgcolor: 'primary.light',
                                     color: 'primary.contrastText',
                                     textAlign: 'center',
-                                    border: '1px solid',
-                                    borderColor: 'primary.main',
-                                    position: 'relative',
+                                  border: '1px solid',
+                                  borderColor: 'primary.main',
+                                  position: 'relative',
                                     minHeight: '60px',
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -512,13 +512,13 @@ const PricingSummary = ({
                                   </Typography>
                                   <Box
                                     sx={{
-                                      position: 'absolute',
+                                    position: 'absolute',
                                       [configuration.handleLocation || 'right']: 0,
-                                      top: '50%',
+                                    top: '50%',
                                       transform: 'translateY(-50%)',
                                       width: '4px',
                                       height: '16px',
-                                      bgcolor: 'primary.dark',
+                                    bgcolor: 'primary.dark',
                                       borderRadius: '2px',
                                       mr: configuration.handleLocation === 'right' ? 0.5 : 'auto',
                                       ml: configuration.handleLocation === 'left' ? 0.5 : 'auto'
@@ -536,7 +536,7 @@ const PricingSummary = ({
                                       bgcolor: 'primary.light',
                                       color: 'primary.contrastText',
                                       textAlign: 'center',
-                                      border: '1px solid',
+                                    border: '1px solid',
                                       borderColor: 'primary.main',
                                       position: 'relative',
                                       minHeight: '60px',
@@ -632,13 +632,13 @@ const PricingSummary = ({
                                   </Typography>
                                   <Box
                                     sx={{
-                                      position: 'absolute',
+                                        position: 'absolute',
                                       [configuration.handleLocation || 'right']: 0,
-                                      top: '50%',
+                                        top: '50%',
                                       transform: 'translateY(-50%)',
                                       width: '4px',
                                       height: '16px',
-                                      bgcolor: 'primary.dark',
+                                        bgcolor: 'primary.dark',
                                       borderRadius: '2px',
                                       mr: configuration.handleLocation === 'right' ? 0.5 : 'auto',
                                       ml: configuration.handleLocation === 'left' ? 0.5 : 'auto'
@@ -745,7 +745,7 @@ const PricingSummary = ({
                         </Paper>
                       </Grid>
                     </Grid>
-                  </Box>
+              </Box>
 
                   {/* Door Panel Dimensions */}
                   {configuration.systemType === 'Entrance Doors' && (
@@ -1080,9 +1080,9 @@ const PricingSummary = ({
                                         <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                                           Opening:
                                         </Typography>
-                                        <Typography variant="body2">
+                            <Typography variant="body2">
                                           {item.openingType}
-                                        </Typography>
+                            </Typography>
                                       </Box>
                                       <Box sx={{ display: 'flex', gap: 1 }}>
                                         <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>

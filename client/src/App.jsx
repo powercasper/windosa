@@ -17,6 +17,7 @@ import {
 import ConfigurationStepper from './components/ConfigurationStepper';
 import { fetchMetadata } from './api/config';
 import SavedQuotes from './components/SavedQuotes';
+import AddIcon from '@mui/icons-material/Add';
 
 const theme = createTheme({
   palette: {
@@ -101,6 +102,18 @@ const App = () => {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Window & Door Pricing System
             </Typography>
+            <Button 
+              color="inherit" 
+              onClick={() => {
+                setLoadedQuote(null);
+                setIsEditingQuote(false);
+                setConfigStepperKey(prev => prev + 1);
+              }}
+              startIcon={<AddIcon />}
+              sx={{ mr: 2 }}
+            >
+              New Quote
+            </Button>
             <Button color="inherit" onClick={() => setSavedQuotesOpen(true)}>
               Saved Quotes
             </Button>

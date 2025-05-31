@@ -281,18 +281,38 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
     if (count > newPanels.length) {
       // Add new panels
       while (newPanels.length < count) {
+        // For sliding doors, alternate between Fixed and Sliding panels
+        const isFixed = newPanels.length === 0 || newPanels.length === count - 1;
         newPanels.push({ 
           width: useEqualWidths ? (configuration.dimensions?.width || 0) / count : 0,
-          operationType: 'Fixed',  // Default to Fixed operation type
-          handleLocation: 'right'  // Default handle location
+          type: isFixed ? 'Fixed' : 'Sliding',
+          direction: isFixed ? null : 'right'  // Default sliding direction for sliding panels
         });
       }
+
+      // Generate operationType string (e.g., "OX", "OXXO")
+      const operationType = newPanels.map(panel => 
+        panel.type === 'Fixed' ? 'O' : 'X'
+      ).join('');
+      
+      onUpdate({ 
+        panels: newPanels,
+        operationType
+      });
     } else {
       // Remove panels from the end
       newPanels = newPanels.slice(0, count);
+      
+      // Update operationType after removing panels
+      const operationType = newPanels.map(panel => 
+        panel.type === 'Fixed' ? 'O' : 'X'
+      ).join('');
+      
+      onUpdate({ 
+        panels: newPanels,
+        operationType
+      });
     }
-    
-    onUpdate({ panels: newPanels });
   };
 
   const addPanel = () => {
