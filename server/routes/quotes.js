@@ -32,8 +32,11 @@ router.get('/metadata', (req, res) => {
 
 // Helper function to calculate pricing
 const calculatePricing = (configuration) => {
-  const area = (configuration.dimensions.width * configuration.dimensions.height) / 144; // Convert to sq ft
-  
+  let totalSystemCost = 0;
+  let totalGlassCost = 0;
+  let totalLaborCost = 0;
+  let totalArea = 0;
+
   // Glass rates
   const glassRates = {
     'Double Pane': 12.5,
@@ -41,36 +44,90 @@ const calculatePricing = (configuration) => {
     'Security Glass': 22,
     'Acoustic Glass': 25
   };
-
-  // Calculate system cost
-  let systemUnitCost = 0;
-  if (configuration.systemType === 'Windows' || configuration.systemType === 'Entrance Doors') {
-    systemUnitCost = unitCostPerSqft[configuration.brand][configuration.systemModel][configuration.operationType || 'Fixed'];
-  } else {
-    const systemRates = unitCostPerSqft[configuration.brand][configuration.systemModel];
-    systemUnitCost = Object.values(systemRates)[0];
-  }
-  const systemCost = systemUnitCost * area;
-
-  // Calculate glass cost
   const glassUnitCost = glassRates[configuration.glassType] || glassRates['Double Pane'];
-  const glassCost = glassUnitCost * area;
 
-  // Calculate labor cost
-  const laborRate = configuration.operationType ? 
-    laborRates[configuration.operationType] : 
-    laborRates['Fixed'];
-  const laborCost = laborRate * area;
+  if (configuration.systemType === 'Entrance Doors') {
+    // Calculate door panel area and cost
+    const doorHeight = configuration.dimensions.height;
+    const doorWidth = configuration.dimensions.width;
+    const doorArea = (doorWidth * doorHeight) / 144; // Convert to sq ft
+    const doorUnitCost = unitCostPerSqft[configuration.brand][configuration.systemModel][configuration.openingType];
+    
+    totalSystemCost += doorArea * doorUnitCost;
+    totalGlassCost += doorArea * glassUnitCost;
+    totalArea += doorArea;
 
-  // Calculate total
-  const total = systemCost + glassCost + laborCost;
+    // Calculate fixed glass areas (sidelights and transom)
+    const fixedUnitCost = unitCostPerSqft[configuration.brand][configuration.systemModel]['Fixed'];
+
+    // Sidelights
+    if (configuration.leftSidelight?.enabled) {
+      const sidelightArea = (configuration.leftSidelight.width * doorHeight) / 144;
+      totalSystemCost += sidelightArea * fixedUnitCost;
+      totalGlassCost += sidelightArea * glassUnitCost;
+      totalArea += sidelightArea;
+    }
+    if (configuration.rightSidelight?.enabled) {
+      const sidelightArea = (configuration.rightSidelight.width * doorHeight) / 144;
+      totalSystemCost += sidelightArea * fixedUnitCost;
+      totalGlassCost += sidelightArea * glassUnitCost;
+      totalArea += sidelightArea;
+    }
+
+    // Transom
+    if (configuration.transom?.enabled) {
+      const transomWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) +
+                          doorWidth +
+                          (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+      const transomArea = (transomWidth * configuration.transom.height) / 144;
+      totalSystemCost += transomArea * fixedUnitCost;
+      totalGlassCost += transomArea * glassUnitCost;
+      totalArea += transomArea;
+    }
+
+    // Calculate labor cost
+    const laborRate = configuration.openingType === 'Pivot Door' ? 
+      laborRates['Pivot'] : 
+      laborRates['Hinged Left Open In']; // Use standard hinge rate for regular doors
+    totalLaborCost = laborRate * totalArea;
+  } else if (configuration.systemType === 'Windows' && configuration.panels) {
+    // Existing window calculation logic
+    configuration.panels.forEach(panel => {
+      const panelArea = (panel.width * configuration.dimensions.height) / 144;
+      totalArea += panelArea;
+
+      const systemUnitCost = unitCostPerSqft[configuration.brand][configuration.systemModel][panel.operationType];
+      totalSystemCost += systemUnitCost * panelArea;
+      totalGlassCost += glassUnitCost * panelArea;
+      
+      const laborRate = laborRates[panel.operationType];
+      totalLaborCost += laborRate * panelArea;
+    });
+  } else if (configuration.systemType === 'Sliding Doors') {
+    // Existing sliding doors calculation logic
+    const area = (configuration.dimensions.width * configuration.dimensions.height) / 144;
+    totalArea = area;
+    
+    const systemUnitCost = unitCostPerSqft[configuration.brand][configuration.systemModel][configuration.operationType];
+    totalSystemCost = systemUnitCost * area;
+    totalGlassCost = glassUnitCost * area;
+
+    const numPanels = configuration.operationType.length;
+    const numFixed = (configuration.operationType.match(/O/g) || []).length;
+    const numSliding = (configuration.operationType.match(/X/g) || []).length;
+    
+    const fixedLaborRate = laborRates['Sliding Fixed'];
+    const slidingLaborRate = laborRates['Sliding →'];
+    const avgLaborRate = ((numFixed * fixedLaborRate) + (numSliding * slidingLaborRate)) / numPanels;
+    totalLaborCost = avgLaborRate * area;
+  }
 
   return {
-    systemCost,
-    glassCost,
-    laborCost,
-    total,
-    area
+    systemCost: totalSystemCost,
+    glassCost: totalGlassCost,
+    laborCost: totalLaborCost,
+    total: totalSystemCost + totalGlassCost + totalLaborCost,
+    area: totalArea
   };
 };
 

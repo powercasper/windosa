@@ -38,7 +38,24 @@ const finishOptions = {
 };
 
 const windowOperables = ["Tilt & Turn","Casement","Awning","Tilt Only"];
-const doorOperables   = ["Hinged Left Open In","Hinged Right Open Out","Hinged Right Open In","Hinged Left Open Out"];
+const doorOperables = {
+  openingTypes: ["Single Door", "Double Door", "Pivot Door"],
+  swingDirections: {
+    "Single Door": ["Left Hand In", "Left Hand Out", "Right Hand In", "Right Hand Out"],
+    "Double Door": ["Active Left", "Active Right"],
+    "Pivot Door": ["Center Pivot", "Left Pivot", "Right Pivot"]
+  },
+  handleTypes: ["Lever Handle", "Pull Handle", "Push Bar"],
+  lockTypes: ["Multi-Point Lock", "Single Point Lock", "Electric Strike", "Magnetic Lock"],
+  thresholds: ["Standard", "ADA Compliant", "Zero Threshold"],
+  hingeTypes: ["Standard", "3D Adjustable", "Concealed", "Pivot"]
+};
+
+const doorModelCapabilities = {
+  "SD67": ["Single Door", "Double Door"],
+  "SD77": ["Single Door", "Double Door", "Pivot Door"],
+  "SD115": ["Pivot Door"]
+};
 
 //
 // ─── PRICING TABLES ─────────────────────────────────────────────────────────────
@@ -54,9 +71,18 @@ const unitCostPerSqft = {
     "M9660":          { Fixed:24.54, "Tilt & Turn":41,   Casement:32, Awning:29, "Tilt Only":38 },
     "M9660 PHOS":     { Fixed:27,    "Tilt & Turn":45,   Casement:33, Awning:31, "Tilt Only":39 },
     // — Entrance Doors —
-    SD67:  { Fixed:30, "Hinged Left Open In":45, "Hinged Right Open In":45, "Hinged Left Open Out":46, "Hinged Right Open Out":46 },
-    SD77:  { Fixed:32, "Hinged Left Open In":48, "Hinged Right Open In":48, "Hinged Left Open Out":49, "Hinged Right Open Out":49 },
-    SD115: { Fixed:35, "Hinged Left Open In":52, "Hinged Right Open In":52, "Hinged Left Open Out":53, "Hinged Right Open Out":53 },
+    SD67:  { 
+      "Single Door": 65,
+      "Double Door": 70,
+      "Fixed": 30 // Keep fixed panel rate for sidelights
+    },
+    SD77:  { 
+      "Single Door": 75,
+      "Double Door": 80,
+      "Fixed": 32, // Keep fixed panel rate for sidelights
+      "Pivot Door": 85 // Added higher rate for pivot configuration
+    },
+    SD115: { "Left Pivot": 55, "Right Pivot": 55, "Center Pivot": 58 },
     // — Sliding Doors —
     "SMARTIA M450": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
     "SMARTIA M630": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
@@ -101,6 +127,7 @@ module.exports = {
   finishOptions,
   windowOperables,
   doorOperables,
+  doorModelCapabilities,
   unitCostPerSqft,
   systemBrands
 }

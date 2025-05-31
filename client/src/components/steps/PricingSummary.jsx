@@ -32,41 +32,10 @@ import { generateQuote, generatePDF } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
 
 const calculateItemPrice = (item) => {
-  const height = item.dimensions.height;
   let totalSystemCost = 0;
+  let totalGlassCost = 0;
+  let totalLaborCost = 0;
   let totalArea = 0;
-
-  // Calculate costs for each panel if it's a window with multiple panels
-  if (item.systemType === 'Windows' && item.panels) {
-    item.panels.forEach(panel => {
-      const panelArea = (panel.width * height) / 144; // Convert to sq ft
-      totalArea += panelArea;
-
-      const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][panel.operationType];
-      totalSystemCost += systemUnitCost * panelArea;
-    });
-  } else if (item.systemType === 'Sliding Doors') {
-    // For sliding doors, we use the typology-based pricing
-    totalArea = (item.dimensions.width * height) / 144;
-    const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][item.operationType];
-    totalSystemCost = systemUnitCost * totalArea;
-
-    // Calculate labor based on number of panels
-    const numPanels = item.operationType.length; // Length of typology string represents number of panels
-    const numFixed = (item.operationType.match(/O/g) || []).length;
-    const numSliding = (item.operationType.match(/X/g) || []).length;
-    
-    // Update labor calculation
-    const fixedLaborRate = laborRates['Sliding Fixed'];
-    const slidingLaborRate = laborRates['Sliding →'];
-    const avgLaborRate = ((numFixed * fixedLaborRate) + (numSliding * slidingLaborRate)) / numPanels;
-    item.laborRate = avgLaborRate;
-  } else {
-    // Single panel calculation (entrance doors)
-    totalArea = (item.dimensions.width * height) / 144;
-    const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][item.operationType || 'Fixed'];
-    totalSystemCost = systemUnitCost * totalArea;
-  }
 
   // Glass rates remain the same per sq ft regardless of operation type
   const glassRates = {
@@ -76,27 +45,89 @@ const calculateItemPrice = (item) => {
     'Acoustic Glass': 25
   };
   const glassUnitCost = glassRates[item.glassType] || glassRates['Double Pane'];
-  const glassCost = glassUnitCost * totalArea;
 
-  // Calculate labor cost based on operation types
-  let totalLaborCost = 0;
-  if (item.systemType === 'Windows' && item.panels) {
+  if (item.systemType === 'Entrance Doors') {
+    // Calculate door panel area and cost
+    const doorHeight = item.dimensions.height;
+    const doorWidth = item.dimensions.width;
+    const doorArea = (doorWidth * doorHeight) / 144; // Convert to sq ft
+    const doorUnitCost = unitCostPerSqft[item.brand][item.systemModel][item.openingType];
+    
+    totalSystemCost += doorArea * doorUnitCost;
+    totalGlassCost += doorArea * glassUnitCost;
+    totalArea += doorArea;
+
+    // Calculate fixed glass areas (sidelights and transom)
+    const fixedUnitCost = unitCostPerSqft[item.brand][item.systemModel]['Fixed'];
+
+    // Sidelights
+    if (item.leftSidelight?.enabled) {
+      const sidelightArea = (item.leftSidelight.width * doorHeight) / 144;
+      totalSystemCost += sidelightArea * fixedUnitCost;
+      totalGlassCost += sidelightArea * glassUnitCost;
+      totalArea += sidelightArea;
+    }
+    if (item.rightSidelight?.enabled) {
+      const sidelightArea = (item.rightSidelight.width * doorHeight) / 144;
+      totalSystemCost += sidelightArea * fixedUnitCost;
+      totalGlassCost += sidelightArea * glassUnitCost;
+      totalArea += sidelightArea;
+    }
+
+    // Transom
+    if (item.transom?.enabled) {
+      const transomWidth = (item.leftSidelight?.enabled ? item.leftSidelight.width : 0) +
+                          doorWidth +
+                          (item.rightSidelight?.enabled ? item.rightSidelight.width : 0);
+      const transomArea = (transomWidth * item.transom.height) / 144;
+      totalSystemCost += transomArea * fixedUnitCost;
+      totalGlassCost += transomArea * glassUnitCost;
+      totalArea += transomArea;
+    }
+
+    // Calculate labor cost
+    const laborRate = item.openingType === 'Pivot Door' ? 
+      laborRates['Pivot'] : 
+      laborRates['Hinged Left Open In']; // Use standard hinge rate for regular doors
+    totalLaborCost = laborRate * totalArea;
+  } else if (item.systemType === 'Windows' && item.panels) {
+    // Calculate costs for each panel if it's a window with multiple panels
     item.panels.forEach(panel => {
-      const panelArea = (panel.width * height) / 144;
+      const panelArea = (panel.width * item.dimensions.height) / 144;
+      totalArea += panelArea;
+
+      const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][panel.operationType];
+      totalSystemCost += systemUnitCost * panelArea;
+      totalGlassCost += glassUnitCost * panelArea;
+      
       const laborRate = laborRates[panel.operationType];
       totalLaborCost += laborRate * panelArea;
     });
-  } else {
-    const laborRate = item.laborRate || // Use pre-calculated rate for sliding doors
-      (item.operationType ? laborRates[item.operationType] : laborRates['Fixed']);
-    totalLaborCost = laborRate * totalArea;
+  } else if (item.systemType === 'Sliding Doors') {
+    // For sliding doors, we use the typology-based pricing
+    const area = (item.dimensions.width * item.dimensions.height) / 144;
+    totalArea = area;
+    
+    const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][item.operationType];
+    totalSystemCost = systemUnitCost * area;
+    totalGlassCost = glassUnitCost * area;
+
+    // Calculate labor based on number of panels
+    const numPanels = item.operationType.length;
+    const numFixed = (item.operationType.match(/O/g) || []).length;
+    const numSliding = (item.operationType.match(/X/g) || []).length;
+    
+    const fixedLaborRate = laborRates['Sliding Fixed'];
+    const slidingLaborRate = laborRates['Sliding →'];
+    const avgLaborRate = ((numFixed * fixedLaborRate) + (numSliding * slidingLaborRate)) / numPanels;
+    totalLaborCost = avgLaborRate * area;
   }
 
   return {
     systemCost: totalSystemCost,
-    glassCost,
+    glassCost: totalGlassCost,
     laborCost: totalLaborCost,
-    total: totalSystemCost + glassCost + totalLaborCost,
+    total: totalSystemCost + totalGlassCost + totalLaborCost,
     area: totalArea
   };
 };
@@ -1027,464 +1058,469 @@ const PricingSummary = ({
                             </Box>
                           ) : item.systemType === 'Entrance Doors' ? (
                             <Box>
-                              <Typography variant="body2" gutterBottom>
-                                Door Configuration:
-                              </Typography>
-                              <Stack spacing={1}>
-                                <Typography variant="body2">
-                                  Opening Type: {item.openingType}
-                                </Typography>
-                                <Typography variant="body2">
-                                  Swing Direction: {item.swingDirection}
-                                </Typography>
-                                <Typography variant="body2">
-                                  Handle Type: {item.handleType}
-                                </Typography>
-                                <Typography variant="body2">
-                                  Lock Type: {item.lockType}
-                                </Typography>
-                                <Typography variant="body2">
-                                  Threshold: {item.threshold}
-                                </Typography>
-                                <Typography variant="body2">
-                                  Hinge Type: {item.hingeType}
-                                </Typography>
-                              </Stack>
+                              {/* Door Configuration Card */}
+                              <Paper 
+                                variant="outlined" 
+                                sx={{ 
+                                  p: 2,
+                                  bgcolor: 'background.default',
+                                  mb: 3
+                                }}
+                              >
+                                <Grid container spacing={3}>
+                                  {/* Left Column - Configuration Details */}
+                                  <Grid item xs={12} md={4}>
+                                    <Stack spacing={1}>
+                                      <Typography variant="subtitle2" color="text.secondary">
+                                        Configuration Details
+                                      </Typography>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Opening:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.openingType}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Swing:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.swingDirection}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Handle:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.handleType}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Lock:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.lockType}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Threshold:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.threshold}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Hinge:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.hingeType}
+                                        </Typography>
+                                      </Box>
+                                    </Stack>
+                                  </Grid>
 
-                              {/* Door Configuration Visualization */}
-                              <Box sx={{ mt: 2 }}>
+                                  {/* Middle Column - Visual Configuration */}
+                                  <Grid item xs={12} md={4}>
+                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                      Visual Configuration
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                      {/* Transom */}
+                                      {item.transom?.enabled && (
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                          <Paper
+                                            sx={{
+                                              p: 1,
+                                              flex: 1,
+                                              bgcolor: 'grey.100',
+                                              color: 'text.primary',
+                                              textAlign: 'center',
+                                              border: '1px solid',
+                                              borderColor: 'grey.300',
+                                              minHeight: '30px',
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              alignItems: 'center',
+                                              justifyContent: 'center'
+                                            }}
+                                          >
+                                            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                              Transom ({item.transom.height}")
+                                            </Typography>
+                                          </Paper>
+                                        </Box>
+                                      )}
+
+                                      {/* Door and Sidelights */}
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        {/* Left Sidelight */}
+                                        {item.leftSidelight?.enabled && (
+                                          <Paper
+                                            sx={{
+                                              p: 1,
+                                              width: `${(item.leftSidelight.width / (item.dimensions?.width || 1)) * 100}%`,
+                                              bgcolor: 'grey.100',
+                                              color: 'text.primary',
+                                              textAlign: 'center',
+                                              border: '1px solid',
+                                              borderColor: 'grey.300',
+                                              minHeight: '50px',
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              alignItems: 'center',
+                                              justifyContent: 'center'
+                                            }}
+                                          >
+                                            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                              Left ({item.leftSidelight.width}")
+                                            </Typography>
+                                          </Paper>
+                                        )}
+
+                                        {/* Door Section */}
+                                        {item.openingType === 'Single Door' && (
+                                          <Paper
+                                            sx={{
+                                              p: 1,
+                                              flex: 1,
+                                              bgcolor: 'primary.light',
+                                              color: 'primary.contrastText',
+                                              textAlign: 'center',
+                                              border: '1px solid',
+                                              borderColor: 'primary.main',
+                                              position: 'relative',
+                                              minHeight: '50px',
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              alignItems: 'center',
+                                              justifyContent: 'center'
+                                            }}
+                                          >
+                                            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                              Door ({item.dimensions?.width}")
+                                            </Typography>
+                                            <Box
+                                              sx={{
+                                                position: 'absolute',
+                                                [item.handleLocation || 'right']: 0,
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                width: '3px',
+                                                height: '12px',
+                                                bgcolor: 'primary.dark',
+                                                borderRadius: '2px',
+                                                mr: item.handleLocation === 'right' ? 0.5 : 'auto',
+                                                ml: item.handleLocation === 'left' ? 0.5 : 'auto'
+                                              }}
+                                            />
+                                          </Paper>
+                                        )}
+
+                                        {item.openingType === 'Double Door' && (
+                                          <>
+                                            <Paper
+                                              sx={{
+                                                p: 1,
+                                                flex: 1,
+                                                bgcolor: 'primary.light',
+                                                color: 'primary.contrastText',
+                                                textAlign: 'center',
+                                                border: '1px solid',
+                                                borderColor: 'primary.main',
+                                                position: 'relative',
+                                                minHeight: '50px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                              }}
+                                            >
+                                              <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                                Left ({(item.dimensions?.width || 0) / 2}")
+                                              </Typography>
+                                              <Box
+                                                sx={{
+                                                  position: 'absolute',
+                                                  right: 0,
+                                                  top: '50%',
+                                                  transform: 'translateY(-50%)',
+                                                  width: '3px',
+                                                  height: '12px',
+                                                  bgcolor: 'primary.dark',
+                                                  borderRadius: '2px',
+                                                  mr: 0.5
+                                                }}
+                                              />
+                                            </Paper>
+                                            <Paper
+                                              sx={{
+                                                p: 1,
+                                                flex: 1,
+                                                bgcolor: 'primary.light',
+                                                color: 'primary.contrastText',
+                                                textAlign: 'center',
+                                                border: '1px solid',
+                                                borderColor: 'primary.main',
+                                                position: 'relative',
+                                                minHeight: '50px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                              }}
+                                            >
+                                              <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                                Right ({(item.dimensions?.width || 0) / 2}")
+                                              </Typography>
+                                              <Box
+                                                sx={{
+                                                  position: 'absolute',
+                                                  left: 0,
+                                                  top: '50%',
+                                                  transform: 'translateY(-50%)',
+                                                  width: '3px',
+                                                  height: '12px',
+                                                  bgcolor: 'primary.dark',
+                                                  borderRadius: '2px',
+                                                  ml: 0.5
+                                                }}
+                                              />
+                                            </Paper>
+                                          </>
+                                        )}
+
+                                        {item.openingType === 'Pivot Door' && (
+                                          <Paper
+                                            sx={{
+                                              p: 1,
+                                              flex: 1,
+                                              bgcolor: 'primary.light',
+                                              color: 'primary.contrastText',
+                                              textAlign: 'center',
+                                              border: '1px solid',
+                                              borderColor: 'primary.main',
+                                              position: 'relative',
+                                              minHeight: '50px',
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              alignItems: 'center',
+                                              justifyContent: 'center'
+                                            }}
+                                          >
+                                            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                              Pivot ({item.dimensions?.width}")
+                                            </Typography>
+                                            <Box
+                                              sx={{
+                                                position: 'absolute',
+                                                [item.handleLocation || 'right']: 0,
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                width: '3px',
+                                                height: '12px',
+                                                bgcolor: 'primary.dark',
+                                                borderRadius: '2px',
+                                                mr: item.handleLocation === 'right' ? 0.5 : 'auto',
+                                                ml: item.handleLocation === 'left' ? 0.5 : 'auto'
+                                              }}
+                                            />
+                                            <Box
+                                              sx={{
+                                                position: 'absolute',
+                                                left: '50%',
+                                                top: '50%',
+                                                width: '6px',
+                                                height: '6px',
+                                                bgcolor: 'primary.dark',
+                                                borderRadius: '50%',
+                                                transform: 'translate(-50%, -50%)'
+                                              }}
+                                            />
+                                          </Paper>
+                                        )}
+
+                                        {/* Right Sidelight */}
+                                        {item.rightSidelight?.enabled && (
+                                          <Paper
+                                            sx={{
+                                              p: 1,
+                                              width: `${(item.rightSidelight.width / (item.dimensions?.width || 1)) * 100}%`,
+                                              bgcolor: 'grey.100',
+                                              color: 'text.primary',
+                                              textAlign: 'center',
+                                              border: '1px solid',
+                                              borderColor: 'grey.300',
+                                              minHeight: '50px',
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              alignItems: 'center',
+                                              justifyContent: 'center'
+                                            }}
+                                          >
+                                            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                              Right ({item.rightSidelight.width}")
+                                            </Typography>
+                                          </Paper>
+                                        )}
+                                      </Box>
+                                    </Box>
+                                  </Grid>
+
+                                  {/* Right Column - Dimensions Summary */}
+                                  <Grid item xs={12} md={4}>
+                                    <Stack spacing={2}>
+                                      <Box>
+                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                          System Dimensions
+                                        </Typography>
+                                        <Stack spacing={1}>
+                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                            <Typography variant="body2" color="text.secondary">Total Width:</Typography>
+                                            <Typography variant="body2">
+                                              {(item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) + 
+                                               (item.dimensions?.width || 0) +
+                                               (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0)}"
+                                            </Typography>
+                                          </Box>
+                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                            <Typography variant="body2" color="text.secondary">Total Height:</Typography>
+                                            <Typography variant="body2">
+                                              {(item.dimensions?.height || 0) + 
+                                               (item.transom?.enabled ? (item.transom?.height || 0) : 0)}"
+                                            </Typography>
+                                          </Box>
+                                        </Stack>
+                                      </Box>
+
+                                      <Box>
+                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                          Area Calculations
+                                        </Typography>
+                                        <Stack spacing={1}>
+                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                            <Typography variant="body2" color="text.secondary">Door Area:</Typography>
+                                            <Typography variant="body2">
+                                              {((item.dimensions?.width || 0) * (item.dimensions?.height || 0) / 144).toFixed(1)} sq ft
+                                            </Typography>
+                                          </Box>
+                                          {(item.leftSidelight?.enabled || item.rightSidelight?.enabled || item.transom?.enabled) && (
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                              <Typography variant="body2" color="text.secondary">Glass Area:</Typography>
+                                              <Typography variant="body2">
+                                                {(
+                                                  ((item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) * 
+                                                   (item.dimensions?.height || 0) +
+                                                   (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0) * 
+                                                   (item.dimensions?.height || 0) +
+                                                  ((item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) + 
+                                                   (item.dimensions?.width || 0) +
+                                                   (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0)) * 
+                                                   (item.transom?.enabled ? (item.transom?.height || 0) : 0)
+                                                  ) / 144
+                                                ).toFixed(1)} sq ft
+                                              </Typography>
+                                            </Box>
+                                          )}
+                                          <Box sx={{ 
+                                            display: 'flex', 
+                                            justifyContent: 'space-between', 
+                                            alignItems: 'baseline',
+                                            pt: 1,
+                                            borderTop: '1px solid',
+                                            borderColor: 'divider'
+                                          }}>
+                                            <Typography variant="subtitle2" color="primary">Total Area:</Typography>
+                                            <Typography variant="subtitle2" color="primary">
+                                              {(
+                                                ((item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) + 
+                                                 (item.dimensions?.width || 0) +
+                                                 (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0)) * 
+                                                ((item.dimensions?.height || 0) + 
+                                                 (item.transom?.enabled ? (item.transom?.height || 0) : 0)) / 144
+                                              ).toFixed(1)} sq ft
+                                            </Typography>
+                                          </Box>
+                                        </Stack>
+                                      </Box>
+                                    </Stack>
+                                  </Grid>
+                                </Grid>
+                              </Paper>
+
+                              {/* Finish Details Card */}
+                              <Paper 
+                                variant="outlined" 
+                                sx={{ 
+                                  p: 2,
+                                  bgcolor: 'background.default',
+                                  mb: 2
+                                }}
+                              >
+                                <Grid container spacing={3}>
+                                  <Grid item xs={12} md={6}>
+                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                      Finish Details
+                                    </Typography>
+                                    <Stack direction="row" spacing={3}>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">Type:</Typography>
+                                        <Typography variant="body2">{item.finish.type}</Typography>
+                                      </Box>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">Style:</Typography>
+                                        <Typography variant="body2">{item.finish.color}</Typography>
+                                      </Box>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">RAL:</Typography>
+                                        <Typography variant="body2">{item.finish.ralColor}</Typography>
+                                      </Box>
+                                    </Stack>
+                                  </Grid>
+                                  <Grid item xs={12} md={6}>
+                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                      Cost Breakdown
+                                    </Typography>
+                                    <Stack direction="row" spacing={3}>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">System:</Typography>
+                                        <Typography variant="body2">${systemCost.toFixed(2)}</Typography>
+                                      </Box>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">Glass:</Typography>
+                                        <Typography variant="body2">${glassCost.toFixed(2)}</Typography>
+                                      </Box>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">Labor:</Typography>
+                                        <Typography variant="body2">${laborCost.toFixed(2)}</Typography>
+                                      </Box>
+                                    </Stack>
+                                  </Grid>
+                                </Grid>
+                              </Paper>
+
+                              {/* Notes if any */}
+                              {item.notes && (
                                 <Paper 
                                   variant="outlined" 
                                   sx={{ 
                                     p: 2,
-                                    bgcolor: 'background.default',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: 1
+                                    bgcolor: 'background.default'
                                   }}
                                 >
-                                  <Typography variant="subtitle2" color="text.secondary">
-                                    Current Configuration:
+                                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Notes
                                   </Typography>
-                                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                    {/* Transom */}
-                                    {item.transom?.enabled && (
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Paper
-                                          sx={{
-                                            p: 1,
-                                            flex: 1,
-                                            bgcolor: 'grey.100',
-                                            color: 'text.primary',
-                                            textAlign: 'center',
-                                            border: '1px solid',
-                                            borderColor: 'grey.300',
-                                            minHeight: '40px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                          }}
-                                        >
-                                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                            Transom
-                                          </Typography>
-                                          <Typography variant="caption">
-                                            {(item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) + 
-                                             (item.dimensions?.width || 0) +
-                                             (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0)}" × {item.transom?.height || 0}"
-                                          </Typography>
-                                        </Paper>
-                                      </Box>
-                                    )}
-
-                                    {/* Door and Sidelights */}
-                                    <Box sx={{ display: 'flex', gap: 1 }}>
-                                      {/* Left Sidelight */}
-                                      {item.leftSidelight?.enabled && (
-                                        <Paper
-                                          sx={{
-                                            p: 1,
-                                            width: `${(item.leftSidelight.width / (item.dimensions?.width || 1)) * 100}%`,
-                                            bgcolor: 'grey.100',
-                                            color: 'text.primary',
-                                            textAlign: 'center',
-                                            border: '1px solid',
-                                            borderColor: 'grey.300',
-                                            minHeight: '60px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                          }}
-                                        >
-                                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                            Left Sidelight
-                                          </Typography>
-                                          <Typography variant="caption">
-                                            {item.leftSidelight.width}" × {item.dimensions?.height || 0}"
-                                          </Typography>
-                                        </Paper>
-                                      )}
-
-                                      {/* Door Section */}
-                                      {item.openingType === 'Single Door' && (
-                                        <Paper
-                                          sx={{
-                                            p: 1,
-                                            flex: 1,
-                                            bgcolor: 'primary.light',
-                                            color: 'primary.contrastText',
-                                            textAlign: 'center',
-                                            border: '1px solid',
-                                            borderColor: 'primary.main',
-                                            position: 'relative',
-                                            minHeight: '60px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                          }}
-                                        >
-                                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                            Single Door
-                                          </Typography>
-                                          <Typography variant="caption">
-                                            {item.dimensions?.width || 0}" × {item.dimensions?.height || 0}"
-                                          </Typography>
-                                          <Box
-                                            sx={{
-                                              position: 'absolute',
-                                              [item.handleLocation || 'right']: 0,
-                                              top: '50%',
-                                              transform: 'translateY(-50%)',
-                                              width: '4px',
-                                              height: '16px',
-                                              bgcolor: 'primary.dark',
-                                              borderRadius: '2px',
-                                              mr: item.handleLocation === 'right' ? 0.5 : 'auto',
-                                              ml: item.handleLocation === 'left' ? 0.5 : 'auto'
-                                            }}
-                                          />
-                                        </Paper>
-                                      )}
-
-                                      {item.openingType === 'Double Door' && (
-                                        <>
-                                          <Paper
-                                            sx={{
-                                              p: 1,
-                                              flex: 1,
-                                              bgcolor: 'primary.light',
-                                              color: 'primary.contrastText',
-                                              textAlign: 'center',
-                                              border: '1px solid',
-                                              borderColor: 'primary.main',
-                                              position: 'relative',
-                                              minHeight: '60px',
-                                              display: 'flex',
-                                              flexDirection: 'column',
-                                              alignItems: 'center',
-                                              justifyContent: 'center'
-                                            }}
-                                          >
-                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                              Left Door
-                                            </Typography>
-                                            <Typography variant="caption">
-                                              {(item.dimensions?.width || 0) / 2}" × {item.dimensions?.height || 0}"
-                                            </Typography>
-                                            <Box
-                                              sx={{
-                                                position: 'absolute',
-                                                right: 0,
-                                                top: '50%',
-                                                transform: 'translateY(-50%)',
-                                                width: '4px',
-                                                height: '16px',
-                                                bgcolor: 'primary.dark',
-                                                borderRadius: '2px',
-                                                mr: 0.5
-                                              }}
-                                            />
-                                          </Paper>
-                                          <Paper
-                                            sx={{
-                                              p: 1,
-                                              flex: 1,
-                                              bgcolor: 'primary.light',
-                                              color: 'primary.contrastText',
-                                              textAlign: 'center',
-                                              border: '1px solid',
-                                              borderColor: 'primary.main',
-                                              position: 'relative',
-                                              minHeight: '60px',
-                                              display: 'flex',
-                                              flexDirection: 'column',
-                                              alignItems: 'center',
-                                              justifyContent: 'center'
-                                            }}
-                                          >
-                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                              Right Door
-                                            </Typography>
-                                            <Typography variant="caption">
-                                              {(item.dimensions?.width || 0) / 2}" × {item.dimensions?.height || 0}"
-                                            </Typography>
-                                            <Box
-                                              sx={{
-                                                position: 'absolute',
-                                                left: 0,
-                                                top: '50%',
-                                                transform: 'translateY(-50%)',
-                                                width: '4px',
-                                                height: '16px',
-                                                bgcolor: 'primary.dark',
-                                                borderRadius: '2px',
-                                                ml: 0.5
-                                              }}
-                                            />
-                                          </Paper>
-                                        </>
-                                      )}
-
-                                      {item.openingType === 'Pivot Door' && (
-                                        <Paper
-                                          sx={{
-                                            p: 1,
-                                            flex: 1,
-                                            bgcolor: 'primary.light',
-                                            color: 'primary.contrastText',
-                                            textAlign: 'center',
-                                            border: '1px solid',
-                                            borderColor: 'primary.main',
-                                            position: 'relative',
-                                            minHeight: '60px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                          }}
-                                        >
-                                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                            Pivot Door
-                                          </Typography>
-                                          <Typography variant="caption">
-                                            {item.dimensions?.width || 0}" × {item.dimensions?.height || 0}"
-                                          </Typography>
-                                          <Box
-                                            sx={{
-                                              position: 'absolute',
-                                              [item.handleLocation || 'right']: 0,
-                                              top: '50%',
-                                              transform: 'translateY(-50%)',
-                                              width: '4px',
-                                              height: '16px',
-                                              bgcolor: 'primary.dark',
-                                              borderRadius: '2px',
-                                              mr: item.handleLocation === 'right' ? 0.5 : 'auto',
-                                              ml: item.handleLocation === 'left' ? 0.5 : 'auto'
-                                            }}
-                                          />
-                                          <Box
-                                            sx={{
-                                              position: 'absolute',
-                                              left: '50%',
-                                              top: '50%',
-                                              width: '8px',
-                                              height: '8px',
-                                              bgcolor: 'primary.dark',
-                                              borderRadius: '50%',
-                                              transform: 'translate(-50%, -50%)'
-                                            }}
-                                          />
-                                        </Paper>
-                                      )}
-
-                                      {/* Right Sidelight */}
-                                      {item.rightSidelight?.enabled && (
-                                        <Paper
-                                          sx={{
-                                            p: 1,
-                                            width: `${(item.rightSidelight.width / (item.dimensions?.width || 1)) * 100}%`,
-                                            bgcolor: 'grey.100',
-                                            color: 'text.primary',
-                                            textAlign: 'center',
-                                            border: '1px solid',
-                                            borderColor: 'grey.300',
-                                            minHeight: '60px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                          }}
-                                        >
-                                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                            Right Sidelight
-                                          </Typography>
-                                          <Typography variant="caption">
-                                            {item.rightSidelight.width}" × {item.dimensions?.height || 0}"
-                                          </Typography>
-                                        </Paper>
-                                      )}
-                                    </Box>
-                                  </Box>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {item.notes}
+                                  </Typography>
                                 </Paper>
-                              </Box>
-
-                              {/* Dimensions Display */}
-                              <Box sx={{ mt: 3 }}>
-                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                  Dimensions
-                                </Typography>
-                                <Box sx={{ 
-                                  p: 3, 
-                                  border: '1px solid rgba(0, 0, 0, 0.12)', 
-                                  borderRadius: 1,
-                                  bgcolor: 'background.paper'
-                                }}>
-                                  {/* Total System Dimensions */}
-                                  <Box sx={{ mb: 3 }}>
-                                    <Typography variant="subtitle1" color="primary" gutterBottom>
-                                      Total System Dimensions
-                                    </Typography>
-                                    <Grid container spacing={3}>
-                                      <Grid item xs={12} sm={6}>
-                                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                                          <Typography variant="subtitle2" color="text.secondary">
-                                            System Width
-                                          </Typography>
-                                          <Typography variant="h5">
-                                            {(item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) + 
-                                             (item.dimensions?.width || 0) +
-                                             (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0)}"
-                                          </Typography>
-                                          <Typography variant="caption" color="text.secondary">
-                                            Including sidelights
-                                          </Typography>
-                                        </Paper>
-                                      </Grid>
-                                      <Grid item xs={12} sm={6}>
-                                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                                          <Typography variant="subtitle2" color="text.secondary">
-                                            System Height
-                                          </Typography>
-                                          <Typography variant="h5">
-                                            {(item.dimensions?.height || 0) + 
-                                             (item.transom?.enabled ? (item.transom?.height || 0) : 0)}"
-                                          </Typography>
-                                          <Typography variant="caption" color="text.secondary">
-                                            Including transom
-                                          </Typography>
-                                        </Paper>
-                                      </Grid>
-                                    </Grid>
-                                  </Box>
-
-                                  {/* Door Panel Dimensions */}
-                                  <Box sx={{ mb: 3 }}>
-                                    <Typography variant="subtitle1" color="primary" gutterBottom>
-                                      Door Panel Dimensions
-                                    </Typography>
-                                    <Grid container spacing={3}>
-                                      <Grid item xs={12} sm={6}>
-                                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                                          <Typography variant="subtitle2" color="text.secondary">
-                                            Door Width
-                                          </Typography>
-                                          <Typography variant="h5">
-                                            {item.dimensions?.width || 0}"
-                                          </Typography>
-                                          <Typography variant="caption" color="text.secondary">
-                                            {item.openingType === 'Double Door' ? 'Total width of both panels' : 'Single panel width'}
-                                          </Typography>
-                                        </Paper>
-                                      </Grid>
-                                      <Grid item xs={12} sm={6}>
-                                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                                          <Typography variant="subtitle2" color="text.secondary">
-                                            Door Height
-                                          </Typography>
-                                          <Typography variant="h5">
-                                            {item.dimensions?.height || 0}"
-                                          </Typography>
-                                          <Typography variant="caption" color="text.secondary">
-                                            Excluding transom
-                                          </Typography>
-                                        </Paper>
-                                      </Grid>
-                                    </Grid>
-                                  </Box>
-
-                                  {/* Area Calculations */}
-                                  <Box>
-                                    <Typography variant="subtitle1" color="primary" gutterBottom>
-                                      Area Calculations
-                                    </Typography>
-                                    <Grid container spacing={3}>
-                                      <Grid item xs={12} sm={6} md={4}>
-                                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                                          <Typography variant="subtitle2" color="text.secondary">
-                                            Door Panel Area
-                                          </Typography>
-                                          <Typography variant="h5">
-                                            {((item.dimensions?.width || 0) * (item.dimensions?.height || 0) / 144).toFixed(2)} sq ft
-                                          </Typography>
-                                          <Typography variant="caption" color="text.secondary">
-                                            Door panels only
-                                          </Typography>
-                                        </Paper>
-                                      </Grid>
-                                      {(item.leftSidelight?.enabled || item.rightSidelight?.enabled || item.transom?.enabled) && (
-                                        <Grid item xs={12} sm={6} md={4}>
-                                          <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                                            <Typography variant="subtitle2" color="text.secondary">
-                                              Sidelights & Transom Area
-                                            </Typography>
-                                            <Typography variant="h5">
-                                              {(
-                                                // Sidelights area
-                                                ((item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) * 
-                                                 (item.dimensions?.height || 0) +
-                                                 (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0) * 
-                                                 (item.dimensions?.height || 0) +
-                                                // Transom area
-                                                ((item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) + 
-                                                 (item.dimensions?.width || 0) +
-                                                 (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0)) * 
-                                                 (item.transom?.enabled ? (item.transom?.height || 0) : 0)
-                                                ) / 144
-                                              ).toFixed(2)} sq ft
-                                            </Typography>
-                                            <Typography variant="caption" color="text.secondary">
-                                              Additional glass area
-                                            </Typography>
-                                          </Paper>
-                                        </Grid>
-                                      )}
-                                      <Grid item xs={12} sm={6} md={4}>
-                                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'primary.main' }}>
-                                          <Typography variant="subtitle2" color="primary">
-                                            Total System Area
-                                          </Typography>
-                                          <Typography variant="h5" color="primary">
-                                            {(
-                                              ((item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) + 
-                                               (item.dimensions?.width || 0) +
-                                               (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0)) * 
-                                              ((item.dimensions?.height || 0) + 
-                                               (item.transom?.enabled ? (item.transom?.height || 0) : 0)) / 144
-                                            ).toFixed(2)} sq ft
-                                          </Typography>
-                                          <Typography variant="caption" color="text.secondary">
-                                            Total system area
-                                          </Typography>
-                                        </Paper>
-                                      </Grid>
-                                    </Grid>
-                                  </Box>
-                                </Box>
-                              </Box>
+                              )}
                             </Box>
                           ) : item.operationType ? (
                             <Typography variant="body2">
@@ -1546,7 +1582,7 @@ const PricingSummary = ({
                               whiteSpace: 'pre-wrap'
                             }}
                           >
-                            <Typography variant="body2">
+                            <Typography variant="body2" color="text.secondary">
                               {item.notes}
                             </Typography>
                           </Paper>
