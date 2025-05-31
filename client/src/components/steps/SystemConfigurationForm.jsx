@@ -28,7 +28,8 @@ import CommentIcon from '@mui/icons-material/Comment';
 import { 
   systemArchitecture, 
   windowOperables, 
-  doorOperables, 
+  doorOperables,
+  doorModelCapabilities,
   finishOptions,
   unitCostPerSqft 
 } from '../../utils/metadata';
@@ -45,22 +46,54 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
       const models = systemArchitecture[configuration.brand][configuration.systemType] || [];
       setAvailableModels(models);
 
-      // Reset panel configurations when model changes
-      if (configuration.systemType === 'Sliding Doors') {
-        const modelConfigs = unitCostPerSqft[configuration.brand]?.[configuration.systemModel] || {};
-        const maxPanelCount = Math.max(...Object.keys(modelConfigs).map(key => key.length));
-        setMaxPanels(maxPanelCount || 4);
+      // Set default configurations based on system type and model
+      if (configuration.systemType === 'Entrance Doors') {
+        const defaultOpeningType = configuration.systemModel === 'SD115' ? 'Pivot Door' :
+                                 doorModelCapabilities[configuration.systemModel]?.[0] || 'Single Door';
         
-        // Initialize default panel configuration if none exists
-        if (!configuration.panels || configuration.panels.length === 0) {
-          onUpdate({
-            panels: [
-              { type: 'Fixed', direction: null },
-              { type: 'Sliding', direction: 'right' }
-            ],
-            operationType: 'OX'  // Set default operationType
-          });
-        }
+        const defaultSwingDirection = defaultOpeningType === 'Pivot Door' ? 'Center Pivot' :
+                                    defaultOpeningType === 'Single Door' ? 'Left Hand In' :
+                                    defaultOpeningType === 'Double Door' ? 'Active Left' :
+                                    'Left Active + Right Fixed';
+
+        onUpdate({
+          openingType: defaultOpeningType,
+          swingDirection: defaultSwingDirection,
+          handleType: configuration.systemModel === 'SD115' ? 'Pull Handle' : 'Lever Handle',
+          lockType: 'Multi-Point Lock',
+          threshold: 'Standard',
+          hingeType: configuration.systemModel === 'SD115' ? 'Pivot' : 'Standard',
+          dimensions: configuration.dimensions || { width: '', height: '' }
+        });
+      } else if (configuration.systemType === 'Windows') {
+        onUpdate({
+          panels: [{
+            width: 0,
+            operationType: 'Fixed',
+            handleLocation: 'right'
+          }],
+          dimensions: configuration.dimensions || { width: '', height: '' }
+        });
+      } else if (configuration.systemType === 'Sliding Doors') {
+        onUpdate({
+          panels: [
+            { type: 'Fixed', direction: null },
+            { type: 'Sliding', direction: 'right' }
+          ],
+          operationType: 'OX',
+          dimensions: configuration.dimensions || { width: '', height: '' }
+        });
+      }
+
+      // Set default finish if not already set
+      if (!configuration.finish?.type) {
+        onUpdate({
+          finish: {
+            type: 'Powder Coated',
+            color: 'Standard',
+            ralColor: '9016' // Default white color
+          }
+        });
       }
     }
   }, [configuration.brand, configuration.systemType, configuration.systemModel]);
@@ -106,6 +139,43 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
       }
     }
   }, [configuration.systemType]);
+
+  // Add new effect to handle model-specific configurations
+  useEffect(() => {
+    if (configuration.systemModel) {
+      // Handle SD115 specific configuration
+      if (configuration.systemModel === 'SD115' && configuration.openingType !== 'Pivot Door') {
+        onUpdate({
+          openingType: 'Pivot Door',
+          swingDirection: 'Center Pivot',
+          handleType: 'Pull Handle',
+          lockType: 'Multi-Point Lock',
+          threshold: 'Standard',
+          hingeType: 'Pivot'
+        });
+      }
+      
+      // If current opening type is not available for the selected model, reset it
+      if (configuration.openingType && 
+          doorModelCapabilities[configuration.systemModel] && 
+          !doorModelCapabilities[configuration.systemModel].includes(configuration.openingType)) {
+        const defaultOpeningType = doorModelCapabilities[configuration.systemModel]?.[0] || '';
+        const defaultSwingDirection = defaultOpeningType === 'Pivot Door' ? 'Center Pivot' :
+                                    defaultOpeningType === 'Single Door' ? 'Left Hand In' :
+                                    defaultOpeningType === 'Double Door' ? 'Active Left' :
+                                    'Left Active + Right Fixed';
+        
+        onUpdate({
+          openingType: defaultOpeningType,
+          swingDirection: defaultSwingDirection,
+          handleType: configuration.handleType || 'Lever Handle',
+          lockType: configuration.lockType || 'Multi-Point Lock',
+          threshold: configuration.threshold || 'Standard',
+          hingeType: configuration.hingeType || 'Standard'
+        });
+      }
+    }
+  }, [configuration.systemModel]);
 
   const handleChange = (field) => (event) => {
     onUpdate({ [field]: event.target.value });
@@ -246,11 +316,11 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   };
 
   const isFormValid = () => {
-    const hasValidDimensions = configuration.dimensions.height > 0;
-    const hasValidFinish = configuration.finish.type && 
-                          configuration.finish.color && 
-                          configuration.finish.ralColor && 
-                          configuration.finish.ralColor.length === 4;
+    const hasValidDimensions = configuration.dimensions?.height > 0 && configuration.dimensions?.width > 0;
+    const hasValidFinish = configuration.finish?.type && 
+                          configuration.finish?.color && 
+                          configuration.finish?.ralColor && 
+                          configuration.finish?.ralColor.length === 4;
     const hasValidModel = !!configuration.systemModel;
 
     if (configuration.systemType === 'Windows') {
@@ -259,11 +329,20 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
           panel.width > 0 && panel.operationType
         );
       return hasValidDimensions && hasValidFinish && hasValidModel && hasValidPanels;
-    } else {
+    } else if (configuration.systemType === 'Entrance Doors') {
+      const hasValidDoorConfig = configuration.openingType && 
+                                configuration.swingDirection && 
+                                configuration.handleType && 
+                                configuration.lockType && 
+                                configuration.threshold && 
+                                configuration.hingeType;
+      return hasValidDimensions && hasValidFinish && hasValidModel && hasValidDoorConfig;
+    } else if (configuration.systemType === 'Sliding Doors') {
       const hasValidOperationType = !!configuration.operationType;
-      return hasValidDimensions && hasValidFinish && hasValidModel && hasValidOperationType &&
-        configuration.dimensions.width > 0;
+      return hasValidDimensions && hasValidFinish && hasValidModel && hasValidOperationType;
     }
+
+    return false;
   };
 
   if (!configuration.brand || !configuration.systemType) {
@@ -785,44 +864,349 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
             </Grid>
           </Box>
         ) : (
-          <>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Operation Type</InputLabel>
-                <Select
-                  value={configuration.operationType || ''}
-                  onChange={handleChange('operationType')}
-                  label="Operation Type"
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              Door Configuration
+            </Typography>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Opening Type</InputLabel>
+                  <Select
+                    value={configuration.openingType || ''}
+                    onChange={(e) => {
+                      const openingType = e.target.value;
+                      onUpdate({
+                        openingType,
+                        handleLocation: configuration.handleLocation || 'right',
+                        handleType: configuration.handleType || 'Lever Handle',
+                        lockType: configuration.lockType || 'Multi-Point Lock',
+                        threshold: configuration.threshold || 'Standard',
+                        hingeType: configuration.hingeType || 'Standard'
+                      });
+                    }}
+                    label="Opening Type"
+                  >
+                    {(doorModelCapabilities[configuration.systemModel] || doorOperables.openingTypes).map((type) => (
+                      <MenuItem key={type} value={type}>
+                        {type}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {configuration.openingType && (
+                <Grid item xs={12}>
+                  <FormControl fullWidth>
+                    <InputLabel>Handle Location</InputLabel>
+                    <Select
+                      value={configuration.handleLocation || 'right'}
+                      onChange={(e) => onUpdate({ handleLocation: e.target.value })}
+                      label="Handle Location"
+                    >
+                      <MenuItem value="left">Left Side</MenuItem>
+                      <MenuItem value="right">Right Side</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              )}
+
+              <Grid item xs={12}>
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 2,
+                    bgcolor: 'background.default',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1
+                  }}
                 >
-                  {availableOperables.map((operable) => (
-                    <MenuItem key={operable} value={operable}>
-                      {operable}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Current Configuration:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {configuration.openingType === 'Single Door' && (
+                      <Paper
+                        sx={{
+                          p: 1,
+                          flex: 1,
+                          bgcolor: 'primary.light',
+                          color: 'primary.contrastText',
+                          textAlign: 'center',
+                          border: '1px solid',
+                          borderColor: 'primary.main',
+                          position: 'relative',
+                          minHeight: '60px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Single Door
+                        </Typography>
+                        <Typography variant="caption">
+                          {configuration.dimensions?.width || 0}" × {configuration.dimensions?.height || 0}"
+                        </Typography>
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            [configuration.handleLocation || 'right']: 0,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '4px',
+                            height: '16px',
+                            bgcolor: 'primary.dark',
+                            borderRadius: '2px',
+                            mr: configuration.handleLocation === 'right' ? 0.5 : 'auto',
+                            ml: configuration.handleLocation === 'left' ? 0.5 : 'auto'
+                          }}
+                        />
+                      </Paper>
+                    )}
+                    {configuration.openingType === 'Pivot Door' && (
+                      <Paper
+                        sx={{
+                          p: 1,
+                          flex: 1,
+                          bgcolor: 'primary.light',
+                          color: 'primary.contrastText',
+                          textAlign: 'center',
+                          border: '1px solid',
+                          borderColor: 'primary.main',
+                          position: 'relative',
+                          minHeight: '60px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Pivot Door
+                        </Typography>
+                        <Typography variant="caption">
+                          {configuration.dimensions?.width || 0}" × {configuration.dimensions?.height || 0}"
+                        </Typography>
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            [configuration.handleLocation || 'right']: 0,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '4px',
+                            height: '16px',
+                            bgcolor: 'primary.dark',
+                            borderRadius: '2px',
+                            mr: configuration.handleLocation === 'right' ? 0.5 : 'auto',
+                            ml: configuration.handleLocation === 'left' ? 0.5 : 'auto'
+                          }}
+                        />
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: '50%',
+                            top: '50%',
+                            width: '8px',
+                            height: '8px',
+                            bgcolor: 'primary.dark',
+                            borderRadius: '50%',
+                            transform: 'translate(-50%, -50%)'
+                          }}
+                        />
+                      </Paper>
+                    )}
+                    {(configuration.openingType === 'Double Door' || configuration.openingType === 'Double Door with Fixed Panel') && (
+                      <>
+                        <Paper
+                          sx={{
+                            p: 1,
+                            flex: 1,
+                            bgcolor: configuration.openingType === 'Double Door with Fixed Panel' ? 'grey.100' : 'primary.light',
+                            color: configuration.openingType === 'Double Door with Fixed Panel' ? 'text.primary' : 'primary.contrastText',
+                            textAlign: 'center',
+                            border: '1px solid',
+                            borderColor: configuration.openingType === 'Double Door with Fixed Panel' ? 'grey.300' : 'primary.main',
+                            position: 'relative',
+                            minHeight: '60px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {configuration.openingType === 'Double Door with Fixed Panel' ? 'Fixed Panel' : 'Left Door'}
+                          </Typography>
+                          <Typography variant="caption">
+                            {(configuration.dimensions?.width || 0) / 2}" × {configuration.dimensions?.height || 0}"
+                          </Typography>
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              right: 0,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              width: '4px',
+                              height: '16px',
+                              bgcolor: 'primary.dark',
+                              borderRadius: '2px',
+                              mr: 0.5
+                            }}
+                          />
+                        </Paper>
+                        <Paper
+                          sx={{
+                            p: 1,
+                            flex: 1,
+                            bgcolor: configuration.openingType === 'Double Door with Fixed Panel' ? 'grey.100' : 'primary.light',
+                            color: configuration.openingType === 'Double Door with Fixed Panel' ? 'text.primary' : 'primary.contrastText',
+                            textAlign: 'center',
+                            border: '1px solid',
+                            borderColor: configuration.openingType === 'Double Door with Fixed Panel' ? 'grey.300' : 'primary.main',
+                            position: 'relative',
+                            minHeight: '60px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {configuration.openingType === 'Double Door with Fixed Panel' ? 'Fixed Panel' : 'Right Door'}
+                          </Typography>
+                          <Typography variant="caption">
+                            {(configuration.dimensions?.width || 0) / 2}" × {configuration.dimensions?.height || 0}"
+                          </Typography>
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              left: 0,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              width: '4px',
+                              height: '16px',
+                              bgcolor: 'primary.dark',
+                              borderRadius: '2px',
+                              ml: 0.5
+                            }}
+                          />
+                        </Paper>
+                      </>
+                    )}
+                    {!configuration.openingType && (
+                      <Paper
+                        sx={{
+                          p: 2,
+                          flex: 1,
+                          bgcolor: 'grey.100',
+                          textAlign: 'center',
+                          border: '1px dashed',
+                          borderColor: 'grey.400'
+                        }}
+                      >
+                        <Typography color="text.secondary">
+                          Select opening type to see preview
+                        </Typography>
+                      </Paper>
+                    )}
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Handle Type</InputLabel>
+                  <Select
+                    value={configuration.handleType || 'Lever Handle'}
+                    onChange={(e) => onUpdate({ handleType: e.target.value })}
+                    label="Handle Type"
+                  >
+                    {doorOperables.handleTypes.map((type) => (
+                      <MenuItem key={type} value={type}>
+                        {type}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Lock Type</InputLabel>
+                  <Select
+                    value={configuration.lockType || 'Multi-Point Lock'}
+                    onChange={(e) => onUpdate({ lockType: e.target.value })}
+                    label="Lock Type"
+                  >
+                    {doorOperables.lockTypes.map((type) => (
+                      <MenuItem key={type} value={type}>
+                        {type}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Threshold Type</InputLabel>
+                  <Select
+                    value={configuration.threshold || 'Standard'}
+                    onChange={(e) => onUpdate({ threshold: e.target.value })}
+                    label="Threshold Type"
+                  >
+                    {doorOperables.thresholds.map((type) => (
+                      <MenuItem key={type} value={type}>
+                        {type}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Hinge Type</InputLabel>
+                  <Select
+                    value={configuration.hingeType || 'Standard'}
+                    onChange={(e) => onUpdate({ hingeType: e.target.value })}
+                    label="Hinge Type"
+                  >
+                    {doorOperables.hingeTypes.map((type) => (
+                      <MenuItem key={type} value={type}>
+                        {type}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Width (inches)"
+                  type="number"
+                  value={configuration.dimensions.width || ''}
+                  onChange={handleDimensionChange('width')}
+                  InputProps={{ inputProps: { min: 0, step: 0.1 } }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Height (inches)"
+                  type="number"
+                  value={configuration.dimensions.height || ''}
+                  onChange={handleDimensionChange('height')}
+                  InputProps={{ inputProps: { min: 0, step: 0.1 } }}
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Width (inches)"
-                type="number"
-                value={configuration.dimensions.width || ''}
-                onChange={handleDimensionChange('width')}
-                InputProps={{ inputProps: { min: 0, step: 0.1 } }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Height (inches)"
-                type="number"
-                value={configuration.dimensions.height || ''}
-                onChange={handleDimensionChange('height')}
-                InputProps={{ inputProps: { min: 0, step: 0.1 } }}
-              />
-            </Grid>
-          </>
+          </Box>
         )}
 
         <Divider sx={{ my: 4 }} />

@@ -145,6 +145,128 @@ const SavedQuotes = ({ onLoadQuote }) => {
           ))}
         </Box>
       );
+    } else if (item.systemType === 'Entrance Doors') {
+      return (
+        <Grid container spacing={1}>
+          <Grid item xs={12}>
+            <Typography variant="body2" color="text.secondary">
+              Opening Type: {item.openingType}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Swing Direction: {item.swingDirection}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Handle: {item.handleType}, Lock: {item.lockType}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Threshold: {item.threshold}, Hinges: {item.hingeType}
+            </Typography>
+          </Grid>
+          <Grid item xs={12}>
+            <Paper 
+              variant="outlined" 
+              sx={{ 
+                p: 1,
+                bgcolor: 'background.default',
+                height: '80px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                position: 'relative'
+              }}
+            >
+              <Box sx={{ width: '100%', height: '100%', position: 'relative' }}>
+                {/* Door Frame */}
+                <Box sx={{ 
+                  position: 'absolute',
+                  top: '10%',
+                  left: '10%',
+                  right: '10%',
+                  bottom: '10%',
+                  border: '2px solid',
+                  borderColor: 'grey.400',
+                  borderRadius: 1,
+                  display: 'flex'
+                }}>
+                  {/* Door Panel(s) */}
+                  {item.openingType === 'Single Door' && (
+                    <Box sx={{
+                      width: '100%',
+                      height: '100%',
+                      border: '1px solid',
+                      borderColor: 'primary.main',
+                      bgcolor: 'primary.light',
+                      position: 'relative',
+                      transform: item.swingDirection?.includes('Out') ? 'scaleX(-1)' : 'none'
+                    }}>
+                      {/* Handle */}
+                      <Box sx={{
+                        position: 'absolute',
+                        [item.swingDirection?.includes('Left') ? 'right' : 'left']: '10px',
+                        top: '50%',
+                        width: '20px',
+                        height: '4px',
+                        bgcolor: 'primary.dark',
+                        transform: 'translateY(-50%)'
+                      }} />
+                    </Box>
+                  )}
+                  {(item.openingType === 'Double Door' || item.openingType === 'Double Door with Fixed Panel') && (
+                    <>
+                      <Box sx={{
+                        width: '50%',
+                        height: '100%',
+                        border: '1px solid',
+                        borderColor: item.openingType === 'Double Door with Fixed Panel' && 
+                                   item.swingDirection?.includes('Right Active') ? 'grey.400' : 'primary.main',
+                        bgcolor: item.openingType === 'Double Door with Fixed Panel' && 
+                                item.swingDirection?.includes('Right Active') ? 'grey.100' : 'primary.light',
+                        position: 'relative'
+                      }}>
+                        {/* Left Panel Handle */}
+                        {(!item.swingDirection?.includes('Right Active')) && (
+                          <Box sx={{
+                            position: 'absolute',
+                            right: '10px',
+                            top: '50%',
+                            width: '20px',
+                            height: '4px',
+                            bgcolor: 'primary.dark',
+                            transform: 'translateY(-50%)'
+                          }} />
+                        )}
+                      </Box>
+                      <Box sx={{
+                        width: '50%',
+                        height: '100%',
+                        border: '1px solid',
+                        borderColor: item.openingType === 'Double Door with Fixed Panel' && 
+                                   item.swingDirection?.includes('Left Active') ? 'grey.400' : 'primary.main',
+                        bgcolor: item.openingType === 'Double Door with Fixed Panel' && 
+                                item.swingDirection?.includes('Left Active') ? 'grey.100' : 'primary.light',
+                        position: 'relative'
+                      }}>
+                        {/* Right Panel Handle */}
+                        {(!item.swingDirection?.includes('Left Active')) && (
+                          <Box sx={{
+                            position: 'absolute',
+                            left: '10px',
+                            top: '50%',
+                            width: '20px',
+                            height: '4px',
+                            bgcolor: 'primary.dark',
+                            transform: 'translateY(-50%)'
+                          }} />
+                        )}
+                      </Box>
+                    </>
+                  )}
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
+      );
     }
     return null;
   };
@@ -286,6 +408,11 @@ const SavedQuotes = ({ onLoadQuote }) => {
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             Finish: {item.finish.type} - {item.finish.color}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Typography variant="body2" color="text.secondary">
+                            Operation: {item.operationType}
                           </Typography>
                         </Grid>
                       </Grid>

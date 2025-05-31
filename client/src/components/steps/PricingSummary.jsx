@@ -354,6 +354,135 @@ const PricingSummary = ({
                         ))}
                       </Stack>
                     </Box>
+                  ) : configuration.systemType === 'Entrance Doors' ? (
+                    <Box>
+                      <Typography variant="body2" gutterBottom>
+                        Door Configuration:
+                      </Typography>
+                      <Stack spacing={1}>
+                        <Typography variant="body2">
+                          Opening Type: {configuration.openingType}
+                        </Typography>
+                        <Typography variant="body2">
+                          Swing Direction: {configuration.swingDirection}
+                        </Typography>
+                        <Typography variant="body2">
+                          Handle Type: {configuration.handleType}
+                        </Typography>
+                        <Typography variant="body2">
+                          Lock Type: {configuration.lockType}
+                        </Typography>
+                        <Typography variant="body2">
+                          Threshold: {configuration.threshold}
+                        </Typography>
+                        <Typography variant="body2">
+                          Hinge Type: {configuration.hingeType}
+                        </Typography>
+                      </Stack>
+                      <Box sx={{ mt: 2 }}>
+                        <Paper 
+                          variant="outlined" 
+                          sx={{ 
+                            p: 2,
+                            bgcolor: 'background.default',
+                            height: '120px',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            position: 'relative'
+                          }}
+                        >
+                          <Box sx={{ width: '100%', height: '100%', position: 'relative' }}>
+                            {/* Door Frame */}
+                            <Box sx={{ 
+                              position: 'absolute',
+                              top: '10%',
+                              left: '10%',
+                              right: '10%',
+                              bottom: '10%',
+                              border: '2px solid',
+                              borderColor: 'grey.400',
+                              borderRadius: 1,
+                              display: 'flex'
+                            }}>
+                              {/* Door Panel(s) */}
+                              {configuration.openingType === 'Single Door' && (
+                                <Box sx={{
+                                  width: '100%',
+                                  height: '100%',
+                                  border: '1px solid',
+                                  borderColor: 'primary.main',
+                                  bgcolor: 'primary.light',
+                                  position: 'relative',
+                                  transform: configuration.swingDirection?.includes('Out') ? 'scaleX(-1)' : 'none'
+                                }}>
+                                  {/* Handle */}
+                                  <Box sx={{
+                                    position: 'absolute',
+                                    [configuration.swingDirection?.includes('Left') ? 'right' : 'left']: '10px',
+                                    top: '50%',
+                                    width: '20px',
+                                    height: '4px',
+                                    bgcolor: 'primary.dark',
+                                    transform: 'translateY(-50%)'
+                                  }} />
+                                </Box>
+                              )}
+                              {(configuration.openingType === 'Double Door' || configuration.openingType === 'Double Door with Fixed Panel') && (
+                                <>
+                                  <Box sx={{
+                                    width: '50%',
+                                    height: '100%',
+                                    border: '1px solid',
+                                    borderColor: configuration.openingType === 'Double Door with Fixed Panel' && 
+                                               configuration.swingDirection?.includes('Right Active') ? 'grey.400' : 'primary.main',
+                                    bgcolor: configuration.openingType === 'Double Door with Fixed Panel' && 
+                                            configuration.swingDirection?.includes('Right Active') ? 'grey.100' : 'primary.light',
+                                    position: 'relative'
+                                  }}>
+                                    {/* Left Panel Handle */}
+                                    {(!configuration.swingDirection?.includes('Right Active')) && (
+                                      <Box sx={{
+                                        position: 'absolute',
+                                        right: '10px',
+                                        top: '50%',
+                                        width: '20px',
+                                        height: '4px',
+                                        bgcolor: 'primary.dark',
+                                        transform: 'translateY(-50%)'
+                                      }} />
+                                    )}
+                                  </Box>
+                                  <Box sx={{
+                                    width: '50%',
+                                    height: '100%',
+                                    border: '1px solid',
+                                    borderColor: configuration.openingType === 'Double Door with Fixed Panel' && 
+                                               configuration.swingDirection?.includes('Left Active') ? 'grey.400' : 'primary.main',
+                                    bgcolor: configuration.openingType === 'Double Door with Fixed Panel' && 
+                                            configuration.swingDirection?.includes('Left Active') ? 'grey.100' : 'primary.light',
+                                    position: 'relative'
+                                  }}>
+                                    {/* Right Panel Handle */}
+                                    {(!configuration.swingDirection?.includes('Left Active')) && (
+                                      <Box sx={{
+                                        position: 'absolute',
+                                        left: '10px',
+                                        top: '50%',
+                                        width: '20px',
+                                        height: '4px',
+                                        bgcolor: 'primary.dark',
+                                        transform: 'translateY(-50%)'
+                                      }} />
+                                    )}
+                                  </Box>
+                                </>
+                              )}
+                            </Box>
+                          </Box>
+                        </Paper>
+                      </Box>
+                    </Box>
                   ) : configuration.operationType ? (
                     <Typography variant="body2">
                       Operation: {configuration.operationType}

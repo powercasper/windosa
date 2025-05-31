@@ -36,7 +36,26 @@ const finishOptions = {
 };
 
 const windowOperables = ["Fixed", "Tilt & Turn", "Casement", "Awning", "Tilt Only"];
-const doorOperables   = ["Hinged Left Open In","Hinged Right Open Out","Hinged Right Open In","Hinged Left Open Out"];
+
+const doorModelCapabilities = {
+  "SD67": ["Single Door", "Double Door", "Double Door with Fixed Panel"],
+  "SD77": ["Single Door", "Double Door", "Double Door with Fixed Panel", "Pivot Door"],
+  "SD115": ["Pivot Door"]
+};
+
+const doorOperables = {
+  openingTypes: ["Single Door", "Double Door", "Double Door with Fixed Panel", "Pivot Door"],
+  swingDirections: {
+    "Single Door": ["Left Hand In", "Right Hand In", "Left Hand Out", "Right Hand Out"],
+    "Double Door": ["Active Left", "Active Right"],
+    "Double Door with Fixed Panel": ["Left Active + Right Fixed", "Right Active + Left Fixed"],
+    "Pivot Door": ["Left Pivot", "Right Pivot", "Center Pivot"]
+  },
+  handleTypes: ["Lever Handle", "Pull Handle", "Push Bar"],
+  lockTypes: ["Multi-Point Lock", "Single Point Lock", "Electric Strike", "Magnetic Lock"],
+  thresholds: ["Standard", "ADA Compliant", "Zero Threshold"],
+  hingeTypes: ["Standard", "3D Adjustable", "Concealed", "Pivot"]
+};
 
 const laborRates = {
   "Fixed": 4,
@@ -68,7 +87,7 @@ const unitCostPerSqft = {
     // Entrance Doors
     SD67:  { Fixed:30, "Hinged Left Open In":45, "Hinged Right Open In":45, "Hinged Left Open Out":46, "Hinged Right Open Out":46 },
     SD77:  { Fixed:32, "Hinged Left Open In":48, "Hinged Right Open In":48, "Hinged Left Open Out":49, "Hinged Right Open Out":49 },
-    SD115: { Fixed:35, "Hinged Left Open In":52, "Hinged Right Open In":52, "Hinged Left Open Out":53, "Hinged Right Open Out":53 },
+    SD115: { "Left Pivot": 55, "Right Pivot": 55, "Center Pivot": 58 },
     // Sliding Doors
     "SMARTIA M450": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
     "SMARTIA M630": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
@@ -83,6 +102,7 @@ export {
   finishOptions,
   windowOperables,
   doorOperables,
+  doorModelCapabilities,
   unitCostPerSqft,
   systemBrands
 }; 
