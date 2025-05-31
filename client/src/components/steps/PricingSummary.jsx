@@ -49,8 +49,24 @@ const calculateItemPrice = (item) => {
       const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][panel.operationType];
       totalSystemCost += systemUnitCost * panelArea;
     });
+  } else if (item.systemType === 'Sliding Doors') {
+    // For sliding doors, we use the typology-based pricing
+    totalArea = (item.dimensions.width * height) / 144;
+    const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][item.operationType];
+    totalSystemCost = systemUnitCost * totalArea;
+
+    // Calculate labor based on number of panels
+    const numPanels = item.operationType.length; // Length of typology string represents number of panels
+    const numFixed = (item.operationType.match(/O/g) || []).length;
+    const numSliding = (item.operationType.match(/X/g) || []).length;
+    
+    // Update labor calculation
+    const fixedLaborRate = laborRates['Sliding Fixed'];
+    const slidingLaborRate = laborRates['Sliding →'];
+    const avgLaborRate = ((numFixed * fixedLaborRate) + (numSliding * slidingLaborRate)) / numPanels;
+    item.laborRate = avgLaborRate;
   } else {
-    // Single panel calculation (doors or legacy windows)
+    // Single panel calculation (entrance doors)
     totalArea = (item.dimensions.width * height) / 144;
     const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][item.operationType || 'Fixed'];
     totalSystemCost = systemUnitCost * totalArea;
@@ -75,9 +91,8 @@ const calculateItemPrice = (item) => {
       totalLaborCost += laborRate * panelArea;
     });
   } else {
-    const laborRate = item.operationType ? 
-      laborRates[item.operationType] : 
-      laborRates['Fixed'];
+    const laborRate = item.laborRate || // Use pre-calculated rate for sliding doors
+      (item.operationType ? laborRates[item.operationType] : laborRates['Fixed']);
     totalLaborCost = laborRate * totalArea;
   }
 
@@ -274,6 +289,13 @@ const PricingSummary = ({
                         ))}
                       </Stack>
                     </Box>
+                  ) : configuration.systemType === 'Sliding Doors' ? (
+                    <Typography variant="body2">
+                      Configuration: {configuration.operationType} 
+                      ({configuration.operationType.split('').map(type => 
+                        type === 'O' ? 'Fixed' : 'Sliding'
+                      ).join(', ')})
+                    </Typography>
                   ) : configuration.operationType ? (
                     <Typography variant="body2">
                       Operation: {configuration.operationType}

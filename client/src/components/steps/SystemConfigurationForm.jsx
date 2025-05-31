@@ -42,6 +42,9 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         setAvailableOperables(windowOperables);
       } else if (configuration.systemType === 'Entrance Doors') {
         setAvailableOperables(doorOperables);
+      } else if (configuration.systemType === 'Sliding Doors') {
+        // For sliding doors, we use typologies
+        setAvailableOperables(['OX', 'XX', 'OXX', 'XXX', 'OXXO', 'OXXX', 'XXXX']);
       }
     }
   }, [configuration.systemType]);
@@ -249,6 +252,39 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                 </Typography>
               </Box>
             </Grid>
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ 
+                p: 2, 
+                border: '1px dashed rgba(0, 0, 0, 0.12)', 
+                borderRadius: 1,
+                bgcolor: 'background.paper'
+              }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Total Height
+                </Typography>
+                <Typography variant="h6">
+                  {configuration.dimensions.height || 0}" 
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ 
+                p: 2, 
+                border: '1px dashed rgba(0, 0, 0, 0.12)', 
+                borderRadius: 1,
+                bgcolor: 'background.paper'
+              }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Total Square Footage
+                </Typography>
+                <Typography variant="h6">
+                  {((configuration.dimensions.width * configuration.dimensions.height) / 144).toFixed(2)} sq ft
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  (width × height ÷ 144)
+                </Typography>
+              </Box>
+            </Grid>
           </Grid>
         </Box>
 
@@ -378,6 +414,45 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
               ))}
             </Grid>
           </Box>
+        ) : configuration.systemType === 'Sliding Doors' ? (
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Configuration Type</InputLabel>
+                <Select
+                  value={configuration.operationType || ''}
+                  onChange={handleChange('operationType')}
+                  label="Configuration Type"
+                >
+                  {availableOperables.map((typology) => (
+                    <MenuItem key={typology} value={typology}>
+                      {typology} ({typology.replace(/O/g, 'Fixed ').replace(/X/g, 'Sliding ')})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Width (inches)"
+                type="number"
+                value={configuration.dimensions.width || ''}
+                onChange={handleDimensionChange('width')}
+                InputProps={{ inputProps: { min: 0, step: 0.1 } }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Height (inches)"
+                type="number"
+                value={configuration.dimensions.height || ''}
+                onChange={handleDimensionChange('height')}
+                InputProps={{ inputProps: { min: 0, step: 0.1 } }}
+              />
+            </Grid>
+          </Grid>
         ) : (
           <>
             <Grid item xs={12}>
@@ -406,19 +481,18 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                 InputProps={{ inputProps: { min: 0, step: 0.1 } }}
               />
             </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Height (inches)"
+                type="number"
+                value={configuration.dimensions.height || ''}
+                onChange={handleDimensionChange('height')}
+                InputProps={{ inputProps: { min: 0, step: 0.1 } }}
+              />
+            </Grid>
           </>
         )}
-
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Height (inches)"
-            type="number"
-            value={configuration.dimensions.height || ''}
-            onChange={handleDimensionChange('height')}
-            InputProps={{ inputProps: { min: 0, step: 0.1 } }}
-          />
-        </Grid>
 
         <Divider sx={{ my: 4 }} />
 
