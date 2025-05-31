@@ -98,6 +98,12 @@ const calculateItemPrice = (item) => {
 
       const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][panel.operationType];
       totalSystemCost += systemUnitCost * panelArea;
+      
+      // Add mosquito net cost if the panel is operational and has a net
+      if (panel.operationType !== 'Fixed' && panel.hasMosquitoNet) {
+        totalSystemCost += 100; // $100 per mosquito net
+      }
+
       totalGlassCost += glassUnitCost * panelArea;
       
       const laborRate = laborRates[panel.operationType];
@@ -164,6 +170,29 @@ const calculateItemPrice = (item) => {
     total: totalSystemCost + totalGlassCost + totalLaborCost,
     area: totalArea
   };
+};
+
+const calculateBaseCost = (configuration) => {
+  if (!configuration.systemModel) return 0;
+
+  if (configuration.systemType === 'Windows') {
+    const totalWidth = configuration.panels.reduce((sum, panel) => sum + panel.width, 0);
+    const area = (totalWidth * configuration.dimensions.height) / 144; // Convert to square feet
+    let cost = area * unitCostPerSqft[configuration.systemModel];
+
+    // Add mosquito net cost if enabled
+    if (configuration.hasMosquitoNet) {
+      const operationalPanels = configuration.panels.filter(panel => panel.operationType !== 'Fixed').length;
+      cost += operationalPanels * 100; // $100 per operational window
+    }
+
+    return cost;
+  } else if (configuration.systemType === 'Sliding Doors') {
+    // ... existing sliding doors calculation ...
+  } else if (configuration.systemType === 'Entrance Doors') {
+    // ... existing entrance doors calculation ...
+  }
+  return 0;
 };
 
 const PricingSummary = ({ 
@@ -374,9 +403,15 @@ const PricingSummary = ({
                         {configuration.panels.map((panel, idx) => (
                           <Typography key={idx} variant="body2">
                             Pane {idx + 1}: {panel.width}" wide - {panel.operationType}
+                            {panel.operationType !== 'Fixed' && configuration.hasMosquitoNet && ' (with mosquito net)'}
                           </Typography>
                         ))}
                       </Stack>
+                      {configuration.hasMosquitoNet && (
+                        <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
+                          Includes standard mosquito nets for all operational windows
+                        </Typography>
+                      )}
                     </Box>
                   ) : configuration.systemType === 'Sliding Doors' ? (
                     <Box>
@@ -824,65 +859,101 @@ const PricingSummary = ({
                       Area Calculations
                     </Typography>
                     <Grid container spacing={3}>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Door Panel Area
-                          </Typography>
-                          <Typography variant="h5">
-                            {((configuration.dimensions?.width || 0) * (configuration.dimensions?.height || 0) / 144).toFixed(2)} sq ft
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Door panels only
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                      {(configuration.leftSidelight?.enabled || configuration.rightSidelight?.enabled || configuration.transom?.enabled) && (
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                            <Typography variant="subtitle2" color="text.secondary">
-                              Sidelights & Transom Area
+                      {configuration.systemType === 'Windows' ? (
+                        // Windows area calculation
+                        <Grid item xs={12}>
+                          <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'primary.main' }}>
+                            <Typography variant="subtitle2" color="primary">
+                              Total System Area
                             </Typography>
-                            <Typography variant="h5">
-                              {(
-                                // Sidelights area
-                                ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) * 
-                                 (configuration.dimensions?.height || 0) +
-                                 (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0) * 
-                                 (configuration.dimensions?.height || 0) +
-                                // Transom area
-                                ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
-                                 (configuration.dimensions?.width || 0) +
-                                 (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)) * 
-                                 (configuration.transom?.enabled ? (configuration.transom?.height || 0) : 0)
-                                ) / 144
-                              ).toFixed(2)} sq ft
+                            <Typography variant="h5" color="primary">
+                              {((configuration.panels?.reduce((sum, panel) => sum + panel.width, 0) || 0) * 
+                                (configuration.dimensions?.height || 0) / 144).toFixed(2)} sq ft
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Additional glass area
+                              Total window system area
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      ) : configuration.systemType === 'Entrance Doors' ? (
+                        // Entrance doors area calculations
+                        <>
+                          <Grid item xs={12} sm={6} md={4}>
+                            <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                              <Typography variant="subtitle2" color="text.secondary">
+                                Door Panel Area
+                              </Typography>
+                              <Typography variant="h5">
+                                {((configuration.dimensions?.width || 0) * (configuration.dimensions?.height || 0) / 144).toFixed(2)} sq ft
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Door panels only
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                          {(configuration.leftSidelight?.enabled || configuration.rightSidelight?.enabled || configuration.transom?.enabled) && (
+                            <Grid item xs={12} sm={6} md={4}>
+                              <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                                <Typography variant="subtitle2" color="text.secondary">
+                                  Sidelights & Transom Area
+                                </Typography>
+                                <Typography variant="h5">
+                                  {(
+                                    // Sidelights area
+                                    ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) * 
+                                     (configuration.dimensions?.height || 0) +
+                                     (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0) * 
+                                     (configuration.dimensions?.height || 0) +
+                                    // Transom area
+                                    ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
+                                     (configuration.dimensions?.width || 0) +
+                                     (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)) * 
+                                     (configuration.transom?.enabled ? (configuration.transom?.height || 0) : 0)
+                                    ) / 144
+                                  ).toFixed(2)} sq ft
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Additional glass area
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                          )}
+                          <Grid item xs={12} sm={6} md={4}>
+                            <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'primary.main' }}>
+                              <Typography variant="subtitle2" color="primary">
+                                Total System Area
+                              </Typography>
+                              <Typography variant="h5" color="primary">
+                                {(
+                                  ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
+                                   (configuration.dimensions?.width || 0) +
+                                   (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)) * 
+                                  ((configuration.dimensions?.height || 0) + 
+                                   (configuration.transom?.enabled ? (configuration.transom?.height || 0) : 0)) / 144
+                                ).toFixed(2)} sq ft
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Total system area
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                        </>
+                      ) : (
+                        // Sliding doors area calculation
+                        <Grid item xs={12}>
+                          <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'primary.main' }}>
+                            <Typography variant="subtitle2" color="primary">
+                              Total System Area
+                            </Typography>
+                            <Typography variant="h5" color="primary">
+                              {((configuration.dimensions?.width || 0) * (configuration.dimensions?.height || 0) / 144).toFixed(2)} sq ft
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Total sliding door system area
                             </Typography>
                           </Paper>
                         </Grid>
                       )}
-                      <Grid item xs={12} sm={6} md={4}>
-                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'primary.main' }}>
-                          <Typography variant="subtitle2" color="primary">
-                            Total System Area
-                          </Typography>
-                          <Typography variant="h5" color="primary">
-                            {(
-                              ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
-                               (configuration.dimensions?.width || 0) +
-                               (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)) * 
-                              ((configuration.dimensions?.height || 0) + 
-                               (configuration.transom?.enabled ? (configuration.transom?.height || 0) : 0)) / 144
-                            ).toFixed(2)} sq ft
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Total system area
-                          </Typography>
-                        </Paper>
-                      </Grid>
                     </Grid>
                   </Box>
                 </Box>
@@ -1010,8 +1081,8 @@ const PricingSummary = ({
                                   <Box
                                     key={index}
                                     sx={{
-                                      width: '40px',
-                                      height: '60px',
+                                      width: '30px',
+                                      height: '45px',
                                       bgcolor: panel.operationType === 'Fixed' ? 'grey.100' : 'primary.light',
                                       color: panel.operationType === 'Fixed' ? 'text.primary' : 'primary.contrastText',
                                       border: '1px solid',
@@ -1020,36 +1091,25 @@ const PricingSummary = ({
                                       flexDirection: 'column',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      fontSize: '0.75rem',
+                                      fontSize: '0.625rem',
                                       textAlign: 'center',
                                       borderRadius: '2px',
                                       position: 'relative'
                                     }}
                                   >
-                                    <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                                      {panel.operationType === 'Fixed' ? 'F' : 
-                                       panel.operationType === 'Awning' ? 'A' :
-                                       panel.operationType === 'Casement' ? 'C' :
-                                       panel.operationType === 'Hopper' ? 'H' : 'T'}
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ fontSize: '0.625rem' }}>
-                                      {panel.width}"
-                                    </Typography>
-                                    {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
-                                      <Box
+                                    {panel.operationType.charAt(0)}
+                                    {panel.operationType !== 'Fixed' && item.hasMosquitoNet && (
+                                      <Typography 
+                                        component="span" 
                                         sx={{
+                                          fontSize: '0.5rem',
+                                          color: 'success.main',
                                           position: 'absolute',
-                                          [panel.handleLocation || 'right']: 0,
-                                          top: '50%',
-                                          transform: 'translateY(-50%)',
-                                          width: '3px',
-                                          height: '12px',
-                                          bgcolor: 'primary.dark',
-                                          borderRadius: '2px',
-                                          mr: panel.handleLocation === 'right' ? 0.25 : 'auto',
-                                          ml: panel.handleLocation === 'left' ? 0.25 : 'auto'
+                                          bottom: 2
                                         }}
-                                      />
+                                      >
+                                        Net
+                                      </Typography>
                                     )}
                                   </Box>
                                 ))}
@@ -1070,8 +1130,8 @@ const PricingSummary = ({
                                   <Box
                                     key={index}
                                     sx={{
-                                      width: '40px',
-                                      height: '60px',
+                                      width: '30px',
+                                      height: '45px',
                                       bgcolor: panel.type === 'Fixed' ? 'grey.100' : 'primary.light',
                                       color: panel.type === 'Fixed' ? 'text.primary' : 'primary.contrastText',
                                       border: '1px solid',
@@ -1080,9 +1140,10 @@ const PricingSummary = ({
                                       flexDirection: 'column',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      fontSize: '0.75rem',
+                                      fontSize: '0.625rem',
                                       textAlign: 'center',
-                                      borderRadius: '2px'
+                                      borderRadius: '2px',
+                                      position: 'relative'
                                     }}
                                   >
                                     {panel.type === 'Sliding' ? (

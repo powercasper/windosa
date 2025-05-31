@@ -23,6 +23,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import WindowIcon from '@mui/icons-material/Window';
 import ColorLensIcon from '@mui/icons-material/ColorLens';
 import CommentIcon from '@mui/icons-material/Comment';
+import StraightIcon from '@mui/icons-material/Straight';
+import BuildIcon from '@mui/icons-material/Build';
+import ViewSidebarIcon from '@mui/icons-material/ViewSidebar';
+import PreviewIcon from '@mui/icons-material/Preview';
 
 // Import the system architecture data
 import { 
@@ -75,14 +79,8 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
           dimensions: configuration.dimensions || { width: '', height: '' }
         });
       } else if (configuration.systemType === 'Sliding Doors') {
-        onUpdate({
-          panels: [
-            { type: 'Fixed', direction: null },
-            { type: 'Sliding', direction: 'right' }
-          ],
-          operationType: 'OX',
-          dimensions: configuration.dimensions || { width: '', height: '' }
-        });
+        // For sliding doors, we use typologies
+        setAvailableOperables(['OX', 'XX', 'OXX', 'XXX', 'OXXO', 'OXXX', 'XXXX', 'OXXXX', 'XXXXO', 'OXXXO', 'OOXXX', 'XXXOO', 'OXXXXO', 'XXXXXX', 'OOXXOO']);
       }
 
       // Set default finish if not already set
@@ -114,15 +112,16 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   useEffect(() => {
     // Initialize panels array if it doesn't exist and we're configuring a window
     if (configuration.systemType === 'Windows' && (!configuration.panels || configuration.panels.length === 0)) {
+      const initialWidth = configuration.dimensions?.width || 0;
       onUpdate({
         panels: [{
-          width: configuration.dimensions?.width || 0,
+          width: initialWidth,
           operationType: 'Fixed',
           handleLocation: 'right' // Default handle location
         }],
         dimensions: {
           ...configuration.dimensions,
-          width: configuration.dimensions?.width || 0,
+          width: initialWidth,
           height: configuration.dimensions?.height || 0
         }
       });
@@ -139,6 +138,21 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
       }
     }
   }, [configuration.systemType]);
+
+  // Add new effect to handle width distribution when panels change
+  useEffect(() => {
+    if (configuration.systemType === 'Windows' && configuration.panels && configuration.dimensions?.width) {
+      if (useEqualWidths) {
+        const totalWidth = configuration.dimensions.width;
+        const equalWidth = totalWidth / configuration.panels.length;
+        const newPanels = configuration.panels.map(panel => ({
+          ...panel,
+          width: equalWidth
+        }));
+        onUpdate({ panels: newPanels });
+      }
+    }
+  }, [configuration.panels?.length, configuration.dimensions?.width, useEqualWidths]);
 
   // Add new effect to handle model-specific configurations
   useEffect(() => {
@@ -221,27 +235,23 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
 
   const handleTotalWidthChange = (event) => {
     const totalWidth = parseFloat(event.target.value) || 0;
-    if (useEqualWidths && configuration.panels) {
-      const equalWidths = distributeWidth(totalWidth, configuration.panels.length);
-      const newPanels = configuration.panels.map((panel, index) => ({
-        ...panel,
-        width: equalWidths[index]
-      }));
-      onUpdate({
-        panels: newPanels,
-        dimensions: {
-          ...configuration.dimensions,
-          width: totalWidth
-        }
-      });
-    } else {
-      onUpdate({
-        dimensions: {
-          ...configuration.dimensions,
-          width: totalWidth
-        }
+    
+    // Always update panels when total width changes
+    const newPanels = [...(configuration.panels || [])];
+    if (useEqualWidths) {
+      const equalWidth = totalWidth / newPanels.length;
+      newPanels.forEach(panel => {
+        panel.width = equalWidth;
       });
     }
+    
+    onUpdate({
+      panels: newPanels,
+      dimensions: {
+        ...configuration.dimensions,
+        width: totalWidth
+      }
+    });
   };
 
   const handlePanelChange = (index, field, value) => {
@@ -442,145 +452,232 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                 {/* Total System Dimensions */}
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="subtitle1" color="primary" gutterBottom>
-                    Total System Dimensions
+                    System Details
                   </Typography>
                   <Grid container spacing={3}>
-                    <Grid item xs={12} sm={6}>
-                      <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          System Width
-                        </Typography>
-                        <Typography variant="h5">
-                          {(configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
-                           (configuration.dimensions?.width || 0) +
-                           (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)}"
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Including sidelights
-                        </Typography>
-                      </Paper>
+                    {/* System Dimensions */}
+                    <Grid item xs={12} md={8}>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Overall System Dimensions
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Total Width
+                            </Typography>
+                            <Typography variant="h5">
+                              {configuration.systemType === 'Windows' ? 
+                                (configuration.panels?.reduce((sum, panel) => sum + (panel.width || 0), 0) || 0) :
+                                (configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
+                                (configuration.dimensions?.width || 0) +
+                                (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)}"
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Total system width including all components
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Total Height
+                            </Typography>
+                            <Typography variant="h5">
+                              {(configuration.dimensions?.height || 0) + 
+                               (configuration.transom?.enabled ? (configuration.transom?.height || 0) : 0)}"
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Total system height including transom
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      </Grid>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          System Height
-                        </Typography>
-                        <Typography variant="h5">
-                          {(configuration.dimensions?.height || 0) + 
-                           (configuration.transom?.enabled ? (configuration.transom?.height || 0) : 0)}"
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Including transom
-                        </Typography>
-                      </Paper>
+
+                    {/* Area Calculations */}
+                    <Grid item xs={12} md={4}>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Area Calculations
+                      </Typography>
+                      {configuration.systemType === 'Windows' ? (
+                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'primary.main' }}>
+                          <Typography variant="subtitle2" color="primary">
+                            Total Window Area
+                          </Typography>
+                          <Typography variant="h5" color="primary">
+                            {((configuration.panels?.reduce((sum, panel) => sum + (panel.width || 0), 0) || 0) * 
+                              (configuration.dimensions?.height || 0) / 144).toFixed(2)} sq ft
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Total window system area
+                          </Typography>
+                        </Paper>
+                      ) : configuration.systemType === 'Entrance Doors' ? (
+                        <>
+                          <Paper elevation={0} sx={{ p: 2, mb: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'primary.main' }}>
+                            <Typography variant="subtitle2" color="primary">
+                              Total System Area
+                            </Typography>
+                            <Typography variant="h5" color="primary">
+                              {(
+                                ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
+                                 (configuration.dimensions?.width || 0) +
+                                 (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)) * 
+                                ((configuration.dimensions?.height || 0) + 
+                                 (configuration.transom?.enabled ? (configuration.transom?.height || 0) : 0)) / 144
+                              ).toFixed(2)} sq ft
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Total system area including all components
+                            </Typography>
+                          </Paper>
+                        </>
+                      ) : (
+                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'primary.main' }}>
+                          <Typography variant="subtitle2" color="primary">
+                            Total Door Area
+                          </Typography>
+                          <Typography variant="h5" color="primary">
+                            {((configuration.dimensions?.width || 0) * (configuration.dimensions?.height || 0) / 144).toFixed(2)} sq ft
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Total sliding door system area
+                          </Typography>
+                        </Paper>
+                      )}
                     </Grid>
                   </Grid>
                 </Box>
 
-                {/* Door Panel Dimensions */}
+                {/* Door Panel and Additional Components Dimensions */}
                 {configuration.systemType === 'Entrance Doors' && (
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="subtitle1" color="primary" gutterBottom>
-                      Door Panel Dimensions
-                    </Typography>
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} sm={6}>
-                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Door Width
-                          </Typography>
-                          <Typography variant="h5">
-                            {configuration.dimensions?.width || 0}"
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {configuration.openingType === 'Double Door' ? 'Total width of both panels' : 'Single panel width'}
-                          </Typography>
-                        </Paper>
+                  <>
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="subtitle1" color="primary" gutterBottom>
+                        Door Panel Dimensions
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} md={8}>
+                          <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                              <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                                <Typography variant="subtitle2" color="text.secondary">
+                                  Door Width
+                                </Typography>
+                                <Typography variant="h5">
+                                  {configuration.dimensions?.width || 0}"
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {configuration.openingType === 'Double Door' ? 'Total width of both panels' : 'Single panel width'}
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                                <Typography variant="subtitle2" color="text.secondary">
+                                  Door Height
+                                </Typography>
+                                <Typography variant="h5">
+                                  {configuration.dimensions?.height || 0}"
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Door panel height (excluding transom)
+                                </Typography>
+                              </Paper>
+                            </Grid>
+                          </Grid>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                          <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', height: '100%' }}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Door Panel Area
+                            </Typography>
+                            <Typography variant="h5" color="text.primary">
+                              {((configuration.dimensions?.width || 0) * (configuration.dimensions?.height || 0) / 144).toFixed(2)} sq ft
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Area of door panel(s) only
+                            </Typography>
+                          </Paper>
+                        </Grid>
                       </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Door Height
-                          </Typography>
-                          <Typography variant="h5">
-                            {configuration.dimensions?.height || 0}"
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Excluding transom
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                )}
+                    </Box>
 
-                {/* Area Calculations */}
-                <Box>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
-                    Area Calculations
-                  </Typography>
-                  <Grid container spacing={3}>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Door Panel Area
-                        </Typography>
-                        <Typography variant="h5">
-                          {((configuration.dimensions?.width || 0) * (configuration.dimensions?.height || 0) / 144).toFixed(2)} sq ft
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Door panels only
-                        </Typography>
-                      </Paper>
-                    </Grid>
                     {(configuration.leftSidelight?.enabled || configuration.rightSidelight?.enabled || configuration.transom?.enabled) && (
-                      <Grid item xs={12} sm={6} md={4}>
+                      <Box>
+                        <Typography variant="subtitle1" color="primary" gutterBottom>
+                          Additional Components
+                        </Typography>
                         <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Sidelights & Transom Area
-                          </Typography>
-                          <Typography variant="h5">
-                            {(
-                              // Sidelights area
-                              ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) * 
-                               (configuration.dimensions?.height || 0) +
-                               (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0) * 
-                               (configuration.dimensions?.height || 0) +
-                              // Transom area
-                              ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
-                               (configuration.dimensions?.width || 0) +
-                               (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)) * 
-                               (configuration.transom?.enabled ? (configuration.transom?.height || 0) : 0)
-                              ) / 144
-                            ).toFixed(2)} sq ft
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Additional glass area
-                          </Typography>
+                          {/* Total Area */}
+                          <Box sx={{ mb: 2, pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="subtitle2" color="primary">
+                                Total Additional Components Area
+                              </Typography>
+                              <Typography variant="h6" color="primary">
+                                {((
+                                  // Left Sidelight Area
+                                  (configuration.leftSidelight?.enabled ? 
+                                    (configuration.leftSidelight.width * (configuration.dimensions?.height || 0)) : 0) +
+                                  // Right Sidelight Area
+                                  (configuration.rightSidelight?.enabled ? 
+                                    (configuration.rightSidelight.width * (configuration.dimensions?.height || 0)) : 0) +
+                                  // Top Sidelight Area
+                                  (configuration.transom?.enabled ? 
+                                    ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
+                                     (configuration.dimensions?.width || 0) +
+                                     (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)) * 
+                                    (configuration.transom?.height || 0) : 0)
+                                ) / 144).toFixed(2)} sq ft
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          {/* Components Summary */}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                              Components Dimensions
+                            </Typography>
+                            {configuration.leftSidelight?.enabled && (
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Left Sidelight:
+                                </Typography>
+                                <Typography variant="body1">
+                                  {configuration.leftSidelight.width}" × {configuration.dimensions?.height || 0}"
+                                </Typography>
+                              </Box>
+                            )}
+                            {configuration.rightSidelight?.enabled && (
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Right Sidelight:
+                                </Typography>
+                                <Typography variant="body1">
+                                  {configuration.rightSidelight.width}" × {configuration.dimensions?.height || 0}"
+                                </Typography>
+                              </Box>
+                            )}
+                            {configuration.transom?.enabled && (
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Top Sidelight:
+                                </Typography>
+                                <Typography variant="body1">
+                                  {(configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
+                                   (configuration.dimensions?.width || 0) +
+                                   (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)}" × {configuration.transom?.height || 0}"
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
                         </Paper>
-                      </Grid>
+                      </Box>
                     )}
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'primary.main' }}>
-                        <Typography variant="subtitle2" color="primary">
-                          Total System Area
-                        </Typography>
-                        <Typography variant="h5" color="primary">
-                          {(
-                            ((configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
-                             (configuration.dimensions?.width || 0) +
-                             (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)) * 
-                            ((configuration.dimensions?.height || 0) + 
-                             (configuration.transom?.enabled ? (configuration.transom?.height || 0) : 0)) / 144
-                          ).toFixed(2)} sq ft
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Total system area
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                  </Grid>
-                </Box>
+                  </>
+                )}
               </Box>
             </Grid>
           </Grid>
@@ -646,20 +743,6 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
               </Grid>
 
               <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="System Height (inches)"
-                  type="number"
-                  value={configuration.dimensions.height || ''}
-                  onChange={handleDimensionChange('height')}
-                  InputProps={{ 
-                    inputProps: { min: 0, step: 0.1 },
-                    sx: { height: '56px' }
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
                 <Box sx={{ 
                   p: 2, 
                   border: '1px solid rgba(0, 0, 0, 0.12)', 
@@ -667,47 +750,68 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                   bgcolor: 'background.paper'
                 }}>
                   <Stack spacing={2}>
-                    <FormControl>
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Typography variant="subtitle2" color="text.secondary">
-                          Width Distribution
-                        </Typography>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Typography>Custom</Typography>
-                          <Switch
-                            checked={useEqualWidths}
-                            onChange={(e) => {
-                              setUseEqualWidths(e.target.checked);
-                              if (e.target.checked && configuration.dimensions.width) {
-                                // Distribute total width equally
-                                const equalWidths = distributeWidth(
-                                  configuration.dimensions.width,
-                                  configuration.panels.length
-                                );
-                                const newPanels = configuration.panels.map((panel, index) => ({
-                                  ...panel,
-                                  width: equalWidths[index]
-                                }));
-                                onUpdate({ panels: newPanels });
-                              }
+                    <Typography variant="subtitle1" gutterBottom>
+                      System Dimensions
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={8}>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                          <TextField
+                            fullWidth
+                            label="Total System Width (inches)"
+                            type="number"
+                            value={configuration.dimensions.width || ''}
+                            onChange={handleTotalWidthChange}
+                            InputProps={{ 
+                              inputProps: { min: 0, step: 0.1 },
+                              sx: { height: '56px' }
                             }}
                           />
-                          <Typography>Equal</Typography>
-                        </Stack>
-                      </Stack>
-                    </FormControl>
-
-                    <TextField
-                      fullWidth
-                      label="Total System Width (inches)"
-                      type="number"
-                      value={configuration.dimensions.width || ''}
-                      onChange={handleTotalWidthChange}
-                      InputProps={{ 
-                        inputProps: { min: 0, step: 0.1 },
-                        sx: { height: '56px' }
-                      }}
-                    />
+                          <TextField
+                            fullWidth
+                            label="System Height (inches)"
+                            type="number"
+                            value={configuration.dimensions.height || ''}
+                            onChange={handleDimensionChange('height')}
+                            InputProps={{ 
+                              inputProps: { min: 0, step: 0.1 },
+                              sx: { height: '56px' }
+                            }}
+                          />
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <FormControl fullWidth>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Width Distribution
+                            </Typography>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography>Custom</Typography>
+                              <Switch
+                                checked={useEqualWidths}
+                                onChange={(e) => {
+                                  setUseEqualWidths(e.target.checked);
+                                  if (e.target.checked && configuration.dimensions.width) {
+                                    // Distribute total width equally
+                                    const equalWidths = distributeWidth(
+                                      configuration.dimensions.width,
+                                      configuration.panels.length
+                                    );
+                                    const newPanels = configuration.panels.map((panel, index) => ({
+                                      ...panel,
+                                      width: equalWidths[index]
+                                    }));
+                                    onUpdate({ panels: newPanels });
+                                  }
+                                }}
+                              />
+                              <Typography>Equal</Typography>
+                            </Stack>
+                          </Stack>
+                        </FormControl>
+                      </Grid>
+                    </Grid>
                   </Stack>
                 </Box>
               </Grid>
@@ -773,6 +877,31 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                             </FormControl>
                           </Grid>
                         )}
+                        {panel.operationType !== 'Fixed' && (
+                          <Grid item xs={12}>
+                            <Paper 
+                              variant="outlined" 
+                              sx={{ 
+                                p: 2,
+                                bgcolor: 'background.paper',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2
+                              }}
+                            >
+                              <Box sx={{ flexGrow: 1 }}>
+                                <Typography variant="subtitle1">Add Mosquito Net</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Standard mosquito net for this window (+$100)
+                                </Typography>
+                              </Box>
+                              <Switch
+                                checked={panel.hasMosquitoNet || false}
+                                onChange={(e) => handlePanelChange(index, 'hasMosquitoNet', e.target.checked)}
+                              />
+                            </Paper>
+                          </Grid>
+                        )}
                       </Grid>
                     </Stack>
                   </Paper>
@@ -815,6 +944,11 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                       >
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
                           {panel.operationType}
+                          {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && (
+                            <Typography component="span" variant="caption" sx={{ display: 'block', color: 'success.main' }}>
+                              + Net
+                            </Typography>
+                          )}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {panel.width}" wide
@@ -993,557 +1127,632 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
               Door Configuration
             </Typography>
             <Grid container spacing={3}>
+              {/* Basic Door Configuration */}
               <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Opening Type</InputLabel>
-                  <Select
-                    value={configuration.openingType || ''}
-                    onChange={(e) => {
-                      const openingType = e.target.value;
-                      onUpdate({
-                        openingType,
-                        handleLocation: configuration.handleLocation || 'right',
-                        handleType: configuration.handleType || 'Lever Handle',
-                        lockType: configuration.lockType || 'Multi-Point Lock',
-                        threshold: configuration.threshold || 'Standard',
-                        hingeType: configuration.hingeType || 'Standard'
-                      });
-                    }}
-                    label="Opening Type"
-                  >
-                    {(doorModelCapabilities[configuration.systemModel] || doorOperables.openingTypes).map((type) => (
-                      <MenuItem key={type} value={type}>
-                        {type}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                  <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <WindowIcon fontSize="small" /> Basic Door Configuration
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Opening Type</InputLabel>
+                        <Select
+                          value={configuration.openingType || ''}
+                          onChange={(e) => {
+                            const openingType = e.target.value;
+                            onUpdate({
+                              openingType,
+                              handleLocation: configuration.handleLocation || 'right',
+                              handleType: configuration.handleType || 'Lever Handle',
+                              lockType: configuration.lockType || 'Multi-Point Lock',
+                              threshold: configuration.threshold || 'Standard',
+                              hingeType: configuration.hingeType || 'Standard'
+                            });
+                          }}
+                          label="Opening Type"
+                        >
+                          {(doorModelCapabilities[configuration.systemModel] || doorOperables.openingTypes).map((type) => (
+                            <MenuItem key={type} value={type}>
+                              {type}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Door Type</InputLabel>
+                        <Select
+                          value={configuration.doorType || 'glass'}
+                          onChange={(e) => onUpdate({ doorType: e.target.value })}
+                          label="Door Type"
+                        >
+                          <MenuItem value="glass">Glass Door</MenuItem>
+                          <MenuItem value="panel">Panel Door</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Opening Direction</InputLabel>
+                        <Select
+                          value={configuration.openingDirection || 'inside'}
+                          onChange={(e) => onUpdate({ openingDirection: e.target.value })}
+                          label="Opening Direction"
+                        >
+                          <MenuItem value="inside">Opening Inside</MenuItem>
+                          <MenuItem value="outside">Opening Outside</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                </Paper>
               </Grid>
 
               {configuration.openingType && (
                 <>
+                  {/* Door Dimensions */}
                   <Grid item xs={12}>
-                    <FormControl fullWidth>
-                      <InputLabel>Handle Location</InputLabel>
-                      <Select
-                        value={configuration.handleLocation || 'right'}
-                        onChange={(e) => onUpdate({ handleLocation: e.target.value })}
-                        label="Handle Location"
-                      >
-                        <MenuItem value="left">Left Side</MenuItem>
-                        <MenuItem value="right">Right Side</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <FormControl fullWidth>
-                      <InputLabel>Include Sidelights</InputLabel>
-                      <Select
-                        value={configuration.hasSidelights || false}
-                        onChange={(e) => {
-                          const hasSidelights = e.target.value;
-                          onUpdate({
-                            hasSidelights,
-                            // Reset sidelight configurations if disabled
-                            leftSidelight: hasSidelights ? configuration.leftSidelight : { enabled: false, width: 0 },
-                            rightSidelight: hasSidelights ? configuration.rightSidelight : { enabled: false, width: 0 }
-                          });
-                        }}
-                        label="Include Sidelights"
-                      >
-                        <MenuItem value={false}>No Sidelights</MenuItem>
-                        <MenuItem value={true}>Yes, Configure Sidelights</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-
-                  {configuration.hasSidelights && (
-                    <Grid item xs={12}>
-                      <Typography variant="subtitle1" gutterBottom>
-                        Sidelights Configuration
+                    <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                      <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <StraightIcon fontSize="small" /> Door Dimensions
                       </Typography>
                       <Grid container spacing={2}>
                         <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <InputLabel>Left Sidelight</InputLabel>
-                            <Select
-                              value={configuration.leftSidelight?.enabled || false}
-                              onChange={(e) => onUpdate({
-                                leftSidelight: {
-                                  ...configuration.leftSidelight,
-                                  enabled: e.target.value,
-                                  width: e.target.value ? (configuration.leftSidelight?.width || 12) : 0
-                                }
-                              })}
-                              label="Left Sidelight"
-                            >
-                              <MenuItem value={false}>None</MenuItem>
-                              <MenuItem value={true}>Add Left Sidelight</MenuItem>
-                            </Select>
-                          </FormControl>
-                          {configuration.leftSidelight?.enabled && (
-                            <TextField
-                              fullWidth
-                              label="Width (inches)"
-                              type="number"
-                              value={configuration.leftSidelight?.width || 12}
-                              onChange={(e) => onUpdate({
-                                leftSidelight: {
-                                  ...configuration.leftSidelight,
-                                  width: parseFloat(e.target.value) || 0
-                                }
-                              })}
-                              InputProps={{ inputProps: { min: 0, step: 0.1 } }}
-                              sx={{ mt: 2 }}
-                            />
-                          )}
+                          <TextField
+                            fullWidth
+                            label="Door Width (inches)"
+                            type="number"
+                            value={configuration.dimensions.width || ''}
+                            onChange={handleDimensionChange('width')}
+                            InputProps={{ 
+                              inputProps: { min: 0, step: 0.1 },
+                              sx: { height: '56px' }
+                            }}
+                          />
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <InputLabel>Right Sidelight</InputLabel>
-                            <Select
-                              value={configuration.rightSidelight?.enabled || false}
-                              onChange={(e) => onUpdate({
-                                rightSidelight: {
-                                  ...configuration.rightSidelight,
-                                  enabled: e.target.value,
-                                  width: e.target.value ? (configuration.rightSidelight?.width || 12) : 0
-                                }
-                              })}
-                              label="Right Sidelight"
-                            >
-                              <MenuItem value={false}>None</MenuItem>
-                              <MenuItem value={true}>Add Right Sidelight</MenuItem>
-                            </Select>
-                          </FormControl>
-                          {configuration.rightSidelight?.enabled && (
-                            <TextField
-                              fullWidth
-                              label="Width (inches)"
-                              type="number"
-                              value={configuration.rightSidelight?.width || 12}
-                              onChange={(e) => onUpdate({
-                                rightSidelight: {
-                                  ...configuration.rightSidelight,
-                                  width: parseFloat(e.target.value) || 0
-                                }
-                              })}
-                              InputProps={{ inputProps: { min: 0, step: 0.1 } }}
-                              sx={{ mt: 2 }}
-                            />
-                          )}
+                          <TextField
+                            fullWidth
+                            label="Door Height (inches)"
+                            type="number"
+                            value={configuration.dimensions.height || ''}
+                            onChange={handleDimensionChange('height')}
+                            InputProps={{ 
+                              inputProps: { min: 0, step: 0.1 },
+                              sx: { height: '56px' }
+                            }}
+                          />
                         </Grid>
                       </Grid>
+                    </Paper>
+                  </Grid>
+
+                  {/* Hardware Configuration */}
+                  <Grid item xs={12}>
+                    <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                      <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <BuildIcon fontSize="small" /> Hardware Configuration
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                          <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                            <Typography variant="subtitle2" gutterBottom>Handle Settings</Typography>
+                            <Grid container spacing={2}>
+                              <Grid item xs={12} sm={6}>
+                                <FormControl fullWidth>
+                                  <InputLabel>Handle Location</InputLabel>
+                                  <Select
+                                    value={configuration.handleLocation || 'right'}
+                                    onChange={(e) => onUpdate({ handleLocation: e.target.value })}
+                                    label="Handle Location"
+                                  >
+                                    <MenuItem value="left">Left Side</MenuItem>
+                                    <MenuItem value="right">Right Side</MenuItem>
+                                  </Select>
+                                </FormControl>
+                              </Grid>
+                              <Grid item xs={12} sm={6}>
+                                <FormControl fullWidth>
+                                  <InputLabel>Handle Type</InputLabel>
+                                  <Select
+                                    value={configuration.handleType || 'Lever Handle'}
+                                    onChange={(e) => onUpdate({ handleType: e.target.value })}
+                                    label="Handle Type"
+                                  >
+                                    {doorOperables.handleTypes.map((type) => (
+                                      <MenuItem key={type} value={type}>
+                                        {type}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              </Grid>
+                            </Grid>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                            <Typography variant="subtitle2" gutterBottom>Security & Operation</Typography>
+                            <Grid container spacing={2}>
+                              <Grid item xs={12} sm={6}>
+                                <FormControl fullWidth>
+                                  <InputLabel>Lock Type</InputLabel>
+                                  <Select
+                                    value={configuration.lockType || 'Multi-Point Lock'}
+                                    onChange={(e) => onUpdate({ lockType: e.target.value })}
+                                    label="Lock Type"
+                                  >
+                                    {doorOperables.lockTypes.map((type) => (
+                                      <MenuItem key={type} value={type}>
+                                        {type}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              </Grid>
+                              <Grid item xs={12} sm={6}>
+                                <FormControl fullWidth>
+                                  <InputLabel>Hinge Type</InputLabel>
+                                  <Select
+                                    value={configuration.hingeType || 'Standard'}
+                                    onChange={(e) => onUpdate({ hingeType: e.target.value })}
+                                    label="Hinge Type"
+                                  >
+                                    {doorOperables.hingeTypes.map((type) => (
+                                      <MenuItem key={type} value={type}>
+                                        {type}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              </Grid>
+                            </Grid>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                            <Typography variant="subtitle2" gutterBottom>Threshold</Typography>
+                            <Grid container spacing={2}>
+                              <Grid item xs={12}>
+                                <FormControl fullWidth>
+                                  <InputLabel>Threshold Type</InputLabel>
+                                  <Select
+                                    value={configuration.threshold || 'Standard'}
+                                    onChange={(e) => onUpdate({ threshold: e.target.value })}
+                                    label="Threshold Type"
+                                  >
+                                    {doorOperables.thresholds.map((type) => (
+                                      <MenuItem key={type} value={type}>
+                                        {type}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              </Grid>
+                            </Grid>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  </Grid>
+
+                  {/* Sidelights Configuration */}
+                  {configuration.hasSidelights && (
+                    <Grid item xs={12}>
+                      <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                        <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <ViewSidebarIcon fontSize="small" /> Sidelights Configuration
+                        </Typography>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <FormControl sx={{ minWidth: 120, flex: 1 }}>
+                                <InputLabel>Left Sidelight</InputLabel>
+                                <Select
+                                  value={configuration.leftSidelight?.enabled || false}
+                                  onChange={(e) => onUpdate({
+                                    leftSidelight: {
+                                      ...configuration.leftSidelight,
+                                      enabled: e.target.value,
+                                      width: e.target.value ? (configuration.leftSidelight?.width || 12) : 0
+                                    }
+                                  })}
+                                  label="Left Sidelight"
+                                >
+                                  <MenuItem value={false}>None</MenuItem>
+                                  <MenuItem value={true}>Enabled</MenuItem>
+                                </Select>
+                              </FormControl>
+                              {configuration.leftSidelight?.enabled && (
+                                <TextField
+                                  label="Width"
+                                  type="number"
+                                  value={configuration.leftSidelight?.width || 12}
+                                  onChange={(e) => onUpdate({
+                                    leftSidelight: {
+                                      ...configuration.leftSidelight,
+                                      width: parseFloat(e.target.value) || 0
+                                    }
+                                  })}
+                                  InputProps={{ 
+                                    endAdornment: <InputAdornment position="end">in</InputAdornment>,
+                                    inputProps: { min: 0, step: 0.1 }
+                                  }}
+                                  sx={{ width: 120 }}
+                                />
+                              )}
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <FormControl sx={{ minWidth: 120, flex: 1 }}>
+                                <InputLabel>Right Sidelight</InputLabel>
+                                <Select
+                                  value={configuration.rightSidelight?.enabled || false}
+                                  onChange={(e) => onUpdate({
+                                    rightSidelight: {
+                                      ...configuration.rightSidelight,
+                                      enabled: e.target.value,
+                                      width: e.target.value ? (configuration.rightSidelight?.width || 12) : 0
+                                    }
+                                  })}
+                                  label="Right Sidelight"
+                                >
+                                  <MenuItem value={false}>None</MenuItem>
+                                  <MenuItem value={true}>Enabled</MenuItem>
+                                </Select>
+                              </FormControl>
+                              {configuration.rightSidelight?.enabled && (
+                                <TextField
+                                  label="Width"
+                                  type="number"
+                                  value={configuration.rightSidelight?.width || 12}
+                                  onChange={(e) => onUpdate({
+                                    rightSidelight: {
+                                      ...configuration.rightSidelight,
+                                      width: parseFloat(e.target.value) || 0
+                                    }
+                                  })}
+                                  InputProps={{ 
+                                    endAdornment: <InputAdornment position="end">in</InputAdornment>,
+                                    inputProps: { min: 0, step: 0.1 }
+                                  }}
+                                  sx={{ width: 120 }}
+                                />
+                              )}
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <FormControl sx={{ minWidth: 120, flex: 1 }}>
+                                <InputLabel>Top Sidelight</InputLabel>
+                                <Select
+                                  value={configuration.transom?.enabled || false}
+                                  onChange={(e) => onUpdate({
+                                    transom: {
+                                      ...configuration.transom,
+                                      enabled: e.target.value,
+                                      height: e.target.value ? (configuration.transom?.height || 12) : 0
+                                    }
+                                  })}
+                                  label="Top Sidelight"
+                                >
+                                  <MenuItem value={false}>None</MenuItem>
+                                  <MenuItem value={true}>Enabled</MenuItem>
+                                </Select>
+                              </FormControl>
+                              {configuration.transom?.enabled && (
+                                <TextField
+                                  label="Height"
+                                  type="number"
+                                  value={configuration.transom?.height || 12}
+                                  onChange={(e) => onUpdate({
+                                    transom: {
+                                      ...configuration.transom,
+                                      height: parseFloat(e.target.value) || 0
+                                    }
+                                  })}
+                                  InputProps={{ 
+                                    endAdornment: <InputAdornment position="end">in</InputAdornment>,
+                                    inputProps: { min: 0, step: 0.1 }
+                                  }}
+                                  sx={{ width: 120 }}
+                                />
+                              )}
+                            </Box>
+                          </Grid>
+                        </Grid>
+                      </Paper>
                     </Grid>
                   )}
 
+                  {/* Current Configuration Preview */}
                   <Grid item xs={12}>
-                    <FormControl fullWidth>
-                      <InputLabel>Include Transom</InputLabel>
-                      <Select
-                        value={configuration.transom?.enabled || false}
-                        onChange={(e) => onUpdate({
-                          transom: {
-                            ...configuration.transom,
-                            enabled: e.target.value,
-                            height: e.target.value ? (configuration.transom?.height || 12) : 0
-                          }
-                        })}
-                        label="Include Transom"
-                      >
-                        <MenuItem value={false}>No Transom</MenuItem>
-                        <MenuItem value={true}>Yes, Add Transom</MenuItem>
-                      </Select>
-                    </FormControl>
-                    {configuration.transom?.enabled && (
-                      <TextField
-                        fullWidth
-                        label="Height (inches)"
-                        type="number"
-                        value={configuration.transom?.height || 12}
-                        onChange={(e) => onUpdate({
-                          transom: {
-                            ...configuration.transom,
-                            height: parseFloat(e.target.value) || 0
-                          }
-                        })}
-                        InputProps={{ inputProps: { min: 0, step: 0.1 } }}
-                        sx={{ mt: 2 }}
-                      />
-                    )}
+                    <Paper sx={{ p: 3, bgcolor: 'background.paper', mt: 2 }}>
+                      <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <PreviewIcon fontSize="small" /> Current Configuration Preview
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {/* Top Sidelight */}
+                        {configuration.transom?.enabled && (
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Paper
+                              sx={{
+                                p: 1,
+                                flex: 1,
+                                bgcolor: 'grey.50',
+                                color: 'text.primary',
+                                textAlign: 'center',
+                                border: '1px solid',
+                                borderColor: 'grey.300',
+                                minHeight: '40px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                Top Sidelight
+                              </Typography>
+                              <Typography variant="caption">
+                                {(configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
+                                 (configuration.dimensions?.width || 0) +
+                                 (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)}" × {configuration.transom?.height || 0}"
+                              </Typography>
+                            </Paper>
+                          </Box>
+                        )}
+
+                        {/* Door and Sidelights */}
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          {/* Left Sidelight */}
+                          {configuration.leftSidelight?.enabled && (
+                            <Paper
+                              sx={{
+                                p: 1,
+                                width: `${(configuration.leftSidelight.width / (configuration.dimensions?.width || 1)) * 100}%`,
+                                bgcolor: 'grey.50',
+                                color: 'text.primary',
+                                textAlign: 'center',
+                                border: '1px solid',
+                                borderColor: 'grey.300',
+                                minHeight: '60px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                Left Sidelight
+                              </Typography>
+                              <Typography variant="caption">
+                                {configuration.leftSidelight.width}" × {configuration.dimensions?.height || 0}"
+                              </Typography>
+                            </Paper>
+                          )}
+
+                          {/* Door Section */}
+                          {configuration.openingType === 'Single Door' && (
+                            <Paper
+                              sx={{
+                                p: 1,
+                                flex: 1,
+                                bgcolor: 'primary.light',
+                                color: 'primary.contrastText',
+                                textAlign: 'center',
+                                border: '1px solid',
+                                borderColor: 'primary.main',
+                                position: 'relative',
+                                minHeight: '60px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                Single Door
+                              </Typography>
+                              <Typography variant="caption">
+                                {configuration.dimensions?.width || 0}" × {configuration.dimensions?.height || 0}"
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
+                              </Typography>
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  [configuration.handleLocation || 'right']: 0,
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  width: '4px',
+                                  height: '16px',
+                                  bgcolor: 'primary.dark',
+                                  borderRadius: '2px',
+                                  mr: configuration.handleLocation === 'right' ? 0.5 : 'auto',
+                                  ml: configuration.handleLocation === 'left' ? 0.5 : 'auto'
+                                }}
+                              />
+                            </Paper>
+                          )}
+
+                          {configuration.openingType === 'Double Door' && (
+                            <>
+                              <Paper
+                                sx={{
+                                  p: 1,
+                                  flex: 1,
+                                  bgcolor: 'primary.light',
+                                  color: 'primary.contrastText',
+                                  textAlign: 'center',
+                                  border: '1px solid',
+                                  borderColor: 'primary.main',
+                                  position: 'relative',
+                                  minHeight: '60px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  Left Door
+                                </Typography>
+                                <Typography variant="caption">
+                                  {(configuration.dimensions?.width || 0) / 2}" × {configuration.dimensions?.height || 0}"
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                  {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
+                                </Typography>
+                                <Box
+                                  sx={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    width: '4px',
+                                    height: '16px',
+                                    bgcolor: 'primary.dark',
+                                    borderRadius: '2px',
+                                    mr: 0.5
+                                  }}
+                                />
+                              </Paper>
+                              <Paper
+                                sx={{
+                                  p: 1,
+                                  flex: 1,
+                                  bgcolor: 'primary.light',
+                                  color: 'primary.contrastText',
+                                  textAlign: 'center',
+                                  border: '1px solid',
+                                  borderColor: 'primary.main',
+                                  position: 'relative',
+                                  minHeight: '60px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  Right Door
+                                </Typography>
+                                <Typography variant="caption">
+                                  {(configuration.dimensions?.width || 0) / 2}" × {configuration.dimensions?.height || 0}"
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                  {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
+                                </Typography>
+                                <Box
+                                  sx={{
+                                    position: 'absolute',
+                                    left: 0,
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    width: '4px',
+                                    height: '16px',
+                                    bgcolor: 'primary.dark',
+                                    borderRadius: '2px',
+                                    ml: 0.5
+                                  }}
+                                />
+                              </Paper>
+                            </>
+                          )}
+
+                          {configuration.openingType === 'Pivot Door' && (
+                            <Paper
+                              sx={{
+                                p: 1,
+                                flex: 1,
+                                bgcolor: 'primary.light',
+                                color: 'primary.contrastText',
+                                textAlign: 'center',
+                                border: '1px solid',
+                                borderColor: 'primary.main',
+                                position: 'relative',
+                                minHeight: '60px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                Pivot Door
+                              </Typography>
+                              <Typography variant="caption">
+                                {configuration.dimensions?.width || 0}" × {configuration.dimensions?.height || 0}"
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
+                              </Typography>
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  [configuration.handleLocation || 'right']: 0,
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  width: '4px',
+                                  height: '16px',
+                                  bgcolor: 'primary.dark',
+                                  borderRadius: '2px',
+                                  mr: configuration.handleLocation === 'right' ? 0.5 : 'auto',
+                                  ml: configuration.handleLocation === 'left' ? 0.5 : 'auto'
+                                }}
+                              />
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  left: '50%',
+                                  top: '50%',
+                                  width: '8px',
+                                  height: '8px',
+                                  bgcolor: 'primary.dark',
+                                  borderRadius: '50%',
+                                  transform: 'translate(-50%, -50%)'
+                                }}
+                              />
+                            </Paper>
+                          )}
+
+                          {/* Right Sidelight */}
+                          {configuration.rightSidelight?.enabled && (
+                            <Paper
+                              sx={{
+                                p: 1,
+                                width: `${(configuration.rightSidelight.width / (configuration.dimensions?.width || 1)) * 100}%`,
+                                bgcolor: 'grey.50',
+                                color: 'text.primary',
+                                textAlign: 'center',
+                                border: '1px solid',
+                                borderColor: 'grey.300',
+                                minHeight: '60px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                Right Sidelight
+                              </Typography>
+                              <Typography variant="caption">
+                                {configuration.rightSidelight.width}" × {configuration.dimensions?.height || 0}"
+                              </Typography>
+                            </Paper>
+                          )}
+                        </Box>
+                      </Box>
+                    </Paper>
                   </Grid>
                 </>
               )}
-
-              <Grid item xs={12}>
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2,
-                    bgcolor: 'background.default',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1
-                  }}
-                >
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Current Configuration:
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {/* Transom */}
-                    {configuration.transom?.enabled && (
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Paper
-                          sx={{
-                            p: 1,
-                            flex: 1,
-                            bgcolor: 'grey.100',
-                            color: 'text.primary',
-                            textAlign: 'center',
-                            border: '1px solid',
-                            borderColor: 'grey.300',
-                            minHeight: '40px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            Transom
-                          </Typography>
-                          <Typography variant="caption">
-                            {(configuration.leftSidelight?.enabled ? (configuration.leftSidelight?.width || 0) : 0) + 
-                             (configuration.dimensions?.width || 0) +
-                             (configuration.rightSidelight?.enabled ? (configuration.rightSidelight?.width || 0) : 0)}" × {configuration.transom?.height || 0}"
-                          </Typography>
-                        </Paper>
-                      </Box>
-                    )}
-
-                    {/* Door and Sidelights */}
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      {/* Left Sidelight */}
-                      {configuration.leftSidelight?.enabled && (
-                        <Paper
-                          sx={{
-                            p: 1,
-                            width: `${(configuration.leftSidelight.width / (configuration.dimensions?.width || 1)) * 100}%`,
-                            bgcolor: 'grey.100',
-                            color: 'text.primary',
-                            textAlign: 'center',
-                            border: '1px solid',
-                            borderColor: 'grey.300',
-                            minHeight: '60px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            Left Sidelight
-                          </Typography>
-                          <Typography variant="caption">
-                            {configuration.leftSidelight.width}" × {configuration.dimensions?.height || 0}"
-                          </Typography>
-                        </Paper>
-                      )}
-
-                      {/* Door Section */}
-                      {configuration.openingType === 'Single Door' && (
-                        <Paper
-                          sx={{
-                            p: 1,
-                            flex: 1,
-                            bgcolor: 'primary.light',
-                            color: 'primary.contrastText',
-                            textAlign: 'center',
-                            border: '1px solid',
-                            borderColor: 'primary.main',
-                            position: 'relative',
-                            minHeight: '60px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            Single Door
-                          </Typography>
-                          <Typography variant="caption">
-                            {configuration.dimensions?.width || 0}" × {configuration.dimensions?.height || 0}"
-                          </Typography>
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              [configuration.handleLocation || 'right']: 0,
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              width: '4px',
-                              height: '16px',
-                              bgcolor: 'primary.dark',
-                              borderRadius: '2px',
-                              mr: configuration.handleLocation === 'right' ? 0.5 : 'auto',
-                              ml: configuration.handleLocation === 'left' ? 0.5 : 'auto'
-                            }}
-                          />
-                        </Paper>
-                      )}
-
-                      {configuration.openingType === 'Double Door' && (
-                        <>
-                          <Paper
-                            sx={{
-                              p: 1,
-                              flex: 1,
-                              bgcolor: 'primary.light',
-                              color: 'primary.contrastText',
-                              textAlign: 'center',
-                              border: '1px solid',
-                              borderColor: 'primary.main',
-                              position: 'relative',
-                              minHeight: '60px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              Left Door
-                            </Typography>
-                            <Typography variant="caption">
-                              {(configuration.dimensions?.width || 0) / 2}" × {configuration.dimensions?.height || 0}"
-                            </Typography>
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                right: 0,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                width: '4px',
-                                height: '16px',
-                                bgcolor: 'primary.dark',
-                                borderRadius: '2px',
-                                mr: 0.5
-                              }}
-                            />
-                          </Paper>
-                          <Paper
-                            sx={{
-                              p: 1,
-                              flex: 1,
-                              bgcolor: 'primary.light',
-                              color: 'primary.contrastText',
-                              textAlign: 'center',
-                              border: '1px solid',
-                              borderColor: 'primary.main',
-                              position: 'relative',
-                              minHeight: '60px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              Right Door
-                            </Typography>
-                            <Typography variant="caption">
-                              {(configuration.dimensions?.width || 0) / 2}" × {configuration.dimensions?.height || 0}"
-                            </Typography>
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                left: 0,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                width: '4px',
-                                height: '16px',
-                                bgcolor: 'primary.dark',
-                                borderRadius: '2px',
-                                ml: 0.5
-                              }}
-                            />
-                          </Paper>
-                        </>
-                      )}
-
-                      {configuration.openingType === 'Pivot Door' && (
-                        <Paper
-                          sx={{
-                            p: 1,
-                            flex: 1,
-                            bgcolor: 'primary.light',
-                            color: 'primary.contrastText',
-                            textAlign: 'center',
-                            border: '1px solid',
-                            borderColor: 'primary.main',
-                            position: 'relative',
-                            minHeight: '60px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            Pivot Door
-                          </Typography>
-                          <Typography variant="caption">
-                            {configuration.dimensions?.width || 0}" × {configuration.dimensions?.height || 0}"
-                          </Typography>
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              [configuration.handleLocation || 'right']: 0,
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              width: '4px',
-                              height: '16px',
-                              bgcolor: 'primary.dark',
-                              borderRadius: '2px',
-                              mr: configuration.handleLocation === 'right' ? 0.5 : 'auto',
-                              ml: configuration.handleLocation === 'left' ? 0.5 : 'auto'
-                            }}
-                          />
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              left: '50%',
-                              top: '50%',
-                              width: '8px',
-                              height: '8px',
-                              bgcolor: 'primary.dark',
-                              borderRadius: '50%',
-                              transform: 'translate(-50%, -50%)'
-                            }}
-                          />
-                        </Paper>
-                      )}
-
-                      {/* Right Sidelight */}
-                      {configuration.rightSidelight?.enabled && (
-                        <Paper
-                          sx={{
-                            p: 1,
-                            width: `${(configuration.rightSidelight.width / (configuration.dimensions?.width || 1)) * 100}%`,
-                            bgcolor: 'grey.100',
-                            color: 'text.primary',
-                            textAlign: 'center',
-                            border: '1px solid',
-                            borderColor: 'grey.300',
-                            minHeight: '60px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            Right Sidelight
-                          </Typography>
-                          <Typography variant="caption">
-                            {configuration.rightSidelight.width}" × {configuration.dimensions?.height || 0}"
-                          </Typography>
-                        </Paper>
-                      )}
-                    </Box>
-                  </Box>
-                </Paper>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Handle Type</InputLabel>
-                  <Select
-                    value={configuration.handleType || 'Lever Handle'}
-                    onChange={(e) => onUpdate({ handleType: e.target.value })}
-                    label="Handle Type"
-                  >
-                    {doorOperables.handleTypes.map((type) => (
-                      <MenuItem key={type} value={type}>
-                        {type}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Lock Type</InputLabel>
-                  <Select
-                    value={configuration.lockType || 'Multi-Point Lock'}
-                    onChange={(e) => onUpdate({ lockType: e.target.value })}
-                    label="Lock Type"
-                  >
-                    {doorOperables.lockTypes.map((type) => (
-                      <MenuItem key={type} value={type}>
-                        {type}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Threshold Type</InputLabel>
-                  <Select
-                    value={configuration.threshold || 'Standard'}
-                    onChange={(e) => onUpdate({ threshold: e.target.value })}
-                    label="Threshold Type"
-                  >
-                    {doorOperables.thresholds.map((type) => (
-                      <MenuItem key={type} value={type}>
-                        {type}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Hinge Type</InputLabel>
-                  <Select
-                    value={configuration.hingeType || 'Standard'}
-                    onChange={(e) => onUpdate({ hingeType: e.target.value })}
-                    label="Hinge Type"
-                  >
-                    {doorOperables.hingeTypes.map((type) => (
-                      <MenuItem key={type} value={type}>
-                        {type}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Width (inches)"
-                  type="number"
-                  value={configuration.dimensions.width || ''}
-                  onChange={handleDimensionChange('width')}
-                  InputProps={{ inputProps: { min: 0, step: 0.1 } }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Height (inches)"
-                  type="number"
-                  value={configuration.dimensions.height || ''}
-                  onChange={handleDimensionChange('height')}
-                  InputProps={{ inputProps: { min: 0, step: 0.1 } }}
-                />
-              </Grid>
             </Grid>
           </Box>
         )}
