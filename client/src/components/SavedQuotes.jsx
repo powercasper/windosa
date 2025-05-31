@@ -20,6 +20,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import CommentIcon from '@mui/icons-material/Comment';
 import { formatCurrency, formatDate, loadSavedQuotes } from '../utils/helpers';
 
 const SavedQuotes = ({ onLoadQuote }) => {
@@ -80,7 +81,8 @@ const SavedQuotes = ({ onLoadQuote }) => {
                 justifyContent: 'center',
                 fontSize: '0.625rem',
                 textAlign: 'center',
-                borderRadius: '2px'
+                borderRadius: '2px',
+                position: 'relative'
               }}
             >
               <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.625rem' }}>
@@ -89,8 +91,29 @@ const SavedQuotes = ({ onLoadQuote }) => {
                  panel.operationType === 'Casement' ? 'C' :
                  panel.operationType === 'Hopper' ? 'H' : 'T'}
               </Typography>
+              {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    [panel.handleLocation || 'right']: 0,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '2px',
+                    height: '10px',
+                    bgcolor: 'primary.dark',
+                    borderRadius: '1px',
+                    mr: panel.handleLocation === 'right' ? 0.25 : 'auto',
+                    ml: panel.handleLocation === 'left' ? 0.25 : 'auto'
+                  }}
+                />
+              )}
             </Box>
           ))}
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.625rem' }}>
+            F: Fixed, A: Awning, C: Casement, H: Hopper, T: Tilt Turn
+            {item.panels.some(p => p.operationType === 'Tilt & Turn' || p.operationType === 'Casement') && 
+              ' (handle location shown by indicator)'}
+          </Typography>
         </Box>
       );
     } else if (item.systemType === 'Sliding Doors') {
@@ -266,6 +289,25 @@ const SavedQuotes = ({ onLoadQuote }) => {
                           </Typography>
                         </Grid>
                       </Grid>
+                      {item.notes && (
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CommentIcon fontSize="small" /> Notes
+                          </Typography>
+                          <Paper
+                            variant="outlined"
+                            sx={{
+                              p: 1.5,
+                              bgcolor: 'background.default',
+                              whiteSpace: 'pre-wrap'
+                            }}
+                          >
+                            <Typography variant="body2" color="text.secondary">
+                              {item.notes}
+                            </Typography>
+                          </Paper>
+                        </Box>
+                      )}
                     </Paper>
                   </Grid>
                 ))}

@@ -26,6 +26,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import WindowIcon from '@mui/icons-material/Window';
 import ColorLensIcon from '@mui/icons-material/ColorLens';
 import SquareFootIcon from '@mui/icons-material/SquareFoot';
+import CommentIcon from '@mui/icons-material/Comment';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote, generatePDF } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
@@ -399,6 +400,26 @@ const PricingSummary = ({
                   </Typography>
                 </Stack>
               </Box>
+
+              {configuration.notes && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CommentIcon fontSize="small" /> Notes
+                  </Typography>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      bgcolor: 'background.default',
+                      whiteSpace: 'pre-wrap'
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      {configuration.notes}
+                    </Typography>
+                  </Paper>
+                </Box>
+              )}
             </Grid>
           </Grid>
 
@@ -479,7 +500,7 @@ const PricingSummary = ({
                                 Configuration:
                               </Typography>
                               <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
-                                {item.panels.map((panel, index) => (
+                                {item.panels?.map((panel, index) => (
                                   <Box
                                     key={index}
                                     sx={{
@@ -495,7 +516,8 @@ const PricingSummary = ({
                                       justifyContent: 'center',
                                       fontSize: '0.75rem',
                                       textAlign: 'center',
-                                      borderRadius: '2px'
+                                      borderRadius: '2px',
+                                      position: 'relative'
                                     }}
                                   >
                                     <Typography variant="caption" sx={{ fontWeight: 500 }}>
@@ -507,11 +529,29 @@ const PricingSummary = ({
                                     <Typography variant="caption" sx={{ fontSize: '0.625rem' }}>
                                       {panel.width}"
                                     </Typography>
+                                    {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
+                                      <Box
+                                        sx={{
+                                          position: 'absolute',
+                                          [panel.handleLocation || 'right']: 0,
+                                          top: '50%',
+                                          transform: 'translateY(-50%)',
+                                          width: '3px',
+                                          height: '12px',
+                                          bgcolor: 'primary.dark',
+                                          borderRadius: '2px',
+                                          mr: panel.handleLocation === 'right' ? 0.25 : 'auto',
+                                          ml: panel.handleLocation === 'left' ? 0.25 : 'auto'
+                                        }}
+                                      />
+                                    )}
                                   </Box>
                                 ))}
                               </Box>
                               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                                 F: Fixed, A: Awning, C: Casement, H: Hopper, T: Tilt Turn
+                                {item.panels.some(p => p.operationType === 'Tilt & Turn' || p.operationType === 'Casement') && 
+                                  ' (handle location shown by indicator)'}
                               </Typography>
                             </Box>
                           ) : item.systemType === 'Sliding Doors' ? (
@@ -592,6 +632,26 @@ const PricingSummary = ({
                           </Typography>
                         </Stack>
                       </Box>
+
+                      {item.notes && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CommentIcon fontSize="small" /> Notes
+                          </Typography>
+                          <Paper
+                            variant="outlined"
+                            sx={{
+                              p: 1.5,
+                              bgcolor: 'background.default',
+                              whiteSpace: 'pre-wrap'
+                            }}
+                          >
+                            <Typography variant="body2">
+                              {item.notes}
+                            </Typography>
+                          </Paper>
+                        </Box>
+                      )}
 
                       <Box>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>

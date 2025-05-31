@@ -22,6 +22,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import WindowIcon from '@mui/icons-material/Window';
 import ColorLensIcon from '@mui/icons-material/ColorLens';
+import CommentIcon from '@mui/icons-material/Comment';
 
 // Import the system architecture data
 import { 
@@ -83,7 +84,8 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
       onUpdate({
         panels: [{
           width: configuration.dimensions?.width || 0,
-          operationType: 'Fixed'
+          operationType: 'Fixed',
+          handleLocation: 'right' // Default handle location
         }],
         dimensions: {
           ...configuration.dimensions,
@@ -209,7 +211,11 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
     if (count > newPanels.length) {
       // Add new panels
       while (newPanels.length < count) {
-        newPanels.push({ type: 'Sliding', direction: 'right' });
+        newPanels.push({ 
+          width: useEqualWidths ? (configuration.dimensions?.width || 0) / count : 0,
+          operationType: 'Fixed',  // Default to Fixed operation type
+          handleLocation: 'right'  // Default handle location
+        });
       }
     } else {
       // Remove panels from the end
@@ -400,7 +406,8 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                         while (newPanels.length < count) {
                           newPanels.push({ 
                             width: useEqualWidths ? (configuration.dimensions?.width || 0) / count : 0,
-                            operationType: 'Fixed'  // Default to Fixed operation type
+                            operationType: 'Fixed',  // Default to Fixed operation type
+                            handleLocation: 'right'  // Default handle location
                           });
                         }
                       } else {
@@ -547,6 +554,22 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                             </Select>
                           </FormControl>
                         </Grid>
+                        {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
+                          <Grid item xs={12} sm={6}>
+                            <FormControl fullWidth>
+                              <InputLabel>Handle Location</InputLabel>
+                              <Select
+                                value={panel.handleLocation || 'right'}
+                                onChange={(e) => handlePanelChange(index, 'handleLocation', e.target.value)}
+                                label="Handle Location"
+                                sx={{ height: '56px' }}
+                              >
+                                <MenuItem value="left">Left Side</MenuItem>
+                                <MenuItem value="right">Right Side</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                        )}
                       </Grid>
                     </Stack>
                   </Paper>
@@ -578,7 +601,13 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                           color: panel.operationType === 'Fixed' ? 'text.primary' : 'primary.contrastText',
                           textAlign: 'center',
                           border: '1px solid',
-                          borderColor: panel.operationType === 'Fixed' ? 'grey.300' : 'primary.main'
+                          borderColor: panel.operationType === 'Fixed' ? 'grey.300' : 'primary.main',
+                          position: 'relative',
+                          minHeight: '60px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}
                       >
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -587,6 +616,22 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                         <Typography variant="caption" color="text.secondary">
                           {panel.width}" wide
                         </Typography>
+                        {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              [panel.handleLocation || 'right']: 0,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              width: '4px',
+                              height: '16px',
+                              bgcolor: 'primary.dark',
+                              borderRadius: '2px',
+                              mr: panel.handleLocation === 'right' ? 0.5 : 'auto',
+                              ml: panel.handleLocation === 'left' ? 0.5 : 'auto'
+                            }}
+                          />
+                        )}
                       </Paper>
                     ))}
                   </Box>
@@ -903,6 +948,35 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
               />
             </Grid>
           </Grid>
+        </Box>
+
+        <Divider sx={{ my: 4 }} />
+
+        {/* Notes Section */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CommentIcon /> Notes (Optional)
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Additional Notes"
+            value={configuration.notes || ''}
+            onChange={(e) => {
+              // Limit to 1000 characters
+              if (e.target.value.length <= 1000) {
+                handleChange('notes')(e);
+              }
+            }}
+            placeholder="Add any special requirements or additional details here (max 1000 characters)..."
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: 'background.paper'
+              }
+            }}
+            helperText={`${(configuration.notes || '').length}/1000 characters`}
+          />
         </Box>
 
         {/* Action Buttons */}
