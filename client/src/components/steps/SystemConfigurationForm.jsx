@@ -23,18 +23,43 @@ import WindowIcon from '@mui/icons-material/Window';
 import ColorLensIcon from '@mui/icons-material/ColorLens';
 
 // Import the system architecture data
-import { systemArchitecture, windowOperables, doorOperables, finishOptions } from '../../utils/metadata';
+import { 
+  systemArchitecture, 
+  windowOperables, 
+  doorOperables, 
+  finishOptions,
+  unitCostPerSqft 
+} from '../../utils/metadata';
 
 const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   const [availableModels, setAvailableModels] = useState([]);
   const [availableOperables, setAvailableOperables] = useState([]);
+  const [maxPanels, setMaxPanels] = useState(4);
+  const [panelConfigs, setPanelConfigs] = useState([]);
 
   useEffect(() => {
     if (configuration.brand && configuration.systemType) {
       const models = systemArchitecture[configuration.brand][configuration.systemType] || [];
       setAvailableModels(models);
+
+      // Reset panel configurations when model changes
+      if (configuration.systemType === 'Sliding Doors') {
+        const modelConfigs = unitCostPerSqft[configuration.brand]?.[configuration.systemModel] || {};
+        const maxPanelCount = Math.max(...Object.keys(modelConfigs).map(key => key.length));
+        setMaxPanels(maxPanelCount || 4);
+        
+        // Initialize default panel configuration if none exists
+        if (!configuration.panels) {
+          onUpdate({
+            panels: [
+              { type: 'Fixed', direction: null },
+              { type: 'Sliding', direction: 'right' }
+            ]
+          });
+        }
+      }
     }
-  }, [configuration.brand, configuration.systemType]);
+  }, [configuration.brand, configuration.systemType, configuration.systemModel]);
 
   useEffect(() => {
     if (configuration.systemType) {
@@ -109,26 +134,47 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
     }
   };
 
-  const handlePanelChange = (index, field) => (event) => {
-    const value = field === 'width' ? (parseFloat(event.target.value) || 0) : event.target.value;
-    const newPanels = [...configuration.panels];
+  const handlePanelChange = (index, field, value) => {
+    const newPanels = [...(configuration.panels || [])];
     newPanels[index] = {
       ...newPanels[index],
       [field]: value
     };
-    onUpdate({ panels: newPanels });
-
-    // Update total width in dimensions
+    
+    // Calculate total width when panel widths change
     if (field === 'width') {
-      const totalWidth = newPanels.reduce((sum, panel) => sum + panel.width, 0);
-      onUpdate({
+      const totalWidth = newPanels.reduce((sum, panel) => sum + (panel.width || 0), 0);
+      onUpdate({ 
         panels: newPanels,
         dimensions: {
           ...configuration.dimensions,
           width: totalWidth
         }
       });
+    } else {
+      onUpdate({ panels: newPanels });
     }
+
+    // Generate operationType string (e.g., "OX", "OXXO")
+    const operationType = newPanels.map(panel => panel.type === 'Fixed' ? 'O' : 'X').join('');
+    onUpdate({ operationType });
+  };
+
+  const handlePanelCountChange = (event) => {
+    const count = parseInt(event.target.value);
+    let newPanels = [...(configuration.panels || [])];
+    
+    if (count > newPanels.length) {
+      // Add new panels
+      while (newPanels.length < count) {
+        newPanels.push({ type: 'Sliding', direction: 'right' });
+      }
+    } else {
+      // Remove panels from the end
+      newPanels = newPanels.slice(0, count);
+    }
+    
+    onUpdate({ panels: newPanels });
   };
 
   const addPanel = () => {
@@ -239,13 +285,14 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                 p: 2, 
                 border: '1px dashed rgba(0, 0, 0, 0.12)', 
                 borderRadius: 1,
-                bgcolor: 'background.paper'
+                bgcolor: 'background.paper',
+                mb: 2
               }}>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   Total Width
                 </Typography>
                 <Typography variant="h6">
-                  {configuration.dimensions.width || 0}" 
+                  {configuration.dimensions?.width || 0}" 
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   (sum of all panes)
@@ -293,111 +340,80 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         {/* Window Panes Section */}
         {configuration.systemType === 'Windows' ? (
           <Box sx={{ mb: 4 }}>
-            <Stack 
-              direction="row" 
-              justifyContent="space-between" 
-              alignItems="center" 
-              sx={{ mb: 3 }}
-            >
-              <Typography variant="h6">Window Panes</Typography>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <TextField
-                  label="Height (inches)"
-                  type="number"
-                  value={configuration.dimensions.height || ''}
-                  onChange={handleDimensionChange('height')}
-                  size="small"
-                  sx={{
-                    width: '150px',
-                    '& .MuiOutlinedInput-root': {
-                      height: '40px'
-                    }
-                  }}
-                  inputProps={{ 
-                    min: 0,
-                    step: 0.1,
-                    style: { height: '40px', padding: '0 14px' }
-                  }}
-                />
-                <Button
-                  startIcon={<AddIcon />}
-                  onClick={addPanel}
-                  variant="outlined"
-                  size="small"
-                  sx={{ height: '40px' }}
-                >
-                  Add Pane
-                </Button>
-              </Stack>
-            </Stack>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              Configuration Details
+            </Typography>
             <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Number of Panes</InputLabel>
+                  <Select
+                    value={configuration.panels?.length || 1}
+                    onChange={(e) => {
+                      const count = parseInt(e.target.value);
+                      let newPanels = [...(configuration.panels || [])];
+                      
+                      if (count > newPanels.length) {
+                        // Add new panels
+                        while (newPanels.length < count) {
+                          newPanels.push({ 
+                            width: 0,
+                            operationType: 'Fixed'
+                          });
+                        }
+                      } else {
+                        // Remove panels from the end
+                        newPanels = newPanels.slice(0, count);
+                      }
+                      
+                      onUpdate({ panels: newPanels });
+                    }}
+                    label="Number of Panes"
+                  >
+                    {[1,2,3,4].map((num) => (
+                      <MenuItem key={num} value={num}>
+                        {num} {num === 1 ? 'Pane' : 'Panes'}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
               {configuration.panels?.map((panel, index) => (
-                <Grid item xs={12} md={6} key={index}>
-                  <Card 
+                <Grid item xs={12} key={index}>
+                  <Paper 
                     variant="outlined" 
                     sx={{ 
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column'
+                      p: 2,
+                      bgcolor: 'background.default'
                     }}
                   >
-                    <CardContent sx={{ flex: 1 }}>
-                      <Stack 
-                        direction="row" 
-                        justifyContent="space-between" 
-                        alignItems="center" 
-                        sx={{ mb: 2 }}
-                      >
-                        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                          Pane {index + 1}
-                        </Typography>
-                        {configuration.panels.length > 1 && (
-                          <IconButton 
-                            onClick={() => removePanel(index)}
-                            size="small"
-                            color="error"
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        )}
-                      </Stack>
+                    <Stack spacing={2}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                        Pane {index + 1}
+                      </Typography>
                       <Grid container spacing={2}>
-                        <Grid item xs={12}>
+                        <Grid item xs={12} sm={6}>
                           <TextField
                             fullWidth
                             label="Width (inches)"
                             type="number"
                             value={panel.width || ''}
-                            onChange={handlePanelChange(index, 'width')}
-                            sx={{
-                              '& .MuiOutlinedInput-root': {
-                                height: '56px'
-                              }
-                            }}
-                            inputProps={{ 
-                              min: 0,
-                              step: 0.1,
-                              style: { height: '56px', padding: '0 14px' }
+                            onChange={(e) => handlePanelChange(index, 'width', parseFloat(e.target.value) || 0)}
+                            InputProps={{ 
+                              inputProps: { min: 0, step: 0.1 },
+                              sx: { height: '56px' }
                             }}
                           />
                         </Grid>
-                        <Grid item xs={12}>
-                          <FormControl 
-                            fullWidth
-                            sx={{
-                              '& .MuiOutlinedInput-root': {
-                                height: '56px'
-                              }
-                            }}
-                          >
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth>
                             <InputLabel>Operation Type</InputLabel>
                             <Select
-                              value={panel.operationType || ''}
-                              onChange={handlePanelChange(index, 'operationType')}
+                              value={panel.operationType || 'Fixed'}
+                              onChange={(e) => handlePanelChange(index, 'operationType', e.target.value)}
                               label="Operation Type"
-                              sx={{
-                                height: '56px'
-                              }}
+                              sx={{ height: '56px' }}
                             >
                               {availableOperables.map((operable) => (
                                 <MenuItem key={operable} value={operable}>
@@ -408,10 +424,64 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                           </FormControl>
                         </Grid>
                       </Grid>
-                    </CardContent>
-                  </Card>
+                    </Stack>
+                  </Paper>
                 </Grid>
               ))}
+
+              <Grid item xs={12}>
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 2,
+                    bgcolor: 'background.default',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1
+                  }}
+                >
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Current Configuration:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {configuration.panels?.map((panel, index) => (
+                      <Paper
+                        key={index}
+                        sx={{
+                          p: 1,
+                          flex: 1,
+                          bgcolor: panel.operationType === 'Fixed' ? 'grey.100' : 'primary.light',
+                          color: panel.operationType === 'Fixed' ? 'text.primary' : 'primary.contrastText',
+                          textAlign: 'center',
+                          border: '1px solid',
+                          borderColor: panel.operationType === 'Fixed' ? 'grey.300' : 'primary.main'
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {panel.operationType}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {panel.width}" wide
+                        </Typography>
+                      </Paper>
+                    ))}
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Height (inches)"
+                  type="number"
+                  value={configuration.dimensions.height || ''}
+                  onChange={handleDimensionChange('height')}
+                  InputProps={{ 
+                    inputProps: { min: 0, step: 0.1 },
+                    sx: { height: '56px' }
+                  }}
+                />
+              </Grid>
             </Grid>
           </Box>
         ) : configuration.systemType === 'Sliding Doors' ? (
@@ -421,81 +491,115 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
             </Typography>
             <Grid container spacing={3}>
               <Grid item xs={12}>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Panel Configuration Guide:
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    O = Fixed Panel | X = Sliding Panel
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Configuration is viewed from outside, left to right
-                  </Typography>
-                </Box>
                 <FormControl fullWidth>
-                  <InputLabel>Configuration Type</InputLabel>
+                  <InputLabel>Number of Panels</InputLabel>
                   <Select
-                    value={configuration.operationType || ''}
-                    onChange={handleChange('operationType')}
-                    label="Configuration Type"
+                    value={configuration.panels?.length || 2}
+                    onChange={handlePanelCountChange}
+                    label="Number of Panels"
                   >
-                    {availableOperables.map((typology) => (
-                      <MenuItem key={typology} value={typology}>
-                        <Box>
-                          <Typography>{typology}</Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                            {typology.split('').map((type, index) => 
-                              `${type === 'O' ? 'Fixed' : 'Sliding'} Panel${index < typology.length - 1 ? ' + ' : ''}`
-                            ).join('')}
-                          </Typography>
-                        </Box>
+                    {[2,3,4,6].map((num) => (
+                      <MenuItem 
+                        key={num} 
+                        value={num}
+                        disabled={num > maxPanels}
+                      >
+                        {num} Panels
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
               </Grid>
-              
-              {configuration.operationType && (
-                <Grid item xs={12}>
+
+              {configuration.panels?.map((panel, index) => (
+                <Grid item xs={12} key={index}>
                   <Paper 
                     variant="outlined" 
                     sx={{ 
                       p: 2,
-                      bgcolor: 'background.default',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 1
+                      bgcolor: 'background.default'
                     }}
                   >
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Selected Configuration:
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      {configuration.operationType.split('').map((type, index) => (
-                        <Paper
-                          key={index}
-                          sx={{
-                            p: 1,
-                            flex: 1,
-                            bgcolor: type === 'O' ? 'grey.100' : 'primary.light',
-                            color: type === 'O' ? 'text.primary' : 'primary.contrastText',
-                            textAlign: 'center',
-                            border: '1px solid',
-                            borderColor: type === 'O' ? 'grey.300' : 'primary.main'
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {type === 'O' ? 'Fixed' : 'Sliding'}
-                          </Typography>
-                          <Typography variant="caption">
-                            Panel {index + 1}
-                          </Typography>
-                        </Paper>
-                      ))}
-                    </Box>
+                    <Stack spacing={2}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                        Panel {index + 1}
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth>
+                            <InputLabel>Panel Type</InputLabel>
+                            <Select
+                              value={panel.type || 'Sliding'}
+                              onChange={(e) => handlePanelChange(index, 'type', e.target.value)}
+                              label="Panel Type"
+                            >
+                              <MenuItem value="Fixed">Fixed Panel</MenuItem>
+                              <MenuItem value="Sliding">Sliding Panel</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        {panel.type === 'Sliding' && (
+                          <Grid item xs={12} sm={6}>
+                            <FormControl fullWidth>
+                              <InputLabel>Slide Direction</InputLabel>
+                              <Select
+                                value={panel.direction || 'right'}
+                                onChange={(e) => handlePanelChange(index, 'direction', e.target.value)}
+                                label="Slide Direction"
+                              >
+                                <MenuItem value="left">← Slide Left</MenuItem>
+                                <MenuItem value="right">Slide Right →</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                        )}
+                      </Grid>
+                    </Stack>
                   </Paper>
                 </Grid>
-              )}
+              ))}
+
+              <Grid item xs={12}>
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 2,
+                    bgcolor: 'background.default',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1
+                  }}
+                >
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Current Configuration:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {configuration.panels?.map((panel, index) => (
+                      <Paper
+                        key={index}
+                        sx={{
+                          p: 1,
+                          flex: 1,
+                          bgcolor: panel.type === 'Fixed' ? 'grey.100' : 'primary.light',
+                          color: panel.type === 'Fixed' ? 'text.primary' : 'primary.contrastText',
+                          textAlign: 'center',
+                          border: '1px solid',
+                          borderColor: panel.type === 'Fixed' ? 'grey.300' : 'primary.main'
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {panel.type}
+                          {panel.type === 'Sliding' && (
+                            <Typography component="span" variant="caption" sx={{ display: 'block' }}>
+                              {panel.direction === 'left' ? '←' : '→'}
+                            </Typography>
+                          )}
+                        </Typography>
+                      </Paper>
+                    ))}
+                  </Box>
+                </Paper>
+              </Grid>
 
               <Grid item xs={12}>
                 <TextField

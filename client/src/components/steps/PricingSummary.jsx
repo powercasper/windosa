@@ -290,12 +290,46 @@ const PricingSummary = ({
                       </Stack>
                     </Box>
                   ) : configuration.systemType === 'Sliding Doors' ? (
-                    <Typography variant="body2">
-                      Configuration: {configuration.operationType} 
-                      ({configuration.operationType.split('').map(type => 
-                        type === 'O' ? 'Fixed' : 'Sliding'
-                      ).join(', ')})
-                    </Typography>
+                    <Box>
+                      <Typography variant="body2" gutterBottom>
+                        Panel Configuration:
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, mt: 1, mb: 2 }}>
+                        {configuration.panels?.map((panel, index) => (
+                          <Paper
+                            key={index}
+                            sx={{
+                              p: 1,
+                              flex: 1,
+                              bgcolor: panel.type === 'Fixed' ? 'grey.100' : 'primary.light',
+                              color: panel.type === 'Fixed' ? 'text.primary' : 'primary.contrastText',
+                              textAlign: 'center',
+                              border: '1px solid',
+                              borderColor: panel.type === 'Fixed' ? 'grey.300' : 'primary.main'
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {panel.type}
+                              {panel.type === 'Sliding' && (
+                                <Typography component="span" variant="caption" sx={{ display: 'block' }}>
+                                  {panel.direction === 'left' ? '←' : '→'}
+                                </Typography>
+                              )}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Panel {index + 1}
+                            </Typography>
+                          </Paper>
+                        ))}
+                      </Box>
+                      <Stack spacing={0.5} sx={{ pl: 2 }}>
+                        {configuration.panels?.map((panel, idx) => (
+                          <Typography key={idx} variant="body2" color="text.secondary">
+                            Panel {idx + 1}: {panel.type} {panel.type === 'Sliding' ? `(Slides ${panel.direction === 'left' ? 'Left' : 'Right'})` : ''}
+                          </Typography>
+                        ))}
+                      </Stack>
+                    </Box>
                   ) : configuration.operationType ? (
                     <Typography variant="body2">
                       Operation: {configuration.operationType}
@@ -419,15 +453,75 @@ const PricingSummary = ({
                           {item.systemType === 'Windows' && item.panels ? (
                             <Box>
                               <Typography variant="body2" gutterBottom>
-                                Panes:
+                                Configuration:
                               </Typography>
-                              <Stack spacing={1} sx={{ pl: 2 }}>
-                                {item.panels.map((panel, idx) => (
-                                  <Typography key={idx} variant="body2">
-                                    Pane {idx + 1}: {panel.width}" wide - {panel.operationType}
-                                  </Typography>
+                              <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
+                                {item.panels.map((panel, index) => (
+                                  <Box
+                                    key={index}
+                                    sx={{
+                                      width: '40px',
+                                      height: '60px',
+                                      bgcolor: panel.operationType === 'Fixed' ? 'grey.100' : 'primary.light',
+                                      color: panel.operationType === 'Fixed' ? 'text.primary' : 'primary.contrastText',
+                                      border: '1px solid',
+                                      borderColor: panel.operationType === 'Fixed' ? 'grey.300' : 'primary.main',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '0.75rem',
+                                      textAlign: 'center',
+                                      borderRadius: '2px'
+                                    }}
+                                  >
+                                    <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                      {panel.operationType === 'Fixed' ? 'F' : 
+                                       panel.operationType === 'Awning' ? 'A' :
+                                       panel.operationType === 'Casement' ? 'C' :
+                                       panel.operationType === 'Hopper' ? 'H' : 'T'}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ fontSize: '0.625rem' }}>
+                                      {panel.width}"
+                                    </Typography>
+                                  </Box>
                                 ))}
-                              </Stack>
+                              </Box>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                F: Fixed, A: Awning, C: Casement, H: Hopper, T: Tilt Turn
+                              </Typography>
+                            </Box>
+                          ) : item.systemType === 'Sliding Doors' ? (
+                            <Box>
+                              <Typography variant="body2" gutterBottom>
+                                Configuration:
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
+                                {item.panels?.map((panel, index) => (
+                                  <Box
+                                    key={index}
+                                    sx={{
+                                      width: '40px',
+                                      height: '60px',
+                                      bgcolor: panel.type === 'Fixed' ? 'grey.100' : 'primary.light',
+                                      color: panel.type === 'Fixed' ? 'text.primary' : 'primary.contrastText',
+                                      border: '1px solid',
+                                      borderColor: panel.type === 'Fixed' ? 'grey.300' : 'primary.main',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '0.75rem',
+                                      textAlign: 'center',
+                                      borderRadius: '2px'
+                                    }}
+                                  >
+                                    {panel.type === 'Sliding' ? (
+                                      panel.direction === 'left' ? '←' : '→'
+                                    ) : 'F'}
+                                  </Box>
+                                ))}
+                              </Box>
                             </Box>
                           ) : (
                             <Typography variant="body2">

@@ -17,7 +17,7 @@ const systemArchitecture = {
   Alumil: {
     Windows:           ["S67","S67 PHOS","S67 Urban","S77","S77 PHOS","M9660","M9660 PHOS"],
     "Entrance Doors":  ["SD67","SD77","SD115"],
-    "Sliding Doors":   ["SMARTIA M450","SMARTIA M630"],
+    "Sliding Doors":   ["SMARTIA M450","SMARTIA M630", "SMARTIA S650"],
     "Folding Doors":   ["SMARTIA M19800","SUPREME SF85"],
     "Curtain Wall Systems":["SMARTIA M6","SUPREME S86 PHOS"]
   },
@@ -72,6 +72,7 @@ const unitCostPerSqft = {
     // Sliding Doors
     "SMARTIA M450": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
     "SMARTIA M630": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
+    "SMARTIA S650": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.6, "OXXXXO": 34.32}
   }
 };
 
