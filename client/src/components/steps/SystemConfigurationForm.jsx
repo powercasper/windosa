@@ -1731,64 +1731,156 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                               )}
 
                               {/* Door Section */}
-                              <Paper
-                                sx={{
-                                  p: 1,
-                                  flex: 1,
-                                  bgcolor: 'primary.light',
-                                  color: 'primary.contrastText',
-                                  textAlign: 'center',
-                                  border: '1px solid',
-                                  borderColor: 'primary.main',
-                                  position: 'relative',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  alignItems: 'center',
-                                  justifyContent: 'center'
-                                }}
-                              >
-                                <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                                  {configuration.openingType}
-                                </Typography>
-                                <Typography variant="caption">
-                                  {configuration.dimensions.width}" × {configuration.dimensions.height}"
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
-                                </Typography>
+                              {configuration.openingType === 'Double Door' ? (
+                                // Double Door Layout
+                                <>
+                                  {/* Left Door Panel */}
+                                  <Paper
+                                    sx={{
+                                      p: 1,
+                                      flex: 1,
+                                      bgcolor: 'primary.light',
+                                      color: 'primary.contrastText',
+                                      textAlign: 'center',
+                                      border: '1px solid',
+                                      borderColor: 'primary.main',
+                                      position: 'relative',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                  >
+                                    <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                      Left Door
+                                    </Typography>
+                                    <Typography variant="caption">
+                                      {(configuration.dimensions.width / 2).toFixed(1)}" × {configuration.dimensions.height}"
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
+                                    </Typography>
 
-                                {/* Handle Indicator */}
-                                <Box
+                                    {/* Right Handle for Left Door */}
+                                    <Box
+                                      sx={{
+                                        position: 'absolute',
+                                        right: 0,
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        width: '4px',
+                                        height: '16px',
+                                        bgcolor: 'primary.dark',
+                                        borderRadius: '2px',
+                                        mr: 0.5
+                                      }}
+                                    />
+                                  </Paper>
+
+                                  {/* Right Door Panel */}
+                                  <Paper
+                                    sx={{
+                                      p: 1,
+                                      flex: 1,
+                                      bgcolor: 'primary.light',
+                                      color: 'primary.contrastText',
+                                      textAlign: 'center',
+                                      border: '1px solid',
+                                      borderColor: 'primary.main',
+                                      position: 'relative',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                  >
+                                    <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                      Right Door
+                                    </Typography>
+                                    <Typography variant="caption">
+                                      {(configuration.dimensions.width / 2).toFixed(1)}" × {configuration.dimensions.height}"
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
+                                    </Typography>
+
+                                    {/* Left Handle for Right Door */}
+                                    <Box
+                                      sx={{
+                                        position: 'absolute',
+                                        left: 0,
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        width: '4px',
+                                        height: '16px',
+                                        bgcolor: 'primary.dark',
+                                        borderRadius: '2px',
+                                        ml: 0.5
+                                      }}
+                                    />
+                                  </Paper>
+                                </>
+                              ) : (
+                                // Single Door or Pivot Door Layout
+                                <Paper
                                   sx={{
-                                    position: 'absolute',
-                                    [configuration.handleLocation || 'right']: 0,
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    width: '4px',
-                                    height: '16px',
-                                    bgcolor: 'primary.dark',
-                                    borderRadius: '2px',
-                                    mr: configuration.handleLocation === 'right' ? 0.5 : 'auto',
-                                    ml: configuration.handleLocation === 'left' ? 0.5 : 'auto'
+                                    p: 1,
+                                    flex: 1,
+                                    bgcolor: 'primary.light',
+                                    color: 'primary.contrastText',
+                                    textAlign: 'center',
+                                    border: '1px solid',
+                                    borderColor: 'primary.main',
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
                                   }}
-                                />
+                                >
+                                  <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                    {configuration.openingType}
+                                  </Typography>
+                                  <Typography variant="caption">
+                                    {configuration.dimensions.width}" × {configuration.dimensions.height}"
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
+                                  </Typography>
 
-                                {/* Pivot Point Indicator */}
-                                {configuration.openingType === 'Pivot Door' && (
+                                  {/* Handle Indicator */}
                                   <Box
                                     sx={{
                                       position: 'absolute',
-                                      left: '50%',
+                                      [configuration.handleLocation || 'right']: 0,
                                       top: '50%',
-                                      width: '8px',
-                                      height: '8px',
+                                      transform: 'translateY(-50%)',
+                                      width: '4px',
+                                      height: '16px',
                                       bgcolor: 'primary.dark',
-                                      borderRadius: '50%',
-                                      transform: 'translate(-50%, -50%)'
+                                      borderRadius: '2px',
+                                      mr: configuration.handleLocation === 'right' ? 0.5 : 'auto',
+                                      ml: configuration.handleLocation === 'left' ? 0.5 : 'auto'
                                     }}
                                   />
-                                )}
-                              </Paper>
+
+                                  {/* Pivot Point Indicator */}
+                                  {configuration.openingType === 'Pivot Door' && (
+                                    <Box
+                                      sx={{
+                                        position: 'absolute',
+                                        left: '50%',
+                                        top: '50%',
+                                        width: '8px',
+                                        height: '8px',
+                                        bgcolor: 'primary.dark',
+                                        borderRadius: '50%',
+                                        transform: 'translate(-50%, -50%)'
+                                      }}
+                                    />
+                                  )}
+                                </Paper>
+                              )}
 
                               {/* Right Sidelight */}
                               {configuration.rightSidelight?.enabled && (

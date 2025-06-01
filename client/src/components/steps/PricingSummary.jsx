@@ -1225,29 +1225,51 @@ const PricingSummary = ({
                                   {/* Middle Column - Visual Configuration */}
                                   <Grid item xs={12} md={4}>
                                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                      Visual Configuration
+                                      Configuration Preview
                                     </Typography>
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                                      Scaled Preview (Not Actual Size)
+                                    </Typography>
+                                    <Box sx={{ 
+                                      display: 'flex', 
+                                      flexDirection: 'column', 
+                                      gap: 1,
+                                      border: '2px solid',
+                                      borderColor: 'grey.300',
+                                      borderRadius: 1,
+                                      p: 1,
+                                      bgcolor: 'background.paper',
+                                      aspectRatio: item.dimensions?.width && item.dimensions?.height ? 
+                                        `${(item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                                          item.dimensions.width + 
+                                          (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)} / 
+                                         ${item.dimensions.height + (item.transom?.enabled ? item.transom.height : 0)}` : '16/9',
+                                      maxHeight: '200px'
+                                    }}>
                                       {/* Transom */}
                                       {item.transom?.enabled && (
-                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Box sx={{ 
+                                          display: 'flex', 
+                                          gap: 1,
+                                          height: `${(item.transom.height / (item.dimensions.height + item.transom.height)) * 100}%`
+                                        }}>
                                           <Paper
                                             sx={{
-                                              p: 1,
+                                              p: 0.5,
                                               flex: 1,
                                               bgcolor: 'grey.100',
                                               color: 'text.primary',
                                               textAlign: 'center',
                                               border: '1px solid',
                                               borderColor: 'grey.300',
-                                              minHeight: '30px',
                                               display: 'flex',
                                               flexDirection: 'column',
                                               alignItems: 'center',
-                                              justifyContent: 'center'
+                                              justifyContent: 'center',
+                                              minHeight: 0
                                             }}
                                           >
-                                            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
                                               Transom ({item.transom.height}")
                                             </Typography>
                                           </Paper>
@@ -1255,26 +1277,28 @@ const PricingSummary = ({
                                       )}
 
                                       {/* Door and Sidelights */}
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                      <Box sx={{ display: 'flex', gap: 1, flex: 1 }}>
                                         {/* Left Sidelight */}
                                         {item.leftSidelight?.enabled && (
                                           <Paper
                                             sx={{
-                                              p: 1,
-                                              width: `${(item.leftSidelight.width / (item.dimensions?.width || 1)) * 100}%`,
+                                              p: 0.5,
+                                              width: `${(item.leftSidelight.width / ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                                                item.dimensions.width + 
+                                                (item.rightSidelight?.enabled ? item.rightSidelight.width : 0))) * 100}%`,
                                               bgcolor: 'grey.100',
                                               color: 'text.primary',
                                               textAlign: 'center',
                                               border: '1px solid',
                                               borderColor: 'grey.300',
-                                              minHeight: '50px',
                                               display: 'flex',
                                               flexDirection: 'column',
                                               alignItems: 'center',
-                                              justifyContent: 'center'
+                                              justifyContent: 'center',
+                                              minHeight: 0
                                             }}
                                           >
-                                            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
                                               Left ({item.leftSidelight.width}")
                                             </Typography>
                                           </Paper>
@@ -1284,7 +1308,7 @@ const PricingSummary = ({
                                         {item.openingType === 'Single Door' && (
                                           <Paper
                                             sx={{
-                                              p: 1,
+                                              p: 0.5,
                                               flex: 1,
                                               bgcolor: 'primary.light',
                                               color: 'primary.contrastText',
@@ -1292,14 +1316,14 @@ const PricingSummary = ({
                                               border: '1px solid',
                                               borderColor: 'primary.main',
                                               position: 'relative',
-                                              minHeight: '50px',
                                               display: 'flex',
                                               flexDirection: 'column',
                                               alignItems: 'center',
-                                              justifyContent: 'center'
+                                              justifyContent: 'center',
+                                              minHeight: 0
                                             }}
                                           >
-                                            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
                                               Door ({item.dimensions?.width}")
                                             </Typography>
                                             <Box
@@ -1308,12 +1332,12 @@ const PricingSummary = ({
                                                 [item.handleLocation || 'right']: 0,
                                                 top: '50%',
                                                 transform: 'translateY(-50%)',
-                                                width: '3px',
-                                                height: '12px',
+                                                width: '2px',
+                                                height: '8px',
                                                 bgcolor: 'primary.dark',
-                                                borderRadius: '2px',
-                                                mr: item.handleLocation === 'right' ? 0.5 : 'auto',
-                                                ml: item.handleLocation === 'left' ? 0.5 : 'auto'
+                                                borderRadius: '1px',
+                                                mr: item.handleLocation === 'right' ? 0.25 : 'auto',
+                                                ml: item.handleLocation === 'left' ? 0.25 : 'auto'
                                               }}
                                             />
                                           </Paper>
@@ -1323,7 +1347,7 @@ const PricingSummary = ({
                                           <>
                                             <Paper
                                               sx={{
-                                                p: 1,
+                                                p: 0.5,
                                                 flex: 1,
                                                 bgcolor: 'primary.light',
                                                 color: 'primary.contrastText',
@@ -1331,14 +1355,14 @@ const PricingSummary = ({
                                                 border: '1px solid',
                                                 borderColor: 'primary.main',
                                                 position: 'relative',
-                                                minHeight: '50px',
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 alignItems: 'center',
-                                                justifyContent: 'center'
+                                                justifyContent: 'center',
+                                                minHeight: 0
                                               }}
                                             >
-                                              <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                              <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
                                                 Left ({(item.dimensions?.width || 0) / 2}")
                                               </Typography>
                                               <Box
@@ -1347,17 +1371,17 @@ const PricingSummary = ({
                                                   right: 0,
                                                   top: '50%',
                                                   transform: 'translateY(-50%)',
-                                                  width: '3px',
-                                                  height: '12px',
+                                                  width: '2px',
+                                                  height: '8px',
                                                   bgcolor: 'primary.dark',
-                                                  borderRadius: '2px',
-                                                  mr: 0.5
+                                                  borderRadius: '1px',
+                                                  mr: 0.25
                                                 }}
                                               />
                                             </Paper>
                                             <Paper
                                               sx={{
-                                                p: 1,
+                                                p: 0.5,
                                                 flex: 1,
                                                 bgcolor: 'primary.light',
                                                 color: 'primary.contrastText',
@@ -1365,14 +1389,14 @@ const PricingSummary = ({
                                                 border: '1px solid',
                                                 borderColor: 'primary.main',
                                                 position: 'relative',
-                                                minHeight: '50px',
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 alignItems: 'center',
-                                                justifyContent: 'center'
+                                                justifyContent: 'center',
+                                                minHeight: 0
                                               }}
                                             >
-                                              <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                              <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
                                                 Right ({(item.dimensions?.width || 0) / 2}")
                                               </Typography>
                                               <Box
@@ -1381,11 +1405,11 @@ const PricingSummary = ({
                                                   left: 0,
                                                   top: '50%',
                                                   transform: 'translateY(-50%)',
-                                                  width: '3px',
-                                                  height: '12px',
+                                                  width: '2px',
+                                                  height: '8px',
                                                   bgcolor: 'primary.dark',
-                                                  borderRadius: '2px',
-                                                  ml: 0.5
+                                                  borderRadius: '1px',
+                                                  ml: 0.25
                                                 }}
                                               />
                                             </Paper>
@@ -1395,7 +1419,7 @@ const PricingSummary = ({
                                         {item.openingType === 'Pivot Door' && (
                                           <Paper
                                             sx={{
-                                              p: 1,
+                                              p: 0.5,
                                               flex: 1,
                                               bgcolor: 'primary.light',
                                               color: 'primary.contrastText',
@@ -1403,14 +1427,14 @@ const PricingSummary = ({
                                               border: '1px solid',
                                               borderColor: 'primary.main',
                                               position: 'relative',
-                                              minHeight: '50px',
                                               display: 'flex',
                                               flexDirection: 'column',
                                               alignItems: 'center',
-                                              justifyContent: 'center'
+                                              justifyContent: 'center',
+                                              minHeight: 0
                                             }}
                                           >
-                                            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
                                               Pivot ({item.dimensions?.width}")
                                             </Typography>
                                             <Box
@@ -1419,12 +1443,12 @@ const PricingSummary = ({
                                                 [item.handleLocation || 'right']: 0,
                                                 top: '50%',
                                                 transform: 'translateY(-50%)',
-                                                width: '3px',
-                                                height: '12px',
+                                                width: '2px',
+                                                height: '8px',
                                                 bgcolor: 'primary.dark',
-                                                borderRadius: '2px',
-                                                mr: item.handleLocation === 'right' ? 0.5 : 'auto',
-                                                ml: item.handleLocation === 'left' ? 0.5 : 'auto'
+                                                borderRadius: '1px',
+                                                mr: item.handleLocation === 'right' ? 0.25 : 'auto',
+                                                ml: item.handleLocation === 'left' ? 0.25 : 'auto'
                                               }}
                                             />
                                             <Box
@@ -1432,8 +1456,8 @@ const PricingSummary = ({
                                                 position: 'absolute',
                                                 left: '50%',
                                                 top: '50%',
-                                                width: '6px',
-                                                height: '6px',
+                                                width: '4px',
+                                                height: '4px',
                                                 bgcolor: 'primary.dark',
                                                 borderRadius: '50%',
                                                 transform: 'translate(-50%, -50%)'
@@ -1446,21 +1470,23 @@ const PricingSummary = ({
                                         {item.rightSidelight?.enabled && (
                                           <Paper
                                             sx={{
-                                              p: 1,
-                                              width: `${(item.rightSidelight.width / (item.dimensions?.width || 1)) * 100}%`,
+                                              p: 0.5,
+                                              width: `${(item.rightSidelight.width / ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                                                item.dimensions.width + 
+                                                (item.rightSidelight?.enabled ? item.rightSidelight.width : 0))) * 100}%`,
                                               bgcolor: 'grey.100',
                                               color: 'text.primary',
                                               textAlign: 'center',
                                               border: '1px solid',
                                               borderColor: 'grey.300',
-                                              minHeight: '50px',
                                               display: 'flex',
                                               flexDirection: 'column',
                                               alignItems: 'center',
-                                              justifyContent: 'center'
+                                              justifyContent: 'center',
+                                              minHeight: 0
                                             }}
                                           >
-                                            <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
                                               Right ({item.rightSidelight.width}")
                                             </Typography>
                                           </Paper>
@@ -1644,62 +1670,6 @@ const PricingSummary = ({
                             variant="outlined"
                             size="small"
                           />
-                        </Stack>
-                      </Box>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <ColorLensIcon fontSize="small" /> Finish Details
-                        </Typography>
-                        <Stack spacing={1}>
-                          <Typography variant="body2">
-                            Type: {item.finish.type}
-                          </Typography>
-                          <Typography variant="body2">
-                            Style: {item.finish.color}
-                          </Typography>
-                          <Typography variant="body2">
-                            RAL Color: {item.finish.ralColor}
-                          </Typography>
-                        </Stack>
-                      </Box>
-
-                      {item.notes && (
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <CommentIcon fontSize="small" /> Notes
-                          </Typography>
-                          <Paper
-                            variant="outlined"
-                            sx={{
-                              p: 1.5,
-                              bgcolor: 'background.default',
-                              whiteSpace: 'pre-wrap'
-                            }}
-                          >
-                            <Typography variant="body2" color="text.secondary">
-                              {item.notes}
-                            </Typography>
-                          </Paper>
-                        </Box>
-                      )}
-
-                      <Box>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                          Cost Breakdown
-                        </Typography>
-                        <Stack spacing={1}>
-                          <Typography variant="body2">
-                            System Cost: ${systemCost.toFixed(2)}
-                          </Typography>
-                          <Typography variant="body2">
-                            Glass Cost: ${glassCost.toFixed(2)}
-                          </Typography>
-                          <Typography variant="body2">
-                            Labor Cost: ${laborCost.toFixed(2)}
-                          </Typography>
                         </Stack>
                       </Box>
                     </Grid>
