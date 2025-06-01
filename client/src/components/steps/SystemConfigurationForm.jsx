@@ -745,292 +745,315 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         {configuration.systemType === 'Windows' ? (
           <Box sx={{ mb: 4 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              Configuration Details
+              <WindowIcon /> Configuration Details
             </Typography>
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Number of Panes</InputLabel>
-                  <Select
-                    value={configuration.panels?.length || 1}
-                    onChange={(e) => {
-                      const count = parseInt(e.target.value);
-                      let newPanels = [...(configuration.panels || [])];
-                      
-                      if (count > newPanels.length) {
-                        // Add new panels
-                        while (newPanels.length < count) {
-                          newPanels.push({ 
-                            width: useEqualWidths ? (configuration.dimensions?.width || 0) / count : 0,
-                            operationType: 'Fixed',  // Default to Fixed operation type
-                            handleLocation: 'right'  // Default handle location
-                          });
-                        }
-                      } else {
-                        // Remove panels from the end
-                        newPanels = newPanels.slice(0, count);
-                        if (useEqualWidths) {
-                          const equalWidth = (configuration.dimensions?.width || 0) / count;
-                          newPanels = newPanels.map(panel => ({
-                            ...panel,
-                            width: equalWidth,
-                            operationType: panel.operationType || 'Fixed'  // Ensure operationType exists
-                          }));
-                        }
-                      }
-                      
-                      onUpdate({ 
-                        panels: newPanels,
-                        dimensions: {
-                          ...configuration.dimensions,
-                          width: configuration.dimensions?.width || 0
-                        }
-                      });
-                    }}
-                    label="Number of Panes"
-                  >
-                    {[1,2,3,4].map((num) => (
-                      <MenuItem key={num} value={num}>
-                        {num} {num === 1 ? 'Pane' : 'Panes'}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+            
+            <Stack spacing={3}>
+              {/* Window Dimensions Section */}
+              <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <StraightIcon fontSize="small" /> Window Dimensions
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Width (inches)"
+                      type="number"
+                      value={configuration.dimensions.width || ''}
+                      onChange={handleTotalWidthChange}
+                      InputProps={{ 
+                        inputProps: { min: 0, step: 0.1 },
+                        sx: { height: '56px' }
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Height (inches)"
+                      type="number"
+                      value={configuration.dimensions.height || ''}
+                      onChange={handleDimensionChange('height')}
+                      InputProps={{ 
+                        inputProps: { min: 0, step: 0.1 },
+                        sx: { height: '56px' }
+                      }}
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
 
-              <Grid item xs={12}>
-                <Box sx={{ 
-                  p: 2, 
-                  border: '1px solid rgba(0, 0, 0, 0.12)', 
-                  borderRadius: 1,
-                  bgcolor: 'background.paper'
-                }}>
-                  <Stack spacing={2}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      System Dimensions
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={8}>
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                          <TextField
-                            fullWidth
-                            label="Total System Width (inches)"
-                            type="number"
-                            value={configuration.dimensions.width || ''}
-                            onChange={handleTotalWidthChange}
-                            InputProps={{ 
-                              inputProps: { min: 0, step: 0.1 },
-                              sx: { height: '56px' }
-                            }}
-                          />
-                          <TextField
-                            fullWidth
-                            label="System Height (inches)"
-                            type="number"
-                            value={configuration.dimensions.height || ''}
-                            onChange={handleDimensionChange('height')}
-                            InputProps={{ 
-                              inputProps: { min: 0, step: 0.1 },
-                              sx: { height: '56px' }
-                            }}
-                          />
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12} md={4}>
-                        <FormControl fullWidth>
-                          <Stack direction="row" spacing={2} alignItems="center">
-                            <Typography variant="subtitle2" color="text.secondary">
-                              Width Distribution
-                            </Typography>
-                            <Stack direction="row" spacing={1} alignItems="center">
-                              <Typography>Custom</Typography>
-                              <Switch
-                                checked={useEqualWidths}
-                                onChange={(e) => {
-                                  setUseEqualWidths(e.target.checked);
-                                  if (e.target.checked && configuration.dimensions.width) {
-                                    // Distribute total width equally
-                                    const equalWidths = distributeWidth(
-                                      configuration.dimensions.width,
-                                      configuration.panels.length
-                                    );
-                                    const newPanels = configuration.panels.map((panel, index) => ({
-                                      ...panel,
-                                      width: equalWidths[index]
-                                    }));
-                                    onUpdate({ panels: newPanels });
-                                  }
-                                }}
-                              />
-                              <Typography>Equal</Typography>
-                            </Stack>
-                          </Stack>
-                        </FormControl>
-                      </Grid>
-                    </Grid>
-                  </Stack>
-                </Box>
-              </Grid>
-
-              {configuration.panels?.map((panel, index) => (
-                <Grid item xs={12} key={index}>
-                  <Paper 
-                    variant="outlined" 
-                    sx={{ 
-                      p: 2,
-                      bgcolor: 'background.default'
-                    }}
-                  >
-                    <Stack spacing={2}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                        Pane {index + 1}
+              {/* Panel Configuration Section */}
+              <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ViewSidebarIcon fontSize="small" /> Panel Configuration
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <FormControl fullWidth>
+                      <InputLabel>Number of Panels</InputLabel>
+                      <Select
+                        value={configuration.panels?.length || 1}
+                        onChange={(e) => {
+                          const count = parseInt(e.target.value);
+                          let newPanels = [...(configuration.panels || [])];
+                          
+                          if (count > newPanels.length) {
+                            while (newPanels.length < count) {
+                              newPanels.push({ 
+                                width: useEqualWidths ? (configuration.dimensions?.width || 0) / count : 0,
+                                operationType: 'Fixed',
+                                handleLocation: 'right'
+                              });
+                            }
+                          } else {
+                            newPanels = newPanels.slice(0, count);
+                            if (useEqualWidths) {
+                              const equalWidth = (configuration.dimensions?.width || 0) / count;
+                              newPanels = newPanels.map(panel => ({
+                                ...panel,
+                                width: equalWidth
+                              }));
+                            }
+                          }
+                          onUpdate({ panels: newPanels });
+                        }}
+                        label="Number of Panels"
+                      >
+                        {[1,2,3,4].map((num) => (
+                          <MenuItem key={num} value={num}>
+                            {num} {num === 1 ? 'Panel' : 'Panels'}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+                      <Typography variant="subtitle2" color="text.secondary">
+                        Width Distribution
                       </Typography>
-                      <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="Width (inches)"
-                            type="number"
-                            value={panel.width || ''}
-                            onChange={(e) => handlePanelChange(index, 'width', parseFloat(e.target.value) || 0)}
-                            disabled={useEqualWidths}
-                            InputProps={{ 
-                              inputProps: { min: 0, step: 0.1 },
-                              sx: { height: '56px' }
-                            }}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <InputLabel>Operation Type</InputLabel>
-                            <Select
-                              value={panel.operationType || 'Fixed'}
-                              onChange={(e) => handlePanelChange(index, 'operationType', e.target.value)}
-                              label="Operation Type"
-                              sx={{ height: '56px' }}
-                            >
-                              {availableOperables.map((operable) => (
-                                <MenuItem key={operable} value={operable}>
-                                  {operable}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        </Grid>
-                        {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography>Custom</Typography>
+                        <Switch
+                          checked={useEqualWidths}
+                          onChange={(e) => {
+                            setUseEqualWidths(e.target.checked);
+                            if (e.target.checked && configuration.dimensions.width) {
+                              const equalWidths = distributeWidth(
+                                configuration.dimensions.width,
+                                configuration.panels.length
+                              );
+                              const newPanels = configuration.panels.map((panel, index) => ({
+                                ...panel,
+                                width: equalWidths[index]
+                              }));
+                              onUpdate({ panels: newPanels });
+                            }
+                          }}
+                        />
+                        <Typography>Equal</Typography>
+                      </Stack>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Panel Details Section */}
+              {configuration.panels?.length > 0 && (
+                <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                  <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <BuildIcon fontSize="small" /> Panel Details
+                  </Typography>
+                  <Stack spacing={2}>
+                    {configuration.panels.map((panel, index) => (
+                      <Paper variant="outlined" key={index} sx={{ p: 2 }}>
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            Panel {index + 1}
+                          </Typography>
+                        </Box>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <TextField
+                              fullWidth
+                              label="Width (inches)"
+                              type="number"
+                              value={panel.width || ''}
+                              onChange={(e) => handlePanelChange(index, 'width', parseFloat(e.target.value) || 0)}
+                              disabled={useEqualWidths}
+                              InputProps={{ 
+                                inputProps: { min: 0, step: 0.1 }
+                              }}
+                            />
+                          </Grid>
                           <Grid item xs={12} sm={6}>
                             <FormControl fullWidth>
-                              <InputLabel>Handle Location</InputLabel>
+                              <InputLabel>Operation Type</InputLabel>
                               <Select
-                                value={panel.handleLocation || 'right'}
-                                onChange={(e) => handlePanelChange(index, 'handleLocation', e.target.value)}
-                                label="Handle Location"
-                                sx={{ height: '56px' }}
+                                value={panel.operationType || 'Fixed'}
+                                onChange={(e) => handlePanelChange(index, 'operationType', e.target.value)}
+                                label="Operation Type"
                               >
-                                <MenuItem value="left">Left Side</MenuItem>
-                                <MenuItem value="right">Right Side</MenuItem>
+                                {availableOperables.map((operable) => (
+                                  <MenuItem key={operable} value={operable}>
+                                    {operable}
+                                  </MenuItem>
+                                ))}
                               </Select>
                             </FormControl>
                           </Grid>
-                        )}
-                        {panel.operationType !== 'Fixed' && (
-                          <Grid item xs={12}>
-                            <Paper 
-                              variant="outlined" 
-                              sx={{ 
-                                p: 2,
-                                bgcolor: 'background.paper',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 2
-                              }}
-                            >
-                              <Box sx={{ flexGrow: 1 }}>
-                                <Typography variant="subtitle1">Add Mosquito Net</Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  Standard mosquito net for this window (+$100)
-                                </Typography>
-                              </Box>
-                              <Switch
-                                checked={panel.hasMosquitoNet || false}
-                                onChange={(e) => handlePanelChange(index, 'hasMosquitoNet', e.target.checked)}
-                              />
-                            </Paper>
-                          </Grid>
-                        )}
-                      </Grid>
-                    </Stack>
-                  </Paper>
-                </Grid>
-              ))}
-
-              <Grid item xs={12}>
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2,
-                    bgcolor: 'background.default',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1
-                  }}
-                >
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Current Configuration:
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    {configuration.panels?.map((panel, index) => (
-                      <Paper
-                        key={index}
-                        sx={{
-                          p: 1,
-                          flex: 1,
-                          bgcolor: panel.operationType === 'Fixed' ? 'grey.100' : 'primary.light',
-                          color: panel.operationType === 'Fixed' ? 'text.primary' : 'primary.contrastText',
-                          textAlign: 'center',
-                          border: '1px solid',
-                          borderColor: panel.operationType === 'Fixed' ? 'grey.300' : 'primary.main',
-                          position: 'relative',
-                          minHeight: '60px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {panel.operationType}
-                          {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && (
-                            <Typography component="span" variant="caption" sx={{ display: 'block', color: 'success.main' }}>
-                              + Net
-                            </Typography>
+                          {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
+                            <Grid item xs={12} sm={6}>
+                              <FormControl fullWidth>
+                                <InputLabel>Handle Location</InputLabel>
+                                <Select
+                                  value={panel.handleLocation || 'right'}
+                                  onChange={(e) => handlePanelChange(index, 'handleLocation', e.target.value)}
+                                  label="Handle Location"
+                                >
+                                  <MenuItem value="left">Left Side</MenuItem>
+                                  <MenuItem value="right">Right Side</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
                           )}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {panel.width}" wide
-                        </Typography>
-                        {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              [panel.handleLocation || 'right']: 0,
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              width: '4px',
-                              height: '16px',
-                              bgcolor: 'primary.dark',
-                              borderRadius: '2px',
-                              mr: panel.handleLocation === 'right' ? 0.5 : 'auto',
-                              ml: panel.handleLocation === 'left' ? 0.5 : 'auto'
-                            }}
-                          />
-                        )}
+                          {panel.operationType !== 'Fixed' && (
+                            <Grid item xs={12}>
+                              <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <Box>
+                                    <Typography variant="subtitle2">Mosquito Net</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      Add standard mosquito net (+$100)
+                                    </Typography>
+                                  </Box>
+                                  <Switch
+                                    checked={panel.hasMosquitoNet || false}
+                                    onChange={(e) => handlePanelChange(index, 'hasMosquitoNet', e.target.checked)}
+                                  />
+                                </Box>
+                              </Paper>
+                            </Grid>
+                          )}
+                        </Grid>
                       </Paper>
                     ))}
+                  </Stack>
+                </Paper>
+              )}
+
+              {/* Configuration Preview Section */}
+              {configuration.panels?.length > 0 && (
+                <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                  <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PreviewIcon fontSize="small" /> Configuration Preview
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50', maxWidth: '600px', width: '100%' }}>
+                      {/* Dimensions Label */}
+                      <Typography variant="caption" color="text.secondary" align="center" sx={{ mb: 1, display: 'block' }}>
+                        Scale Preview (Not Actual Size)
+                      </Typography>
+
+                      {/* Window Frame */}
+                      <Box sx={{ 
+                        border: '2px solid',
+                        borderColor: 'grey.400',
+                        p: 1,
+                        borderRadius: 1,
+                        aspectRatio: configuration.dimensions.width && configuration.dimensions.height ? 
+                          `${configuration.dimensions.width} / ${configuration.dimensions.height}` : '16/9',
+                        maxHeight: '300px'
+                      }}>
+                        {/* Panels Container */}
+                        <Box sx={{ 
+                          display: 'flex',
+                          gap: 0.5,
+                          height: '100%',
+                          width: '100%'
+                        }}>
+                          {configuration.panels.map((panel, index) => {
+                            const totalWidth = configuration.dimensions.width || 100;
+                            const panelWidthPercent = useEqualWidths ? 
+                              `${(100 / configuration.panels.length)}%` :
+                              `${(panel.width / totalWidth) * 100}%`;
+
+                            return (
+                              <Paper
+                                key={index}
+                                sx={{
+                                  width: panelWidthPercent,
+                                  height: '100%',
+                                  bgcolor: panel.operationType === 'Fixed' ? 'grey.100' : 'primary.light',
+                                  color: panel.operationType === 'Fixed' ? 'text.primary' : 'primary.contrastText',
+                                  border: '1px solid',
+                                  borderColor: panel.operationType === 'Fixed' ? 'grey.300' : 'primary.main',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'space-between',
+                                  p: 1,
+                                  position: 'relative',
+                                  overflow: 'hidden'
+                                }}
+                              >
+                                <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'center' }}>
+                                  Panel {index + 1}
+                                </Typography>
+
+                                <Typography variant="caption" sx={{ textAlign: 'center' }}>
+                                  {panel.operationType}
+                                  {panel.hasMosquitoNet && (
+                                    <Typography component="span" variant="caption" sx={{ display: 'block', color: 'success.main' }}>
+                                      + Net
+                                    </Typography>
+                                  )}
+                                </Typography>
+
+                                {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
+                                  <Box
+                                    sx={{
+                                      position: 'absolute',
+                                      [panel.handleLocation || 'right']: 0,
+                                      top: '50%',
+                                      transform: 'translateY(-50%)',
+                                      width: '4px',
+                                      height: '16px',
+                                      bgcolor: 'primary.dark',
+                                      borderRadius: '2px',
+                                      mr: panel.handleLocation === 'right' ? 0.5 : 'auto',
+                                      ml: panel.handleLocation === 'left' ? 0.5 : 'auto'
+                                    }}
+                                  />
+                                )}
+                              </Paper>
+                            );
+                          })}
+                        </Box>
+                      </Box>
+
+                      {/* Dimensions Display */}
+                      <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                        <Stack spacing={1}>
+                          <Typography variant="subtitle2" color="text.secondary" align="center">
+                            Total Width: {configuration.dimensions.width || 0}"
+                          </Typography>
+                          <Typography variant="subtitle2" color="text.secondary" align="center">
+                            Height: {configuration.dimensions.height || 0}"
+                          </Typography>
+                          {useEqualWidths && (
+                            <Typography variant="caption" color="text.secondary" align="center">
+                              Each Panel Width: {configuration.dimensions.width ? (configuration.dimensions.width / configuration.panels.length).toFixed(1) : 0}"
+                            </Typography>
+                          )}
+                        </Stack>
+                      </Box>
+                    </Paper>
                   </Box>
                 </Paper>
-              </Grid>
-            </Grid>
+              )}
+            </Stack>
           </Box>
         ) : configuration.systemType === 'Sliding Doors' ? (
           <Box sx={{ mb: 4 }}>
