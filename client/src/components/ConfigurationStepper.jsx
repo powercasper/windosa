@@ -39,7 +39,10 @@ const emptyConfiguration = {
   dimensions: { width: 0, height: 0 },
   glassType: '',
   finish: { type: '', color: '' },
-  grid: { enabled: false, horizontal: 2, vertical: 3 }
+  doorType: 'glass',
+  grid: { enabled: true, horizontal: 2, vertical: 3 },
+  location: '',
+  itemNumber: 0
 };
 
 const ConfigurationStepper = ({ 
@@ -85,38 +88,82 @@ const ConfigurationStepper = ({
 
   const handleConfigurationUpdate = (update) => {
     setCurrentConfiguration((prev) => {
-      // Preserve grid configuration when updating other properties
+      // Only remove grid configuration when explicitly switching to panel door type
       if (update.doorType === 'panel') {
         return { ...prev, ...update, grid: undefined };
       }
+      // When switching to glass door type, initialize grid if it doesn't exist
+      if (update.doorType === 'glass') {
+        return { 
+          ...prev, 
+          ...update, 
+          grid: update.grid || { enabled: true, horizontal: 2, vertical: 3 }
+        };
+      }
+      // For all other updates, preserve existing configuration including grid
       return { ...prev, ...update };
     });
-  };
-
-  const handleAddToQuote = () => {
-    // Create a deep copy of the current configuration to preserve nested objects
-    const configCopy = JSON.parse(JSON.stringify(currentConfiguration));
-    setQuoteItems(prev => [...prev, { ...configCopy, id: Date.now() }]);
-    setCurrentConfiguration(emptyConfiguration);
-    setIsEditingItem(false);
-  };
-
-  const handleRemoveFromQuote = (itemId) => {
-    setQuoteItems(prev => prev.filter(item => item.id !== itemId));
   };
 
   const handleEditItem = (item) => {
     // Create a deep copy of the item to preserve nested objects
     const itemCopy = JSON.parse(JSON.stringify(item));
+    // Store the original index of the item
+    const itemIndex = quoteItems.findIndex(i => i.id === item.id);
+    // Remove grid configuration for sliding doors
+    if (itemCopy.systemType === 'Sliding Doors') {
+      delete itemCopy.grid;
+    }
     // Ensure all properties are preserved, including grid, doorType, and other configurations
     setCurrentConfiguration({
       ...emptyConfiguration, // This provides the structure but will be overwritten
       ...itemCopy, // This preserves all the item's configurations
-      grid: itemCopy.grid || emptyConfiguration.grid // Ensure grid configuration is preserved
+      _editIndex: itemIndex // Store the original index
     });
     setQuoteItems(prev => prev.filter(i => i.id !== item.id));
     setIsEditingItem(true);
     setActiveStep(0);
+  };
+
+  const handleAddToQuote = () => {
+    // Create a deep copy of the current configuration to preserve nested objects
+    const configCopy = JSON.parse(JSON.stringify(currentConfiguration));
+    const editIndex = configCopy._editIndex;
+    delete configCopy._editIndex; // Remove the temporary index property
+    
+    // Remove grid configuration for sliding doors
+    if (configCopy.systemType === 'Sliding Doors') {
+      delete configCopy.grid;
+    }
+    
+    setQuoteItems(prev => {
+      if (typeof editIndex === 'number') {
+        // If we're editing an existing item, insert it back at its original position
+        const newItems = [...prev];
+        newItems.splice(editIndex, 0, { ...configCopy, id: Date.now() });
+        // Renumber all items after reordering
+        return newItems.map((item, index) => ({
+          ...item,
+          itemNumber: index + 1
+        }));
+      } else {
+        // If it's a new item, add it to the end with the next number
+        return [...prev, { ...configCopy, id: Date.now(), itemNumber: prev.length + 1 }];
+      }
+    });
+    setCurrentConfiguration(emptyConfiguration);
+    setIsEditingItem(false);
+  };
+
+  const handleRemoveFromQuote = (itemId) => {
+    setQuoteItems(prev => {
+      // Remove the item and renumber remaining items
+      const filtered = prev.filter(item => item.id !== itemId);
+      return filtered.map((item, index) => ({
+        ...item,
+        itemNumber: index + 1
+      }));
+    });
   };
 
   const handleQuoteSaved = () => {

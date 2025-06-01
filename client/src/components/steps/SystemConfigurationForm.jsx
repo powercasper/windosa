@@ -107,7 +107,8 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         
         onUpdate({
           panels: defaultPanels,
-          dimensions: configuration.dimensions || { width: '', height: '' }
+          dimensions: configuration.dimensions || { width: '', height: '' },
+          grid: undefined // Remove grid configuration for sliding doors
         });
       }
 
@@ -436,6 +437,31 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
     return false;
   };
 
+  const handleConfigurationUpdate = (update) => {
+    setCurrentConfiguration((prev) => {
+      // For sliding doors, never allow grid configuration
+      if (prev.systemType === 'Sliding Doors') {
+        const { grid, ...rest } = update;
+        return { ...prev, ...rest };
+      }
+
+      // Only remove grid configuration when explicitly switching to panel door type
+      if (update.doorType === 'panel') {
+        return { ...prev, ...update, grid: undefined };
+      }
+      // When switching to glass door type, initialize grid if it doesn't exist
+      if (update.doorType === 'glass') {
+        return { 
+          ...prev, 
+          ...update, 
+          grid: update.grid || { enabled: true, horizontal: 2, vertical: 3 }
+        };
+      }
+      // For all other updates, preserve existing configuration including grid
+      return { ...prev, ...update };
+    });
+  };
+
   if (!configuration.brand || !configuration.systemType) {
     return (
       <Typography color="error">
@@ -450,6 +476,42 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         Configure {configuration.systemType}
       </Typography>
       <Paper sx={{ p: 3 }}>
+        {/* Item Identification Section */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            Item Details
+          </Typography>
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6}>
+              <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50' }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Item Number
+                </Typography>
+                <Typography variant="h5">
+                  {configuration.itemNumber || '-'}
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Location (Optional)"
+                placeholder="e.g., Living Room, Kitchen, Master Bedroom"
+                value={configuration.location || ''}
+                onChange={(e) => {
+                  // Limit to 100 characters
+                  if (e.target.value.length <= 100) {
+                    onUpdate({ location: e.target.value });
+                  }
+                }}
+                helperText={`${(configuration.location || '').length}/100 characters`}
+              />
+            </Grid>
+          </Grid>
+        </Box>
+
+        <Divider sx={{ my: 4 }} />
+
         {/* System Model Selection Section */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

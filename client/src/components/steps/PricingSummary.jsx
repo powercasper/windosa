@@ -400,7 +400,7 @@ const PricingSummary = ({
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                       Type:
-                    </Typography>
+                  </Typography>
                   <Typography variant="body2">
                       {configuration.systemType}
                   </Typography>
@@ -1261,8 +1261,13 @@ const PricingSummary = ({
                     <Box>
                       <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <WindowIcon color="primary" />
-                        {item.brand} - {item.systemModel}
+                        Item {item.itemNumber} - {item.brand} {item.systemModel}
                       </Typography>
+                      {item.location && (
+                        <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          Location: {item.location}
+                        </Typography>
+                      )}
                       <Typography variant="subtitle1" color="primary" sx={{ mt: 1 }}>
                         ${total.toFixed(2)}
                       </Typography>
