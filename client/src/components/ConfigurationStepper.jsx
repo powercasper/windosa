@@ -38,7 +38,8 @@ const emptyConfiguration = {
   operationType: '',
   dimensions: { width: 0, height: 0 },
   glassType: '',
-  finish: { type: '', color: '' }
+  finish: { type: '', color: '' },
+  grid: { enabled: false, horizontal: 2, vertical: 3 }
 };
 
 const ConfigurationStepper = ({ 
@@ -83,11 +84,19 @@ const ConfigurationStepper = ({
   };
 
   const handleConfigurationUpdate = (update) => {
-    setCurrentConfiguration((prev) => ({ ...prev, ...update }));
+    setCurrentConfiguration((prev) => {
+      // Preserve grid configuration when updating other properties
+      if (update.doorType === 'panel') {
+        return { ...prev, ...update, grid: undefined };
+      }
+      return { ...prev, ...update };
+    });
   };
 
   const handleAddToQuote = () => {
-    setQuoteItems(prev => [...prev, { ...currentConfiguration, id: Date.now() }]);
+    // Create a deep copy of the current configuration to preserve nested objects
+    const configCopy = JSON.parse(JSON.stringify(currentConfiguration));
+    setQuoteItems(prev => [...prev, { ...configCopy, id: Date.now() }]);
     setCurrentConfiguration(emptyConfiguration);
     setIsEditingItem(false);
   };
@@ -97,7 +106,14 @@ const ConfigurationStepper = ({
   };
 
   const handleEditItem = (item) => {
-    setCurrentConfiguration(item);
+    // Create a deep copy of the item to preserve nested objects
+    const itemCopy = JSON.parse(JSON.stringify(item));
+    // Ensure all properties are preserved, including grid, doorType, and other configurations
+    setCurrentConfiguration({
+      ...emptyConfiguration, // This provides the structure but will be overwritten
+      ...itemCopy, // This preserves all the item's configurations
+      grid: itemCopy.grid || emptyConfiguration.grid // Ensure grid configuration is preserved
+    });
     setQuoteItems(prev => prev.filter(i => i.id !== item.id));
     setIsEditingItem(true);
     setActiveStep(0);
