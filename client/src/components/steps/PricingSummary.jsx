@@ -561,6 +561,58 @@ const PricingSummary = ({
                             }}
                           />
                         )}
+                        {/* Grid Lines */}
+                        {configuration.grid?.enabled && (
+                          <Box sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            pointerEvents: 'none'
+                          }}>
+                            {/* Vertical Grid Lines */}
+                            {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => {
+                              const panelWidth = panel.width;
+                              const gridProfileWidth = (1 / panelWidth) * 100; // Convert 1 inch to percentage of panel width
+                              const position = ((i + 1) * 100) / configuration.grid.horizontal;
+                              return (
+                                <Box
+                                  key={`v-${i}`}
+                                  sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    bottom: 0,
+                                    left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
+                                    width: `${gridProfileWidth}%`,
+                                    bgcolor: 'grey.300',
+                                    boxShadow: '0 0 1px rgba(0,0,0,0.3)'
+                                  }}
+                                />
+                              );
+                            })}
+                            {/* Horizontal Grid Lines */}
+                            {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => {
+                              const totalHeight = configuration.dimensions.height;
+                              const gridProfileHeight = (1 / totalHeight) * 100; // Convert 1 inch to percentage of total height
+                              const position = ((i + 1) * 100) / configuration.grid.vertical;
+                              return (
+                                <Box
+                                  key={`h-${i}`}
+                                  sx={{
+                                    position: 'absolute',
+                                    left: 0,
+                                    right: 0,
+                                    top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
+                                    height: `${gridProfileHeight}%`,
+                                    bgcolor: 'grey.300',
+                                    boxShadow: '0 0 1px rgba(0,0,0,0.3)'
+                                  }}
+                                />
+                              );
+                            })}
+                          </Box>
+                        )}
                       </Paper>
                     ))}
                   </Box>
@@ -1110,6 +1162,16 @@ const PricingSummary = ({
                                           {item.systemType}
                                         </Typography>
                                       </Box>
+                                      {item.grid?.enabled && (
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                            Grid:
+                                          </Typography>
+                                          <Typography variant="body2">
+                                            {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
+                                          </Typography>
+                                        </Box>
+                                      )}
                                       {item.panels.map((panel, idx) => (
                                         <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
                                           <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
@@ -1192,6 +1254,46 @@ const PricingSummary = ({
                                                   mr: 0.25
                                                 }}
                                               />
+                                            )}
+                                            {/* Grid Lines */}
+                                            {item.grid?.enabled && (
+                                              <Box sx={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                pointerEvents: 'none'
+                                              }}>
+                                                {/* Vertical Grid Lines */}
+                                                {Array.from({ length: item.grid.horizontal - 1 }).map((_, i) => (
+                                                  <Box
+                                                    key={`v-${i}`}
+                                                    sx={{
+                                                      position: 'absolute',
+                                                      top: 0,
+                                                      bottom: 0,
+                                                      left: `${((i + 1) * 100) / item.grid.horizontal}%`,
+                                                      width: '1px',
+                                                      bgcolor: 'grey.400'
+                                                    }}
+                                                  />
+                                                ))}
+                                                {/* Horizontal Grid Lines */}
+                                                {Array.from({ length: item.grid.vertical - 1 }).map((_, i) => (
+                                                  <Box
+                                                    key={`h-${i}`}
+                                                    sx={{
+                                                      position: 'absolute',
+                                                      left: 0,
+                                                      right: 0,
+                                                      top: `${((i + 1) * 100) / item.grid.vertical}%`,
+                                                      height: '1px',
+                                                      bgcolor: 'grey.400'
+                                                    }}
+                                                  />
+                                                ))}
+                                              </Box>
                                             )}
                                           </Paper>
                                         ))}
@@ -1336,6 +1438,16 @@ const PricingSummary = ({
                                           {item.systemType}
                                         </Typography>
                                       </Box>
+                                      {item.grid?.enabled && (
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                            Grid:
+                                          </Typography>
+                                          <Typography variant="body2">
+                                            {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
+                                          </Typography>
+                                        </Box>
+                                      )}
                                       {item.panels?.map((panel, idx) => (
                                         <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
                                           <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
@@ -1395,6 +1507,46 @@ const PricingSummary = ({
                                             <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
                                               Panel {index + 1}
                                             </Typography>
+                                            {/* Grid Lines */}
+                                            {item.grid?.enabled && (
+                                              <Box sx={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                pointerEvents: 'none'
+                                              }}>
+                                                {/* Vertical Grid Lines */}
+                                                {Array.from({ length: item.grid.horizontal - 1 }).map((_, i) => (
+                                                  <Box
+                                                    key={`v-${i}`}
+                                                    sx={{
+                                                      position: 'absolute',
+                                                      top: 0,
+                                                      bottom: 0,
+                                                      left: `${((i + 1) * 100) / item.grid.horizontal}%`,
+                                                      width: '1px',
+                                                      bgcolor: 'grey.400'
+                                                    }}
+                                                  />
+                                                ))}
+                                                {/* Horizontal Grid Lines */}
+                                                {Array.from({ length: item.grid.vertical - 1 }).map((_, i) => (
+                                                  <Box
+                                                    key={`h-${i}`}
+                                                    sx={{
+                                                      position: 'absolute',
+                                                      left: 0,
+                                                      right: 0,
+                                                      top: `${((i + 1) * 100) / item.grid.vertical}%`,
+                                                      height: '1px',
+                                                      bgcolor: 'grey.400'
+                                                    }}
+                                                  />
+                                                ))}
+                                              </Box>
+                                            )}
                                           </Paper>
                                         ))}
                                       </Box>

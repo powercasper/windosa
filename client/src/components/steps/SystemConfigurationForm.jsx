@@ -17,6 +17,7 @@ import {
   Divider,
   InputAdornment,
   Switch,
+  FormControlLabel,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -27,6 +28,7 @@ import StraightIcon from '@mui/icons-material/Straight';
 import BuildIcon from '@mui/icons-material/Build';
 import ViewSidebarIcon from '@mui/icons-material/ViewSidebar';
 import PreviewIcon from '@mui/icons-material/Preview';
+import GridOnIcon from '@mui/icons-material/GridOn';
 
 // Import the system architecture data
 import { 
@@ -44,6 +46,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   const [maxPanels, setMaxPanels] = useState(6);
   const [panelConfigs, setPanelConfigs] = useState([]);
   const [useEqualWidths, setUseEqualWidths] = useState(true);
+  const [showGridConfig, setShowGridConfig] = useState(false);
 
   useEffect(() => {
     if (configuration.brand && configuration.systemType) {
@@ -80,7 +83,12 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
             operationType: 'Fixed',
             handleLocation: 'right'
           }],
-          dimensions: configuration.dimensions || { width: '', height: '' }
+          dimensions: configuration.dimensions || { width: '', height: '' },
+          grid: {
+            enabled: false,
+            horizontal: 2,
+            vertical: 3
+          }
         });
       } else if (configuration.systemType === 'Sliding Doors') {
         // Initialize default panels for sliding doors
@@ -944,6 +952,80 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                 </Paper>
               )}
 
+              {/* Grid Configuration Section */}
+              {configuration.systemType === 'Windows' && (
+                <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                  <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <GridOnIcon fontSize="small" /> Grid Configuration
+                  </Typography>
+                  <Stack spacing={2}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={configuration.grid?.enabled || false}
+                          onChange={(e) => {
+                            onUpdate({
+                              grid: {
+                                ...configuration.grid,
+                                enabled: e.target.checked,
+                                horizontal: configuration.grid?.horizontal || 2,
+                                vertical: configuration.grid?.vertical || 3
+                              }
+                            });
+                          }}
+                        />
+                      }
+                      label="Add Divided Lights"
+                    />
+                    
+                    {configuration.grid?.enabled && (
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            label="Horizontal Divisions"
+                            type="number"
+                            value={configuration.grid?.horizontal || 2}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 1;
+                              onUpdate({
+                                grid: {
+                                  ...configuration.grid,
+                                  horizontal: Math.max(1, value)
+                                }
+                              });
+                            }}
+                            InputProps={{ 
+                              inputProps: { min: 1, step: 1 }
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            label="Vertical Divisions"
+                            type="number"
+                            value={configuration.grid?.vertical || 3}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 1;
+                              onUpdate({
+                                grid: {
+                                  ...configuration.grid,
+                                  vertical: Math.max(1, value)
+                                }
+                              });
+                            }}
+                            InputProps={{ 
+                              inputProps: { min: 1, step: 1 }
+                            }}
+                          />
+                        </Grid>
+                      </Grid>
+                    )}
+                  </Stack>
+                </Paper>
+              )}
+
               {/* Configuration Preview Section */}
               {configuration.panels?.length > 0 && (
                 <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
@@ -998,19 +1080,73 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                                   overflow: 'hidden'
                                 }}
                               >
+                                {/* Grid Lines */}
+                                {configuration.grid?.enabled && (
+                                  <Box sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    pointerEvents: 'none'
+                                  }}>
+                                    {/* Vertical Grid Lines */}
+                                    {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => {
+                                      const panelWidth = panel.width;
+                                      const gridProfileWidth = (1 / panelWidth) * 100; // Convert 1 inch to percentage of panel width
+                                      const position = ((i + 1) * 100) / configuration.grid.horizontal;
+                                      return (
+                                        <Box
+                                          key={`v-${i}`}
+                                          sx={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            bottom: 0,
+                                            left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
+                                            width: `${gridProfileWidth}%`,
+                                            bgcolor: 'grey.300',
+                                            boxShadow: '0 0 1px rgba(0,0,0,0.3)'
+                                          }}
+                                        />
+                                      );
+                                    })}
+                                    {/* Horizontal Grid Lines */}
+                                    {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => {
+                                      const totalHeight = configuration.dimensions.height;
+                                      const gridProfileHeight = (1 / totalHeight) * 100; // Convert 1 inch to percentage of total height
+                                      const position = ((i + 1) * 100) / configuration.grid.vertical;
+                                      return (
+                                        <Box
+                                          key={`h-${i}`}
+                                          sx={{
+                                            position: 'absolute',
+                                            left: 0,
+                                            right: 0,
+                                            top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
+                                            height: `${gridProfileHeight}%`,
+                                            bgcolor: 'grey.300',
+                                            boxShadow: '0 0 1px rgba(0,0,0,0.3)'
+                                          }}
+                                        />
+                                      );
+                                    })}
+                                  </Box>
+                                )}
+
                                 <Typography variant="caption" sx={{ fontWeight: 500, textAlign: 'center' }}>
-                                  Panel {index + 1}
+                                  {panel.operationType === 'Fixed' ? 'F' : 
+                                   panel.operationType === 'Tilt & Turn' ? 'TT' :
+                                   panel.operationType === 'Casement' ? 'C' :
+                                   panel.operationType === 'Awning' ? 'A' : 'TO'}
                                 </Typography>
-
                                 <Typography variant="caption" sx={{ textAlign: 'center' }}>
-                                  {panel.operationType}
-                                  {panel.hasMosquitoNet && (
-                                    <Typography component="span" variant="caption" sx={{ display: 'block', color: 'success.main' }}>
-                                      + Net
-                                    </Typography>
-                                  )}
+                                  {panel.width}"
                                 </Typography>
-
+                                {panel.operationType !== 'Fixed' && configuration.hasMosquitoNet && (
+                                  <Typography variant="caption" sx={{ textAlign: 'center', color: 'success.main' }}>
+                                    Net
+                                  </Typography>
+                                )}
                                 {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
                                   <Box
                                     sx={{
@@ -1018,12 +1154,12 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                                       [panel.handleLocation || 'right']: 0,
                                       top: '50%',
                                       transform: 'translateY(-50%)',
-                                      width: '4px',
-                                      height: '16px',
+                                      width: '2px',
+                                      height: '8px',
                                       bgcolor: 'primary.dark',
-                                      borderRadius: '2px',
-                                      mr: panel.handleLocation === 'right' ? 0.5 : 'auto',
-                                      ml: panel.handleLocation === 'left' ? 0.5 : 'auto'
+                                      borderRadius: '1px',
+                                      mr: panel.handleLocation === 'right' ? 0.25 : 'auto',
+                                      ml: panel.handleLocation === 'left' ? 0.25 : 'auto'
                                     }}
                                   />
                                 )}
@@ -1031,23 +1167,6 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                             );
                           })}
                         </Box>
-                      </Box>
-
-                      {/* Dimensions Display */}
-                      <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                        <Stack spacing={1}>
-                          <Typography variant="subtitle2" color="text.secondary" align="center">
-                            Total Width: {configuration.dimensions.width || 0}"
-                          </Typography>
-                          <Typography variant="subtitle2" color="text.secondary" align="center">
-                            Height: {configuration.dimensions.height || 0}"
-                          </Typography>
-                          {useEqualWidths && (
-                            <Typography variant="caption" color="text.secondary" align="center">
-                              Each Panel Width: {configuration.dimensions.width ? (configuration.dimensions.width / configuration.panels.length).toFixed(1) : 0}"
-                            </Typography>
-                          )}
-                        </Stack>
                       </Box>
                     </Paper>
                   </Box>
