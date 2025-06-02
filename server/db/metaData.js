@@ -10,25 +10,19 @@ const systemBrands = [
 const systemHierarchy = {
     Windows:                systemBrands,
     "Entrance Doors":       systemBrands,
-    "Sliding Doors":        systemBrands,
-    "Folding Doors":        systemBrands,
-    "Curtain Wall Systems": systemBrands
+    "Sliding Doors":        systemBrands
 };
 
 const systemArchitecture = {
   Alumil: {
     Windows:           ["S67","S67 PHOS","S67 Urban","S77","S77 PHOS","M9660","M9660 PHOS"],
     "Entrance Doors":  ["SD67","SD77","SD115"],
-    "Sliding Doors":   ["SMARTIA M450","SMARTIA M630"],
-    "Folding Doors":   ["SMARTIA M19800","SUPREME SF85"],
-    "Curtain Wall Systems":["SMARTIA M6","SUPREME S86 PHOS"]
+    "Sliding Doors":   ["SMARTIA M450","SMARTIA M630", "SMARTIA S650"]
   },
   Aluprof: {
-    Windows:           ["MB-60","MB-70","MB-86","MB-104 Passive"],
-    "Entrance Doors":  ["MB-70 Doors","MB-86 Doors","MB-104 Doors"],
-    "Sliding Doors":   ["MB-Slide"],
-    "Folding Doors":   ["MB-86 Fold Line"],
-    "Curtain Wall Systems":["MB-SR50N","MB-TT50","MB-SR60"]
+    Windows:           ["MB-70","MB-79","MB-86"],
+    "Entrance Doors":  ["MB-70","MB-79","MB-86"],
+    "Sliding Doors":   ["MB-77HS","MB-59HS"]
   }
 };
 

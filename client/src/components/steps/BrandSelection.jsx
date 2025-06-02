@@ -22,6 +22,12 @@ const brandLogos = {
   'Reynaers': 'https://www.reynaers.com/sites/default/files/styles/header_logo/public/2019-01/reynaers-aluminium-logo.png'
 };
 
+const systemTypeLabels = {
+  Windows: "Windows",
+  'Entrance Doors': "Entrance Doors",
+  'Sliding Doors': "Sliding Doors"
+};
+
 const BrandSelection = ({ configuration, onUpdate, onNext, brands, isEditing }) => {
   const handleBrandSelect = (brand) => {
     onUpdate({ brand });
