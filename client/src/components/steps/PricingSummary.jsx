@@ -711,226 +711,7 @@ const PricingSummary = ({
                               {configuration.openingType === 'Single Door' && (
                                 <Paper
                                   sx={{
-                            p: 0.5,
-                                    flex: 1,
-                                    bgcolor: 'primary.light',
-                                    color: 'primary.contrastText',
-                                    textAlign: 'center',
-                                  border: '1px solid',
-                                  borderColor: 'primary.main',
-                                  position: 'relative',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                            justifyContent: 'center',
-                            minHeight: 0
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
-                            Door ({configuration.dimensions?.width}")
-                                  </Typography>
-                                  <Box
-                                    sx={{
-                                    position: 'absolute',
-                                      [configuration.handleLocation || 'right']: 0,
-                                    top: '50%',
-                                      transform: 'translateY(-50%)',
-                              width: '2px',
-                              height: '8px',
-                                    bgcolor: 'primary.dark',
-                              borderRadius: '1px',
-                              mr: configuration.handleLocation === 'right' ? 0.25 : 'auto',
-                              ml: configuration.handleLocation === 'left' ? 0.25 : 'auto'
-                                    }}
-                                  />
-                                </Paper>
-                              )}
-
-                      {configuration.openingType === 'Double Door' ? (
-                                <>
-                                  <Paper
-                                    sx={{
-                              p: 0.5,
-                                      flex: 1,
-                                      bgcolor: 'primary.light',
-                                      color: 'primary.contrastText',
-                                      textAlign: 'center',
-                                    border: '1px solid',
-                                      borderColor: 'primary.main',
-                                      position: 'relative',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                              justifyContent: 'center',
-                              minHeight: 0
-                            }}
-                          >
-                            {/* Grid Lines for Glass Doors */}
-                            {configuration.doorType === 'glass' && configuration.grid?.enabled && (
-                              <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                pointerEvents: 'none'
-                              }}>
-                                {/* Vertical Grid Lines */}
-                                {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => {
-                                  const doorWidth = configuration.dimensions.width / 2;
-                                  const gridProfileWidth = (1 / doorWidth) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.horizontal;
-                                  return (
-                                    <Box
-                                      key={`v-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        bottom: 0,
-                                        left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
-                                        width: `${gridProfileWidth}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                                {/* Horizontal Grid Lines */}
-                                {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => {
-                                  const totalHeight = configuration.dimensions.height;
-                                  const gridProfileHeight = (1 / totalHeight) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.vertical;
-                                  return (
-                                    <Box
-                                      key={`h-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        left: 0,
-                                        right: 0,
-                                        top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
-                                        height: `${gridProfileHeight}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </Box>
-                            )}
-                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
-                              Left ({(configuration.dimensions?.width || 0) / 2}")
-                                    </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
-                              {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
-                                    </Typography>
-                                    <Box
-                                      sx={{
-                                        position: 'absolute',
-                                        right: 0,
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                width: '2px',
-                                height: '8px',
-                                        bgcolor: 'primary.dark',
-                                borderRadius: '1px',
-                                mr: 0.25
-                                      }}
-                                    />
-                                  </Paper>
-                                  <Paper
-                                    sx={{
-                              p: 0.5,
-                                      flex: 1,
-                                      bgcolor: 'primary.light',
-                                      color: 'primary.contrastText',
-                                      textAlign: 'center',
-                                      border: '1px solid',
-                                      borderColor: 'primary.main',
-                                      position: 'relative',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                              justifyContent: 'center',
-                              minHeight: 0
-                            }}
-                          >
-                            {/* Grid Lines for Glass Doors */}
-                            {configuration.doorType === 'glass' && configuration.grid?.enabled && (
-                              <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                pointerEvents: 'none'
-                              }}>
-                                {/* Vertical Grid Lines */}
-                                {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => {
-                                  const doorWidth = configuration.dimensions.width / 2;
-                                  const gridProfileWidth = (1 / doorWidth) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.horizontal;
-                                  return (
-                                    <Box
-                                      key={`v-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        bottom: 0,
-                                        left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
-                                        width: `${gridProfileWidth}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                                {/* Horizontal Grid Lines */}
-                                {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => {
-                                  const totalHeight = configuration.dimensions.height;
-                                  const gridProfileHeight = (1 / totalHeight) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.vertical;
-                                  return (
-                                    <Box
-                                      key={`h-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        left: 0,
-                                        right: 0,
-                                        top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
-                                        height: `${gridProfileHeight}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </Box>
-                            )}
-                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
-                              Right ({(configuration.dimensions?.width || 0) / 2}")
-                                    </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
-                              {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
-                                    </Typography>
-                                    <Box
-                                      sx={{
-                                        position: 'absolute',
-                                        left: 0,
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                width: '2px',
-                                height: '8px',
-                                        bgcolor: 'primary.dark',
-                                borderRadius: '1px',
-                                ml: 0.25
-                                      }}
-                                    />
-                                  </Paper>
-                                </>
-                      ) : (
-                                <Paper
-                                  sx={{
-                            p: 0.5,
+                                    p: 0.5,
                                     flex: 1,
                                     bgcolor: 'primary.light',
                                     color: 'primary.contrastText',
@@ -941,80 +722,79 @@ const PricingSummary = ({
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
-                            justifyContent: 'center',
-                            minHeight: 0
-                          }}
-                        >
-                          {/* Grid Lines for Glass Doors */}
-                          {configuration.doorType === 'glass' && configuration.grid?.enabled && (
-                            <Box sx={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              pointerEvents: 'none'
-                            }}>
-                              {/* Vertical Grid Lines */}
-                              {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => {
-                                const doorWidth = configuration.dimensions.width;
-                                const gridProfileWidth = (1 / doorWidth) * 100;
-                                const position = ((i + 1) * 100) / configuration.grid.horizontal;
-                                return (
-                                  <Box
-                                    key={`v-${i}`}
-                                    sx={{
-                                        position: 'absolute',
-                                      top: 0,
-                                      bottom: 0,
-                                      left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
-                                      width: `${gridProfileWidth}%`,
-                                      bgcolor: 'grey.300',
-                                      boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                    }}
-                                  />
-                                );
-                              })}
-                              {/* Horizontal Grid Lines */}
-                              {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => {
-                                const totalHeight = configuration.dimensions.height;
-                                const gridProfileHeight = (1 / totalHeight) * 100;
-                                const position = ((i + 1) * 100) / configuration.grid.vertical;
-                                return (
-                                  <Box
-                                    key={`h-${i}`}
-                                    sx={{
+                                    justifyContent: 'center',
+                                    minHeight: 0
+                                  }}
+                                >
+                                  {/* Grid Lines for Glass Doors */}
+                                  {configuration.doorType === 'glass' && configuration.grid?.enabled && (
+                                    <Box sx={{
                                       position: 'absolute',
+                                      top: 0,
                                       left: 0,
                                       right: 0,
-                                      top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
-                                      height: `${gridProfileHeight}%`,
-                                      bgcolor: 'grey.300',
-                                      boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                    }}
-                                  />
-                                );
-                              })}
-                            </Box>
-                          )}
-                          <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
-                            Door ({configuration.dimensions?.width}")
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
-                            {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
-                          </Typography>
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              [configuration.handleLocation || 'right']: 0,
+                                      bottom: 0,
+                                      pointerEvents: 'none'
+                                    }}>
+                                      {/* Vertical Grid Lines */}
+                                      {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => {
+                                        const doorWidth = configuration.dimensions.width;
+                                        const gridProfileWidth = (1 / doorWidth) * 100;
+                                        const position = ((i + 1) * 100) / configuration.grid.horizontal;
+                                        return (
+                                          <Box
+                                            key={`v-${i}`}
+                                            sx={{
+                                              position: 'absolute',
+                                              top: 0,
+                                              bottom: 0,
+                                              left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
+                                              width: `${gridProfileWidth}%`,
+                                              bgcolor: 'grey.300',
+                                              boxShadow: '0 0 1px rgba(0,0,0,0.3)'
+                                            }}
+                                          />
+                                        );
+                                      })}
+                                      {/* Horizontal Grid Lines */}
+                                      {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => {
+                                        const totalHeight = configuration.dimensions.height;
+                                        const gridProfileHeight = (1 / totalHeight) * 100;
+                                        const position = ((i + 1) * 100) / configuration.grid.vertical;
+                                        return (
+                                          <Box
+                                            key={`h-${i}`}
+                                            sx={{
+                                              position: 'absolute',
+                                              left: 0,
+                                              right: 0,
+                                              top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
+                                              height: `${gridProfileHeight}%`,
+                                              bgcolor: 'grey.300',
+                                              boxShadow: '0 0 1px rgba(0,0,0,0.3)'
+                                            }}
+                                          />
+                                        );
+                                      })}
+                                    </Box>
+                                  )}
+                                  <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
+                                    Door ({configuration.dimensions?.width}")
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+                                    {configuration.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {configuration.swingDirection}
+                                  </Typography>
+                                  <Box
+                                    sx={{
+                                      position: 'absolute',
+                                      [configuration.swingDirection?.toLowerCase().includes('left') ? 'left' : 'right']: 0,
                                       top: '50%',
-                              transform: 'translateY(-50%)',
-                              width: '2px',
+                                      transform: 'translateY(-50%)',
+                                      width: '2px',
                                       height: '8px',
                                       bgcolor: 'primary.dark',
-                              borderRadius: '1px',
-                              mr: configuration.handleLocation === 'right' ? 0.25 : 'auto',
-                              ml: configuration.handleLocation === 'left' ? 0.25 : 'auto'
+                                      borderRadius: '1px',
+                                      [configuration.swingDirection?.toLowerCase().includes('left') ? 'ml' : 'mr']: 0.25
                                     }}
                                   />
                                 </Paper>
@@ -1989,21 +1769,75 @@ const PricingSummary = ({
                                               minHeight: 0
                                             }}
                                           >
+                                            {/* Grid Lines for Glass Doors */}
+                                            {item.doorType === 'glass' && item.grid?.enabled && (
+                                              <Box sx={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                pointerEvents: 'none'
+                                              }}>
+                                                {/* Vertical Grid Lines */}
+                                                {Array.from({ length: item.grid.horizontal - 1 }).map((_, i) => {
+                                                  const doorWidth = item.dimensions.width;
+                                                  const gridProfileWidth = (1 / doorWidth) * 100;
+                                                  const position = ((i + 1) * 100) / item.grid.horizontal;
+                                                  return (
+                                                    <Box
+                                                      key={`v-${i}`}
+                                                      sx={{
+                                                        position: 'absolute',
+                                                        top: 0,
+                                                        bottom: 0,
+                                                        left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
+                                                        width: `${gridProfileWidth}%`,
+                                                        bgcolor: 'grey.300',
+                                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
+                                                      }}
+                                                    />
+                                                  );
+                                                })}
+                                                {/* Horizontal Grid Lines */}
+                                                {Array.from({ length: item.grid.vertical - 1 }).map((_, i) => {
+                                                  const totalHeight = item.dimensions.height;
+                                                  const gridProfileHeight = (1 / totalHeight) * 100;
+                                                  const position = ((i + 1) * 100) / item.grid.vertical;
+                                                  return (
+                                                    <Box
+                                                      key={`h-${i}`}
+                                                      sx={{
+                                                        position: 'absolute',
+                                                        left: 0,
+                                                        right: 0,
+                                                        top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
+                                                        height: `${gridProfileHeight}%`,
+                                                        bgcolor: 'grey.300',
+                                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
+                                                      }}
+                                                    />
+                                                  );
+                                                })}
+                                              </Box>
+                                            )}
                                             <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
                                               Door ({item.dimensions?.width}")
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+                                              {item.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {item.swingDirection}
                                             </Typography>
                                             <Box
                                               sx={{
                                                 position: 'absolute',
-                                                [item.handleLocation || 'right']: 0,
+                                                [item.swingDirection?.toLowerCase().includes('left') ? 'left' : 'right']: 0,
                                                 top: '50%',
                                                 transform: 'translateY(-50%)',
                                                 width: '2px',
                                                 height: '8px',
                                                 bgcolor: 'primary.dark',
                                                 borderRadius: '1px',
-                                                mr: item.handleLocation === 'right' ? 0.25 : 'auto',
-                                                ml: item.handleLocation === 'left' ? 0.25 : 'auto'
+                                                [item.swingDirection?.toLowerCase().includes('left') ? 'ml' : 'mr']: 0.25
                                               }}
                                             />
                                           </Paper>
@@ -2084,7 +1918,7 @@ const PricingSummary = ({
                                                 Door ({item.dimensions?.width}")
                                               </Typography>
                                               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
-                                                {item.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {item.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
+                                                {item.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {item.swingDirection}
                                               </Typography>
                                               <Box
                                                 sx={{
@@ -2173,7 +2007,7 @@ const PricingSummary = ({
                                                 Right ({(configuration.dimensions?.width || 0) / 2}")
                                               </Typography>
                                               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
-                                                {item.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {item.openingDirection === 'outside' ? 'Opening Outside' : 'Opening Inside'}
+                                                {item.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {item.swingDirection}
                                               </Typography>
                                               <Box
                                                 sx={{
