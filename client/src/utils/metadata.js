@@ -8,25 +8,19 @@ const systemBrands = [
 const systemHierarchy = {
     Windows:                systemBrands,
     "Entrance Doors":       systemBrands,
-    "Sliding Doors":        systemBrands,
-    "Folding Doors":        systemBrands,
-    "Curtain Wall Systems": systemBrands
+    "Sliding Doors":        systemBrands
 };
 
 const systemArchitecture = {
   Alumil: {
     Windows:           ["S67","S67 PHOS","S67 Urban","S77","S77 PHOS","M9660","M9660 PHOS"],
     "Entrance Doors":  ["SD67","SD77","SD115"],
-    "Sliding Doors":   ["SMARTIA M450","SMARTIA M630", "SMARTIA S650"],
-    "Folding Doors":   ["SMARTIA M19800","SUPREME SF85"],
-    "Curtain Wall Systems":["SMARTIA M6","SUPREME S86 PHOS"]
+    "Sliding Doors":   ["SMARTIA M450","SMARTIA M630", "SMARTIA S650"]
   },
   Reynaers: {
     Windows:           ["SlimLine 38 Classic","SlimLine 38 Cube","SlimLine 38 Ferro","SlimLine 68"],
     "Entrance Doors":  ["SlimLine 38", "SlimLine 68", "MasterLine 8","CS 77"],
-    "Sliding Doors":   ["Hi-Finity"],
-    "Folding Doors":   ["CF 77","CF 68"],
-    "Curtain Wall Systems":["CW 50","Element Façade"]
+    "Sliding Doors":   ["Hi-Finity"]
   }
 };
 
@@ -123,9 +117,7 @@ const unitCostPerSqft = {
   Reynaers: {
     Windows:           ["SlimLine 38 Classic","SlimLine 38 Cube","SlimLine 38 Ferro","SlimLine 68"],
     "Entrance Doors":  ["SlimLine 38", "SlimLine 68", "MasterLine 8","CS 77"],
-    "Sliding Doors":   ["Hi-Finity"],
-    "Folding Doors":   ["CF 77","CF 68"],
-    "Curtain Wall Systems":["CW 50","Element Façade"]
+    "Sliding Doors":   ["Hi-Finity"]
   }
 };
 

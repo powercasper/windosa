@@ -14,14 +14,13 @@ import DoorFrontIcon from '@mui/icons-material/DoorFront';
 import ViewStreamIcon from '@mui/icons-material/ViewStream';
 import ViewComfyIcon from '@mui/icons-material/ViewComfy';
 import ViewQuiltIcon from '@mui/icons-material/ViewQuilt';
+import DoorSlidingIcon from '@mui/icons-material/DoorSliding';
 
 // Define the mapping of system types to their icons
-const systemTypeIcons = {
-  'Windows': WindowIcon,
+const iconMapping = {
+  Windows: WindowIcon,
   'Entrance Doors': DoorFrontIcon,
-  'Sliding Doors': ViewStreamIcon,
-  'Folding Doors': ViewComfyIcon,
-  'Curtain Wall Systems': ViewQuiltIcon,
+  'Sliding Doors': DoorSlidingIcon
 };
 
 const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isEditing }) => {
@@ -49,7 +48,7 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isE
       )}
       <Grid container spacing={3}>
         {systemTypes.map((type) => {
-          const Icon = systemTypeIcons[type];
+          const Icon = iconMapping[type];
           const isSelected = configuration.systemType === type;
           return (
             <Grid item xs={12} sm={6} md={4} key={type}>
