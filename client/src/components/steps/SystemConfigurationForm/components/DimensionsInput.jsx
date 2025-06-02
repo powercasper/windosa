@@ -1,12 +1,7 @@
 import React from 'react';
 import { Grid, TextField } from '@mui/material';
 
-const DimensionsInput = ({ dimensions, onChange, disabled = false }) => {
-  const handleChange = (field) => (event) => {
-    const value = parseFloat(event.target.value) || 0;
-    onChange({ ...dimensions, [field]: value });
-  };
-
+const DimensionsInput = ({ dimensions, onChange, widthProps = {}, heightProps = {} }) => {
   return (
     <Grid container spacing={2}>
       <Grid item xs={12} sm={6}>
@@ -15,12 +10,13 @@ const DimensionsInput = ({ dimensions, onChange, disabled = false }) => {
           label="Width (inches)"
           type="number"
           value={dimensions?.width || ''}
-          onChange={handleChange('width')}
-          disabled={disabled}
+          onChange={(e) => onChange({ ...dimensions, width: parseFloat(e.target.value) || 0 })}
           InputProps={{ 
             inputProps: { min: 0, step: 0.1 },
-            sx: { height: '56px' }
+            ...widthProps
           }}
+          error={!dimensions?.width}
+          helperText={!dimensions?.width ? 'Width is required' : ''}
         />
       </Grid>
       <Grid item xs={12} sm={6}>
@@ -29,12 +25,13 @@ const DimensionsInput = ({ dimensions, onChange, disabled = false }) => {
           label="Height (inches)"
           type="number"
           value={dimensions?.height || ''}
-          onChange={handleChange('height')}
-          disabled={disabled}
+          onChange={(e) => onChange({ ...dimensions, height: parseFloat(e.target.value) || 0 })}
           InputProps={{ 
             inputProps: { min: 0, step: 0.1 },
-            sx: { height: '56px' }
+            ...heightProps
           }}
+          error={!dimensions?.height}
+          helperText={!dimensions?.height ? 'Height is required' : ''}
         />
       </Grid>
     </Grid>

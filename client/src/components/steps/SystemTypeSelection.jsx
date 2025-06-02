@@ -39,8 +39,8 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isE
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>
-        Choose System Type
+      <Typography variant="h6" gutterBottom>
+        Select System Type
       </Typography>
       {!configuration.brand && (
         <Typography color="error" gutterBottom>
@@ -49,7 +49,7 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isE
       )}
       <Grid container spacing={3}>
         {systemTypes.map((type) => {
-          const IconComponent = systemTypeIcons[type] || WindowIcon; // Fallback to WindowIcon if no mapping found
+          const Icon = systemTypeIcons[type];
           const isSelected = configuration.systemType === type;
           return (
             <Grid item xs={12} sm={6} md={4} key={type}>
@@ -69,6 +69,8 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isE
                 <CardActionArea 
                   onClick={() => handleTypeSelect(type)}
                   disabled={!configuration.brand}
+                  sx={{ height: '100%' }}
+                  data-testid={`${type.toLowerCase().replace(/\s+/g, '-')}-option`}
                 >
                   <CardContent>
                     <Box
@@ -77,13 +79,13 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isE
                       alignItems="center"
                       p={2}
                     >
-                      <IconComponent 
+                      {Icon && <Icon 
                         sx={{ 
                           fontSize: 60, 
                           mb: 2,
                           color: isSelected ? 'primary.contrastText' : 'inherit'
                         }} 
-                      />
+                      />}
                       <Typography 
                         variant="h6" 
                         align="center"
@@ -95,6 +97,14 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isE
                         {type}
                       </Typography>
                     </Box>
+                    {isEditing && type === configuration.systemType && (
+                      <Chip 
+                        label="Current Selection" 
+                        color="primary" 
+                        size="small"
+                        sx={{ mt: 1 }}
+                      />
+                    )}
                   </CardContent>
                 </CardActionArea>
               </Card>

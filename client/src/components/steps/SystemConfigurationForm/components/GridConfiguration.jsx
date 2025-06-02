@@ -1,73 +1,80 @@
 import React from 'react';
-import { Paper, Typography, Stack, FormControlLabel, Switch, Grid, TextField } from '@mui/material';
-import GridOnIcon from '@mui/icons-material/GridOn';
+import { Box, Typography, FormControlLabel, Checkbox, Grid, TextField, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import ViewComfyIcon from '@mui/icons-material/ViewComfy';
+import ConfigurationSection from './ConfigurationSection';
 
-const GridConfiguration = ({ grid, onChange }) => {
-  const handleGridChange = (field, value) => {
-    onChange({
-      ...grid,
-      [field]: value
-    });
+const GridConfiguration = ({ grid, onChange, testIds = {} }) => {
+  const handleChange = (field) => (event) => {
+    const value = field === 'enabled' ? event.target.checked : event.target.value;
+    onChange({ ...grid, [field]: value });
   };
 
   return (
-    <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
-      <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <GridOnIcon fontSize="small" /> Grid Configuration
-      </Typography>
-      <Stack spacing={2}>
+    <ConfigurationSection title="Grid Configuration" icon={ViewComfyIcon}>
+      <Box>
         <FormControlLabel
           control={
-            <Switch
+            <Checkbox
               checked={grid?.enabled || false}
-              onChange={(e) => {
-                handleGridChange('enabled', e.target.checked);
-                if (e.target.checked && !grid) {
-                  handleGridChange('horizontal', 2);
-                  handleGridChange('vertical', 3);
-                }
-              }}
+              onChange={handleChange('enabled')}
+              inputProps={{ 'data-testid': testIds.enableGrids }}
             />
           }
-          label="Add Divided Lights"
+          label="Enable Grids"
         />
         
         {grid?.enabled && (
-          <Grid container spacing={2}>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Horizontal Divisions"
-                type="number"
-                value={grid?.horizontal || 2}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value) || 1;
-                  handleGridChange('horizontal', Math.max(1, value));
-                }}
-                InputProps={{ 
-                  inputProps: { min: 1, step: 1 }
-                }}
-              />
+              <FormControl fullWidth>
+                <InputLabel>Grid Pattern</InputLabel>
+                <Select
+                  value={grid.pattern || 'Colonial'}
+                  onChange={handleChange('pattern')}
+                  label="Grid Pattern"
+                  inputProps={{ 'data-testid': testIds.gridPattern }}
+                >
+                  <MenuItem value="Colonial">Colonial</MenuItem>
+                  <MenuItem value="Prairie">Prairie</MenuItem>
+                  <MenuItem value="Custom">Custom</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Vertical Divisions"
-                type="number"
-                value={grid?.vertical || 3}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value) || 1;
-                  handleGridChange('vertical', Math.max(1, value));
-                }}
-                InputProps={{ 
-                  inputProps: { min: 1, step: 1 }
-                }}
-              />
-            </Grid>
+            
+            {grid.pattern === 'Custom' && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Horizontal Lines"
+                    type="number"
+                    value={grid.horizontal || 2}
+                    onChange={handleChange('horizontal')}
+                    InputProps={{ 
+                      inputProps: { min: 1, max: 10 },
+                      'data-testid': testIds.horizontalCount
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Vertical Lines"
+                    type="number"
+                    value={grid.vertical || 3}
+                    onChange={handleChange('vertical')}
+                    InputProps={{ 
+                      inputProps: { min: 1, max: 10 },
+                      'data-testid': testIds.verticalCount
+                    }}
+                  />
+                </Grid>
+              </>
+            )}
           </Grid>
         )}
-      </Stack>
-    </Paper>
+      </Box>
+    </ConfigurationSection>
   );
 };
 

@@ -35,6 +35,8 @@ const EntranceDoorConfiguration = ({ configuration, onUpdate }) => {
         <DimensionsInput 
           dimensions={configuration.dimensions} 
           onChange={handleDimensionsChange}
+          widthProps={{ 'data-testid': 'width-input' }}
+          heightProps={{ 'data-testid': 'height-input' }}
         />
       </ConfigurationSection>
 
@@ -56,6 +58,7 @@ const EntranceDoorConfiguration = ({ configuration, onUpdate }) => {
                 { value: 'glass', label: 'Glass Door' },
                 { value: 'panel', label: 'Panel Door' }
               ]}
+              inputProps={{ 'data-testid': 'door-type-select' }}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -64,15 +67,18 @@ const EntranceDoorConfiguration = ({ configuration, onUpdate }) => {
               value={configuration.openingType || ''}
               onChange={handleChange('openingType')}
               options={doorOperables.openingTypes}
+              inputProps={{ 'data-testid': 'opening-type-select' }}
+              error={!configuration.openingType}
+              helperText={!configuration.openingType ? 'Opening type is required' : ''}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
             <SelectField
-              label="Swing Direction"
-              value={configuration.swingDirection || ''}
-              onChange={handleChange('swingDirection')}
-              options={configuration.openingType ? doorOperables.swingDirections[configuration.openingType] : []}
-              disabled={!configuration.openingType}
+              label="Hand"
+              value={configuration.hand || ''}
+              onChange={handleChange('hand')}
+              options={doorOperables.hands}
+              inputProps={{ 'data-testid': 'hand-select' }}
             />
           </Grid>
         </Grid>
@@ -83,6 +89,12 @@ const EntranceDoorConfiguration = ({ configuration, onUpdate }) => {
         configuration={configuration}
         onUpdate={onUpdate}
         options={doorOperables}
+        testIds={{
+          handleType: 'handle-type-select',
+          lockType: 'lock-type-select',
+          threshold: 'threshold-select',
+          hingeType: 'hinge-type-select'
+        }}
       />
 
       {/* Sidelights Configuration */}
@@ -111,6 +123,12 @@ const EntranceDoorConfiguration = ({ configuration, onUpdate }) => {
         <GridConfiguration 
           grid={configuration.grid} 
           onChange={handleGridChange}
+          testIds={{
+            enableGrids: 'enable-grids-checkbox',
+            gridPattern: 'grid-pattern-select',
+            horizontalCount: 'horizontal-grid-input',
+            verticalCount: 'vertical-grid-input'
+          }}
         />
       )}
     </Stack>
