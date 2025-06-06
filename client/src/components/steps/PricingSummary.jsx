@@ -29,12 +29,77 @@ import WindowIcon from '@mui/icons-material/Window';
 import ColorLensIcon from '@mui/icons-material/ColorLens';
 import SquareFootIcon from '@mui/icons-material/SquareFoot';
 import CommentIcon from '@mui/icons-material/Comment';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
+import DoorSlidingIcon from '@mui/icons-material/DoorSliding';
+import SummarizeIcon from '@mui/icons-material/Summarize';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote, generatePDF } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
 
 const STORAGE_KEY = 'orderAdditionalCosts';
+
+// Helper functions for cost distribution
+const calculateDistributedCosts = (items, totalArea, additionalCosts) => {
+  const { tariff, shipping, delivery } = additionalCosts;
+  const totalAdditionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
+  
+  if (totalArea === 0 || totalAdditionalCosts === 0) return { costPerSqFt: 0, totalDistributedCost: 0 };
+  
+  const costPerSqFt = totalAdditionalCosts / totalArea;
+  return { costPerSqFt, totalDistributedCost: totalAdditionalCosts };
+};
+
+const calculateTypeMetrics = (items, type, additionalCosts) => {
+  const typeItems = items.filter(({ item }) => item.systemType === type);
+  
+  const totalArea = typeItems.reduce((sum, { item }) => {
+    if (type === 'Windows') {
+      return sum + ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
+    } else if (type === 'Entrance Doors') {
+      return sum + (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                    item.dimensions.width +
+                    (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                   (item.dimensions.height + 
+                    (item.transom?.enabled ? item.transom.height : 0)) / 144);
+    } else if (type === 'Sliding Doors') {
+      return sum + ((item.dimensions.width * item.dimensions.height) / 144);
+    }
+    return sum;
+  }, 0);
+
+  const baseCost = typeItems.reduce((sum, { total }) => sum + total, 0);
+  
+  // Calculate total area of all items for distribution ratio
+  const allItemsArea = items.reduce((sum, { item }) => {
+    if (item.systemType === 'Windows') {
+      return sum + ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
+    } else if (item.systemType === 'Entrance Doors') {
+      return sum + (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                    item.dimensions.width +
+                    (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                   (item.dimensions.height + 
+                    (item.transom?.enabled ? item.transom.height : 0)) / 144);
+    } else if (item.systemType === 'Sliding Doors') {
+      return sum + ((item.dimensions.width * item.dimensions.height) / 144);
+    }
+    return sum;
+  }, 0);
+
+  const { costPerSqFt: additionalCostPerSqFt } = calculateDistributedCosts(items, allItemsArea, additionalCosts);
+  const distributedCost = totalArea * additionalCostPerSqFt;
+  
+  const totalCost = baseCost + distributedCost;
+  const costPerSqFt = totalArea > 0 ? totalCost / totalArea : 0;
+
+  return {
+    totalArea: totalArea.toFixed(1),
+    baseCost: baseCost.toFixed(2),
+    distributedCost: distributedCost.toFixed(2),
+    totalCost: totalCost.toFixed(2),
+    costPerSqFt: costPerSqFt.toFixed(2)
+  };
+};
 
 const getStoredCosts = () => {
   try {
@@ -485,9 +550,19 @@ const PricingSummary = ({
             <Typography variant="h6">
               Current Item
             </Typography>
-            <Typography variant="h6" color="primary">
-              {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
-            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Typography variant="h6" color="primary">
+                {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
+              </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleAddToQuote}
+                startIcon={<AddIcon />}
+              >
+                Add to Quote
+              </Button>
+            </Box>
           </Box>
 
           <Grid container spacing={3}>
@@ -541,21 +616,75 @@ const PricingSummary = ({
                 <Stack spacing={1.5} sx={{ mt: 2 }}>
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                      Brand:
-                    </Typography>
-                    <Typography variant="body2">
-                      {configuration.brand} - {configuration.systemModel}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                       Type:
                     </Typography>
                     <Typography variant="body2">
                       {configuration.systemType}
                     </Typography>
                   </Box>
-                  {configuration.systemType === 'Windows' && configuration.panels ? (
+                  {configuration.systemType === 'Entrance Doors' && (
+                    <>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                          Opening:
+                        </Typography>
+                        <Typography variant="body2">
+                          {configuration.openingType}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                          Swing:
+                        </Typography>
+                        <Typography variant="body2">
+                          {configuration.swingDirection}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                          Handle:
+                        </Typography>
+                        <Typography variant="body2">
+                          {configuration.handleType}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                          Lock:
+                        </Typography>
+                        <Typography variant="body2">
+                          {configuration.lockType}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                          Threshold:
+                        </Typography>
+                        <Typography variant="body2">
+                          {configuration.threshold}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                          Hinge:
+                        </Typography>
+                        <Typography variant="body2">
+                          {configuration.hingeType}
+                        </Typography>
+                      </Box>
+                      {configuration.grid?.enabled && (
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                            Grid:
+                          </Typography>
+                          <Typography variant="body2">
+                            {configuration.grid.horizontal}H × {configuration.grid.vertical}V Divided Lights
+                          </Typography>
+                        </Box>
+                      )}
+                    </>
+                  )}
+                  {configuration.systemType === 'Windows' && configuration.panels && (
                     configuration.panels.map((panel, idx) => (
                       <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
@@ -567,7 +696,8 @@ const PricingSummary = ({
                         </Typography>
                       </Box>
                     ))
-                  ) : configuration.systemType === 'Sliding Doors' && configuration.panels ? (
+                  )}
+                  {configuration.systemType === 'Sliding Doors' && configuration.panels && (
                     configuration.panels.map((panel, idx) => (
                       <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
@@ -578,256 +708,7 @@ const PricingSummary = ({
                         </Typography>
                       </Box>
                     ))
-                  ) : configuration.systemType === 'Entrance Doors' ? (
-                    <Box sx={{ display: 'flex', gap: 1, flex: 1 }}>
-                      {/* Left Sidelight */}
-                      {configuration.leftSidelight?.enabled && (
-                        <Paper
-                          sx={{
-                            p: 0.5,
-                            width: `${(configuration.leftSidelight.width / ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                              configuration.dimensions.width + 
-                              (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0))) * 100}%`,
-                            bgcolor: 'grey.100',
-                            color: 'text.primary',
-                            textAlign: 'center',
-                            border: '1px solid',
-                            borderColor: 'grey.300',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minHeight: 0
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                            Left ({configuration.leftSidelight.width}")
-                          </Typography>
-                        </Paper>
-                      )}
-
-                      {/* Door Panels */}
-                      {configuration.openingType === 'Double Door' && (
-                        <Box sx={{ display: 'flex', gap: 0, flex: 1 }}>
-                          {/* Left Door Panel */}
-                          <Paper
-                            sx={{
-                              p: 1,
-                              flex: 1,
-                              bgcolor: 'primary.light',
-                              color: 'primary.contrastText',
-                              textAlign: 'center',
-                              border: '1px solid',
-                              borderColor: 'primary.main',
-                              borderRight: '2px solid',
-                              borderRightColor: 'grey.400',
-                              position: 'relative',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              minHeight: '60px'
-                            }}
-                          >
-                            {/* Grid Lines for Glass Doors */}
-                            {configuration.doorType === 'glass' && configuration.grid?.enabled && (
-                              <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                pointerEvents: 'none'
-                              }}>
-                                {/* Vertical Grid Lines */}
-                                {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => {
-                                  const doorWidth = configuration.dimensions.width / 2;
-                                  const gridProfileWidth = (1 / doorWidth) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.horizontal;
-                                  return (
-                                    <Box
-                                      key={`v-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        bottom: 0,
-                                        left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
-                                        width: `${gridProfileWidth}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                                {/* Horizontal Grid Lines */}
-                                {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => {
-                                  const totalHeight = configuration.dimensions.height;
-                                  const gridProfileHeight = (1 / totalHeight) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.vertical;
-                                  return (
-                                    <Box
-                                      key={`h-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        left: 0,
-                                        right: 0,
-                                        top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
-                                        height: `${gridProfileHeight}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </Box>
-                            )}
-                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.7rem' }}>
-                              Left Panel
-                            </Typography>
-                            <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                              {(configuration.dimensions?.width || 0) / 2}"
-                            </Typography>
-                            {/* Right Handle for Left Door */}
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                right: 0,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                width: '3px',
-                                height: '12px',
-                                bgcolor: 'primary.dark',
-                                borderRadius: '2px',
-                                mr: 0.5,
-                                zIndex: 2
-                              }}
-                            />
-                          </Paper>
-
-                          {/* Right Door Panel */}
-                          <Paper
-                            sx={{
-                              p: 1,
-                              flex: 1,
-                              bgcolor: 'primary.light',
-                              color: 'primary.contrastText',
-                              textAlign: 'center',
-                              border: '1px solid',
-                              borderColor: 'primary.main',
-                              borderLeft: '2px solid',
-                              borderLeftColor: 'grey.400',
-                              position: 'relative',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              minHeight: '60px'
-                            }}
-                          >
-                            {/* Grid Lines for Glass Doors */}
-                            {configuration.doorType === 'glass' && configuration.grid?.enabled && (
-                              <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                pointerEvents: 'none'
-                              }}>
-                                {/* Vertical Grid Lines */}
-                                {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => {
-                                  const doorWidth = configuration.dimensions.width / 2;
-                                  const gridProfileWidth = (1 / doorWidth) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.horizontal;
-                                  return (
-                                    <Box
-                                      key={`v-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        bottom: 0,
-                                        left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
-                                        width: `${gridProfileWidth}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                                {/* Horizontal Grid Lines */}
-                                {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => {
-                                  const totalHeight = configuration.dimensions.height;
-                                  const gridProfileHeight = (1 / totalHeight) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.vertical;
-                                  return (
-                                    <Box
-                                      key={`h-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        left: 0,
-                                        right: 0,
-                                        top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
-                                        height: `${gridProfileHeight}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </Box>
-                            )}
-                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.7rem' }}>
-                              Right Panel
-                            </Typography>
-                            <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                              {(configuration.dimensions?.width || 0) / 2}"
-                            </Typography>
-                            {/* Left Handle for Right Door */}
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                left: 0,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                width: '3px',
-                                height: '12px',
-                                bgcolor: 'primary.dark',
-                                borderRadius: '2px',
-                                ml: 0.5,
-                                zIndex: 2
-                              }}
-                            />
-                          </Paper>
-                        </Box>
-                      )}
-
-                      {/* Right Sidelight */}
-                      {configuration.rightSidelight?.enabled && (
-                        <Paper
-                          sx={{
-                            p: 0.5,
-                            width: `${(configuration.rightSidelight.width / ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                              configuration.dimensions.width + 
-                              (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0))) * 100}%`,
-                            bgcolor: 'grey.100',
-                            color: 'text.primary',
-                            textAlign: 'center',
-                            border: '1px solid',
-                            borderColor: 'grey.300',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minHeight: 0
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                            Right ({configuration.rightSidelight.width}")
-                          </Typography>
-                        </Paper>
-                      )}
-                    </Box>
-                  ) : null}
+                  )}
                 </Stack>
               </Paper>
             </Grid>
@@ -927,13 +808,83 @@ const PricingSummary = ({
                                 (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0)) * 
                                (configuration.dimensions.height + 
                                 (configuration.transom?.enabled ? configuration.transom.height : 0)) / 144
-                              ).toFixed(1)} sq ft
-                          </Typography>
+                                  ).toFixed(1)} sq ft
+                        </Typography>
                       </Box>
                     </Stack>
                   </Box>
                 </Stack>
               </Paper>
+            </Grid>
+
+            {/* Finish Details and Cost Breakdown */}
+            <Grid item xs={12}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  bgcolor: 'background.default',
+                  mb: 2
+                }}
+              >
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Finish Details
+                    </Typography>
+                    <Stack direction="row" spacing={3}>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Type:</Typography>
+                        <Typography variant="body2">{configuration.finish?.type}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Style:</Typography>
+                        <Typography variant="body2">{configuration.finish?.color}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">RAL:</Typography>
+                        <Typography variant="body2">{configuration.finish?.ralColor}</Typography>
+                      </Box>
+                    </Stack>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Cost Breakdown
+                    </Typography>
+                    <Stack direction="row" spacing={3}>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">System:</Typography>
+                        <Typography variant="body2">${currentItemPrice?.systemCost.toFixed(2) || '0.00'}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Glass:</Typography>
+                        <Typography variant="body2">${currentItemPrice?.glassCost.toFixed(2) || '0.00'}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Labor:</Typography>
+                        <Typography variant="body2">${currentItemPrice?.laborCost.toFixed(2) || '0.00'}</Typography>
+                      </Box>
+                    </Stack>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {configuration.notes && (
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 2,
+                    bgcolor: 'background.default'
+                  }}
+                >
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Notes
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {configuration.notes}
+                  </Typography>
+                </Paper>
+              )}
             </Grid>
           </Grid>
         </Paper>
@@ -994,17 +945,17 @@ const PricingSummary = ({
                   </Stack>
 
                   {/* Main Content Grid */}
-                  <Paper 
-                    variant="outlined" 
-                    sx={{ 
-                      p: 2,
-                      bgcolor: 'background.default',
+                              <Paper 
+                                variant="outlined" 
+                                sx={{ 
+                                  p: 2,
+                                  bgcolor: 'background.default',
                       mb: 2
-                    }}
-                  >
-                    <Grid container spacing={3}>
+                                }}
+                              >
+                                <Grid container spacing={3}>
                       {/* Configuration Preview */}
-                      <Grid item xs={12} md={4}>
+                                  <Grid item xs={12} md={4}>
                         <Paper
                           variant="outlined"
                           sx={{
@@ -1014,74 +965,74 @@ const PricingSummary = ({
                           }}
                         >
                           <Typography variant="subtitle1" color="primary" gutterBottom sx={{ pb: 1, borderBottom: 1, borderColor: 'divider' }}>
-                            Configuration Preview
-                          </Typography>
+                                      Configuration Preview
+                                    </Typography>
                           <Box sx={{ mt: 2 }}>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                              Scaled Preview (Not Actual Size)
-                            </Typography>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              flexDirection: 'column', 
-                              gap: 1,
-                              border: '2px solid',
-                              borderColor: 'grey.300',
-                              borderRadius: 1,
-                              p: 1,
-                              bgcolor: 'background.paper',
-                              maxHeight: '200px'
-                            }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                                      Scaled Preview (Not Actual Size)
+                                    </Typography>
+                                    <Box sx={{ 
+                                      display: 'flex', 
+                                      flexDirection: 'column', 
+                                      gap: 1,
+                                      border: '2px solid',
+                                      borderColor: 'grey.300',
+                                      borderRadius: 1,
+                                      p: 1,
+                                      bgcolor: 'background.paper',
+                                      maxHeight: '200px'
+                                    }}>
                               <ConfigurationPreviewUI configuration={item} />
-                            </Box>
-                          </Box>
+                                  </Box>
+                              </Box>
                         </Paper>
-                      </Grid>
+                                  </Grid>
 
                       {/* Configuration Details */}
-                      <Grid item xs={12} md={4}>
-                        <Paper
-                          variant="outlined"
-                          sx={{
+                                  <Grid item xs={12} md={4}>
+                              <Paper 
+                                variant="outlined" 
+                                sx={{ 
                             height: '100%',
                             p: 2,
                             bgcolor: 'background.paper'
                           }}
                         >
                           <Typography variant="subtitle1" color="primary" gutterBottom sx={{ pb: 1, borderBottom: 1, borderColor: 'divider' }}>
-                            Configuration Details
-                          </Typography>
+                                        Configuration Details
+                              </Typography>
                           <Stack spacing={1.5} sx={{ mt: 2 }}>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                Type:
-                              </Typography>
-                              <Typography variant="body2">
-                                {item.systemType}
-                              </Typography>
-                            </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Type:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.systemType}
+                                        </Typography>
+                                      </Box>
                             {item.systemType === 'Windows' && (
                               <>
-                                {item.grid?.enabled && (
-                                  <Box sx={{ display: 'flex', gap: 1 }}>
-                                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                      Grid:
-                                    </Typography>
-                                    <Typography variant="body2">
-                                      {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
-                                    </Typography>
-                                  </Box>
-                                )}
+                                      {item.grid?.enabled && (
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                            Grid:
+                                          </Typography>
+                                          <Typography variant="body2">
+                                            {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
+                                          </Typography>
+                                        </Box>
+                                      )}
                                 {item.panels.map((panel, idx) => (
-                                  <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
-                                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                      Panel {idx + 1}:
-                                    </Typography>
-                                    <Typography variant="body2">
+                                        <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
+                                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                            Panel {idx + 1}:
+                                          </Typography>
+                                          <Typography variant="body2">
                                       {panel.operationType} ({panel.width}")
                                       {panel.operationType !== 'Fixed' && item.hasMosquitoNet && ' + Mosquito Net'}
-                                    </Typography>
-                                  </Box>
-                                ))}
+                                          </Typography>
+                                        </Box>
+                                      ))}
                               </>
                             )}
                             {item.systemType === 'Sliding Doors' && (
@@ -1089,83 +1040,83 @@ const PricingSummary = ({
                                 <Box sx={{ display: 'flex', gap: 1 }}>
                                   <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                                     Configuration:
-                                  </Typography>
-                                  <Typography variant="body2">
+                                        </Typography>
+                                            <Typography variant="body2">
                                     {item.operationType || 'Custom'}
-                                  </Typography>
-                                </Box>
+                                            </Typography>
+                                          </Box>
                                 {item.grid?.enabled && (
                                   <Box sx={{ display: 'flex', gap: 1 }}>
                                     <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                                       Grid:
                                     </Typography>
-                                    <Typography variant="body2">
+                                            <Typography variant="body2">
                                       {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
-                                    </Typography>
-                                  </Box>
+                                            </Typography>
+                                          </Box>
                                 )}
                                 {item.panels?.map((panel, idx) => (
                                   <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
                                     <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                                       Panel {idx + 1}:
-                                    </Typography>
-                                    <Typography variant="body2">
+                                        </Typography>
+                                            <Typography variant="body2">
                                       {panel.type} {panel.type === 'Sliding' ? `(${panel.direction === 'left' ? '←' : '→'})` : ''}
-                                    </Typography>
-                                  </Box>
+                                            </Typography>
+                                          </Box>
                                 ))}
                               </>
                             )}
                             {item.systemType === 'Entrance Doors' && (
                               <>
-                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                    Opening:
-                                  </Typography>
-                                  <Typography variant="body2">
-                                    {item.openingType}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                    Swing:
-                                  </Typography>
-                                  <Typography variant="body2">
-                                    {item.swingDirection}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                    Handle:
-                                  </Typography>
-                                  <Typography variant="body2">
-                                    {item.handleType}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                    Lock:
-                                  </Typography>
-                                  <Typography variant="body2">
-                                    {item.lockType}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                    Threshold:
-                                  </Typography>
-                                  <Typography variant="body2">
-                                    {item.threshold}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                    Hinge:
-                                  </Typography>
-                                  <Typography variant="body2">
-                                    {item.hingeType}
-                                  </Typography>
-                                </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Opening:
+                                        </Typography>
+                            <Typography variant="body2">
+                                          {item.openingType}
+                            </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Swing:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.swingDirection}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Handle:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.handleType}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Lock:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.lockType}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Threshold:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.threshold}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Hinge:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {item.hingeType}
+                                        </Typography>
+                                      </Box>
                                 {item.grid?.enabled && (
                                   <Box sx={{ display: 'flex', gap: 1 }}>
                                     <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
@@ -1174,19 +1125,19 @@ const PricingSummary = ({
                                     <Typography variant="body2">
                                       {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
                                     </Typography>
-                                  </Box>
-                                )}
-                              </>
-                            )}
+                                        </Box>
+                                      )}
+                                          </>
+                                        )}
                           </Stack>
-                        </Paper>
+                                          </Paper>
                       </Grid>
 
                       {/* System Dimensions */}
                       <Grid item xs={12} md={4}>
-                        <Paper
+                                          <Paper
                           variant="outlined"
-                          sx={{
+                                            sx={{
                             height: '100%',
                             p: 2,
                             bgcolor: 'background.paper'
@@ -1194,16 +1145,16 @@ const PricingSummary = ({
                         >
                           <Typography variant="subtitle1" color="primary" gutterBottom sx={{ pb: 1, borderBottom: 1, borderColor: 'divider' }}>
                             System Dimensions
-                          </Typography>
+                                            </Typography>
                           <Stack spacing={2} sx={{ mt: 2 }}>
-                            <Box>
-                              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                      <Box>
+                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                 Measurements
-                              </Typography>
-                              <Stack spacing={1}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                  <Typography variant="body2" color="text.secondary">Total Width:</Typography>
-                                  <Typography variant="body2">
+                                        </Typography>
+                                        <Stack spacing={1}>
+                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                            <Typography variant="body2" color="text.secondary">Total Width:</Typography>
+                                            <Typography variant="body2">
                                     {item.systemType === 'Windows' ?
                                       item.panels.reduce((sum, panel) => sum + panel.width, 0) :
                                       item.systemType === 'Sliding Doors' ?
@@ -1211,37 +1162,37 @@ const PricingSummary = ({
                                         ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
                                          item.dimensions.width +
                                          (item.rightSidelight?.enabled ? item.rightSidelight.width : 0))}"
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                  <Typography variant="body2" color="text.secondary">Total Height:</Typography>
-                                  <Typography variant="body2">
+                                            </Typography>
+                                          </Box>
+                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                            <Typography variant="body2" color="text.secondary">Total Height:</Typography>
+                                            <Typography variant="body2">
                                     {item.dimensions?.height +
                                      (item.systemType === 'Entrance Doors' && item.transom?.enabled ? 
                                        item.transom.height : 0)}"
-                                  </Typography>
-                                </Box>
-                              </Stack>
-                            </Box>
+                                            </Typography>
+                                          </Box>
+                                        </Stack>
+                                      </Box>
 
-                            <Box>
-                              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                Area Calculations
-                              </Typography>
-                              <Stack spacing={1}>
+                                      <Box>
+                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                          Area Calculations
+                                        </Typography>
+                                        <Stack spacing={1}>
                                 {item.systemType === 'Entrance Doors' && (
                                   <>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                      <Typography variant="body2" color="text.secondary">Door Area:</Typography>
-                                      <Typography variant="body2">
+                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                            <Typography variant="body2" color="text.secondary">Door Area:</Typography>
+                                            <Typography variant="body2">
                                         {((item.dimensions?.width * item.dimensions?.height) / 144).toFixed(1)} sq ft
-                                      </Typography>
-                                    </Box>
-                                    {(item.leftSidelight?.enabled || item.rightSidelight?.enabled || item.transom?.enabled) && (
-                                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                        <Typography variant="body2" color="text.secondary">Glass Area:</Typography>
-                                        <Typography variant="body2">
-                                          {(
+                                            </Typography>
+                                          </Box>
+                                          {(item.leftSidelight?.enabled || item.rightSidelight?.enabled || item.transom?.enabled) && (
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                              <Typography variant="body2" color="text.secondary">Glass Area:</Typography>
+                                              <Typography variant="body2">
+                                                {(
                                             ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) * 
                                              item.dimensions.height +
                                              (item.rightSidelight?.enabled ? item.rightSidelight.width : 0) * 
@@ -1249,24 +1200,24 @@ const PricingSummary = ({
                                             ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
                                              item.dimensions.width +
                                              (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
-                                             (item.transom?.enabled ? item.transom.height : 0)
-                                                ) / 144
-                                          ).toFixed(1)} sq ft
-                                        </Typography>
-                                      </Box>
+                                           (item.transom?.enabled ? item.transom.height : 0)
+                                                  ) / 144
+                                                ).toFixed(1)} sq ft
+                                              </Typography>
+                                            </Box>
                                     )}
                                   </>
-                                )}
-                                <Box sx={{ 
-                                  display: 'flex', 
-                                  justifyContent: 'space-between', 
-                                  alignItems: 'baseline',
+                                          )}
+                                          <Box sx={{ 
+                                            display: 'flex', 
+                                            justifyContent: 'space-between', 
+                                            alignItems: 'baseline',
                                   pt: item.systemType === 'Entrance Doors' ? 1 : 0,
                                   borderTop: item.systemType === 'Entrance Doors' ? '1px solid' : 'none',
-                                  borderColor: 'divider'
-                                }}>
-                                  <Typography variant="subtitle2" color="primary">Total Area:</Typography>
-                                  <Typography variant="subtitle2" color="primary">
+                                            borderColor: 'divider'
+                                          }}>
+                                            <Typography variant="subtitle2" color="primary">Total Area:</Typography>
+                                            <Typography variant="subtitle2" color="primary">
                                     {item.systemType === 'Windows' ?
                                       ((item.panels.reduce((sum, panel) => sum + panel.width, 0) * 
                                         item.dimensions?.height) / 144).toFixed(1) :
@@ -1277,85 +1228,85 @@ const PricingSummary = ({
                                           (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
                                          (item.dimensions.height + 
                                           (item.transom?.enabled ? item.transom.height : 0)) / 144
-                                        ).toFixed(1)} sq ft
-                                  </Typography>
-                                </Box>
-                              </Stack>
-                            </Box>
-                          </Stack>
+                                              ).toFixed(1)} sq ft
+                                            </Typography>
+                                          </Box>
+                                        </Stack>
+                                      </Box>
+                                    </Stack>
                         </Paper>
-                      </Grid>
-                    </Grid>
-                  </Paper>
+                                  </Grid>
+                                </Grid>
+                              </Paper>
 
-                  {/* Finish Details Card */}
-                  <Paper 
-                    variant="outlined" 
-                    sx={{ 
-                      p: 2,
-                      bgcolor: 'background.default',
-                      mb: 2
-                    }}
-                  >
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                          Finish Details
-                        </Typography>
-                        <Stack direction="row" spacing={3}>
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">Type:</Typography>
-                            <Typography variant="body2">{item.finish.type}</Typography>
-                          </Box>
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">Style:</Typography>
-                            <Typography variant="body2">{item.finish.color}</Typography>
-                          </Box>
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">RAL:</Typography>
-                            <Typography variant="body2">{item.finish.ralColor}</Typography>
-                          </Box>
-                        </Stack>
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                          Cost Breakdown
-                        </Typography>
-                        <Stack direction="row" spacing={3}>
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">System:</Typography>
-                            <Typography variant="body2">${systemCost.toFixed(2)}</Typography>
-                          </Box>
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">Glass:</Typography>
-                            <Typography variant="body2">${glassCost.toFixed(2)}</Typography>
-                          </Box>
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">Labor:</Typography>
-                            <Typography variant="body2">${laborCost.toFixed(2)}</Typography>
-                          </Box>
-                        </Stack>
-                      </Grid>
-                    </Grid>
-                  </Paper>
+                              {/* Finish Details Card */}
+                              <Paper 
+                                variant="outlined" 
+                                sx={{ 
+                                  p: 2,
+                                  bgcolor: 'background.default',
+                                  mb: 2
+                                }}
+                              >
+                                <Grid container spacing={3}>
+                                  <Grid item xs={12} md={6}>
+                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                      Finish Details
+                                    </Typography>
+                                    <Stack direction="row" spacing={3}>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">Type:</Typography>
+                                        <Typography variant="body2">{item.finish.type}</Typography>
+                                      </Box>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">Style:</Typography>
+                                        <Typography variant="body2">{item.finish.color}</Typography>
+                                      </Box>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">RAL:</Typography>
+                                        <Typography variant="body2">{item.finish.ralColor}</Typography>
+                                      </Box>
+                                    </Stack>
+                                  </Grid>
+                                  <Grid item xs={12} md={6}>
+                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                      Cost Breakdown
+                                    </Typography>
+                                    <Stack direction="row" spacing={3}>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">System:</Typography>
+                                        <Typography variant="body2">${systemCost.toFixed(2)}</Typography>
+                                      </Box>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">Glass:</Typography>
+                                        <Typography variant="body2">${glassCost.toFixed(2)}</Typography>
+                                      </Box>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">Labor:</Typography>
+                                        <Typography variant="body2">${laborCost.toFixed(2)}</Typography>
+                                      </Box>
+                                    </Stack>
+                                  </Grid>
+                                </Grid>
+                              </Paper>
 
-                  {/* Notes if any */}
-                  {item.notes && (
-                    <Paper 
-                      variant="outlined" 
-                      sx={{ 
-                        p: 2,
-                        bgcolor: 'background.default'
-                      }}
-                    >
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Notes
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {item.notes}
-                      </Typography>
-                    </Paper>
-                  )}
+                              {/* Notes if any */}
+                              {item.notes && (
+                                <Paper 
+                                  variant="outlined" 
+                                  sx={{ 
+                                    p: 2,
+                                    bgcolor: 'background.default'
+                                  }}
+                                >
+                                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Notes
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {item.notes}
+                                  </Typography>
+                                </Paper>
+                              )}
                 </ListItem>
               </React.Fragment>
             ))}
@@ -1546,24 +1497,225 @@ const PricingSummary = ({
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12}>
-              <Typography variant="body2" color="text.secondary">
-                Items Cost: ${formatPrice(calculateTotalItemsCost())}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Tariff: ${formatPrice(parseFloat(tariff))}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Shipping: ${formatPrice(parseFloat(shipping))}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Delivery: ${formatPrice(parseFloat(delivery))}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontWeight: 'bold' }}>
-                Total Cost: ${formatPrice(totalCost)}
-              </Typography>
-              <Typography variant="body1" fontWeight="bold" color="primary" sx={{ mt: 1 }}>
-                Order Total Price (Including {margin}% Margin): ${formatPrice(orderTotalPrice)}
-              </Typography>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 3,
+                  bgcolor: 'background.paper',
+                  mb: 3
+                }}
+              >
+                <Typography variant="h6" gutterBottom color="primary" sx={{ pb: 2, borderBottom: 1, borderColor: 'divider' }}>
+                  Cost Order Details
+                </Typography>
+
+                <Grid container spacing={3}>
+                  {/* Windows Summary */}
+                  <Grid item xs={12} md={6} lg={3}>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        height: '100%',
+                        bgcolor: 'background.default'
+                      }}
+                    >
+                      <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <WindowIcon fontSize="small" />
+                        Windows
+                      </Typography>
+                      <Stack spacing={1}>
+                        {(() => {
+                          const metrics = calculateTypeMetrics(pricing.items, 'Windows', { tariff, shipping, delivery });
+                          return (
+                            <>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Total Area:</Typography>
+                                <Typography variant="body2">{metrics.totalArea} sq ft</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Base Cost:</Typography>
+                                <Typography variant="body2">${metrics.baseCost}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Additional Costs:</Typography>
+                                <Typography variant="body2">${metrics.distributedCost}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
+                                <Typography variant="subtitle2" color="primary">Total Cost:</Typography>
+                                <Typography variant="subtitle2" color="primary">${metrics.totalCost}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Cost per sq ft:</Typography>
+                                <Typography variant="body2">${metrics.costPerSqFt}</Typography>
+                              </Box>
+                            </>
+                          );
+                        })()}
+                      </Stack>
+                    </Paper>
+                  </Grid>
+
+                  {/* Entrance Doors Summary */}
+                  <Grid item xs={12} md={6} lg={3}>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        height: '100%',
+                        bgcolor: 'background.default'
+                      }}
+                    >
+                      <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <MeetingRoomIcon fontSize="small" />
+                        Entrance Doors
+                      </Typography>
+                      <Stack spacing={1}>
+                        {(() => {
+                          const metrics = calculateTypeMetrics(pricing.items, 'Entrance Doors', { tariff, shipping, delivery });
+                          return (
+                            <>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Total Area:</Typography>
+                                <Typography variant="body2">{metrics.totalArea} sq ft</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Base Cost:</Typography>
+                                <Typography variant="body2">${metrics.baseCost}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Additional Costs:</Typography>
+                                <Typography variant="body2">${metrics.distributedCost}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
+                                <Typography variant="subtitle2" color="primary">Total Cost:</Typography>
+                                <Typography variant="subtitle2" color="primary">${metrics.totalCost}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Cost per sq ft:</Typography>
+                                <Typography variant="body2">${metrics.costPerSqFt}</Typography>
+                              </Box>
+                            </>
+                          );
+                        })()}
+                      </Stack>
+                    </Paper>
+                  </Grid>
+
+                  {/* Sliding Doors Summary */}
+                  <Grid item xs={12} md={6} lg={3}>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        height: '100%',
+                        bgcolor: 'background.default'
+                      }}
+                    >
+                      <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <DoorSlidingIcon fontSize="small" />
+                        Sliding Doors
+                      </Typography>
+                      <Stack spacing={1}>
+                        {(() => {
+                          const metrics = calculateTypeMetrics(pricing.items, 'Sliding Doors', { tariff, shipping, delivery });
+                          return (
+                            <>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Total Area:</Typography>
+                                <Typography variant="body2">{metrics.totalArea} sq ft</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Base Cost:</Typography>
+                                <Typography variant="body2">${metrics.baseCost}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Additional Costs:</Typography>
+                                <Typography variant="body2">${metrics.distributedCost}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
+                                <Typography variant="subtitle2" color="primary">Total Cost:</Typography>
+                                <Typography variant="subtitle2" color="primary">${metrics.totalCost}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Cost per sq ft:</Typography>
+                                <Typography variant="body2">${metrics.costPerSqFt}</Typography>
+                              </Box>
+                            </>
+                          );
+                        })()}
+                      </Stack>
+                    </Paper>
+                  </Grid>
+
+                  {/* Total Order Summary */}
+                  <Grid item xs={12} md={6} lg={3}>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        height: '100%',
+                        bgcolor: 'background.default',
+                        borderColor: 'primary.main',
+                        borderWidth: 2
+                      }}
+                    >
+                      <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <SummarizeIcon fontSize="small" />
+                        Total Order
+                      </Typography>
+                      <Stack spacing={1}>
+                        {(() => {
+                          const totalArea = pricing.items.reduce((sum, { item }) => {
+                            if (item.systemType === 'Windows') {
+                              return sum + ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
+                            } else if (item.systemType === 'Entrance Doors') {
+                              return sum + (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                                        item.dimensions.width +
+                                        (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                                       (item.dimensions.height + 
+                                        (item.transom?.enabled ? item.transom.height : 0)) / 144);
+                            } else if (item.systemType === 'Sliding Doors') {
+                              return sum + ((item.dimensions.width * item.dimensions.height) / 144);
+                            }
+                            return sum;
+                          }, 0);
+
+                          const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
+                          const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
+                          const totalCost = baseCost + additionalCosts;
+                          const costPerSqFt = totalArea > 0 ? totalCost / totalArea : 0;
+
+                          return (
+                            <>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Total Area:</Typography>
+                                <Typography variant="body2">{totalArea.toFixed(1)} sq ft</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Base Cost:</Typography>
+                                <Typography variant="body2">${baseCost.toFixed(2)}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Additional Costs:</Typography>
+                                <Typography variant="body2">${additionalCosts.toFixed(2)}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
+                                <Typography variant="subtitle2" color="primary">Total Cost:</Typography>
+                                <Typography variant="subtitle2" color="primary">${totalCost.toFixed(2)}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Cost per sq ft:</Typography>
+                                <Typography variant="body2">${costPerSqFt.toFixed(2)}</Typography>
+                              </Box>
+                            </>
+                          );
+                        })()}
+                      </Stack>
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </Paper>
             </Grid>
           </Grid>
         </Box>
