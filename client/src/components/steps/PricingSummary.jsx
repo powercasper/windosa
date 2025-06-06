@@ -18,7 +18,9 @@ import {
   Stack,
   Grid,
   Chip,
-  Snackbar
+  Snackbar,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -30,6 +32,20 @@ import CommentIcon from '@mui/icons-material/Comment';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote, generatePDF } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
+
+const STORAGE_KEY = 'orderAdditionalCosts';
+
+const getStoredCosts = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Error reading stored costs:', error);
+  }
+  return null;
+};
 
 const calculateItemPrice = (item) => {
   let totalSystemCost = 0;
@@ -220,6 +236,89 @@ const PricingSummary = ({
   });
   const [showAddSuccess, setShowAddSuccess] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  
+  // Initialize costs from storage or defaults
+  const storedCosts = getStoredCosts();
+  const [tariff, setTariff] = useState(storedCosts?.tariff || savedQuote?.tariff || '0');
+  const [margin, setMargin] = useState(storedCosts?.margin || savedQuote?.margin || '30');
+  const [shipping, setShipping] = useState(storedCosts?.shipping || savedQuote?.shipping || '0');
+  const [delivery, setDelivery] = useState(storedCosts?.delivery || savedQuote?.delivery || '0');
+  
+  const [totalCost, setTotalCost] = useState(0);
+  const [orderTotalPrice, setOrderTotalPrice] = useState(0);
+
+  // Store costs whenever they change
+  useEffect(() => {
+    const costs = { tariff, margin, shipping, delivery };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(costs));
+  }, [tariff, margin, shipping, delivery]);
+
+  const handleNumericInput = (value, type) => {
+    // Allow only numbers and decimal point
+    const numericValue = value.replace(/[^0-9.]/g, '');
+    // Ensure only one decimal point
+    const parts = numericValue.split('.');
+    if (parts.length > 2) {
+      return;
+    }
+
+    // Update the appropriate state based on type
+    switch(type) {
+      case 'tariff':
+        setTariff(numericValue);
+        break;
+      case 'margin':
+        setMargin(numericValue);
+        break;
+      case 'shipping':
+        setShipping(numericValue);
+        break;
+      case 'delivery':
+        setDelivery(numericValue);
+        break;
+    }
+  };
+
+  const formatPrice = (value) => {
+    return (value || 0).toFixed(2);
+  };
+
+  // Calculate total items cost from all items in the quote
+  const calculateTotalItemsCost = () => {
+    return pricing.items.reduce((sum, item) => sum + item.total, 0);
+  };
+
+  useEffect(() => {
+    const calculatePricing = () => {
+      try {
+        // Get total items cost from the items array
+        const itemsCost = calculateTotalItemsCost();
+        
+        // Parse all input values as floats, defaulting to 0 if invalid
+        const tariffValue = parseFloat(tariff) || 0;
+        const marginValue = parseFloat(margin) || 0;
+        const shippingValue = parseFloat(shipping) || 0;
+        const deliveryValue = parseFloat(delivery) || 0;
+        
+        // Calculate total cost (before margin)
+        const cost = itemsCost + tariffValue + shippingValue + deliveryValue;
+        
+        // Calculate Order Total Price with margin
+        const marginDecimal = marginValue / 100;
+        const orderTotal = marginDecimal === 1 ? cost : cost / (1 - marginDecimal);
+
+        setTotalCost(cost);
+        setOrderTotalPrice(orderTotal);
+      } catch (error) {
+        console.error('Error calculating pricing:', error);
+        setTotalCost(0);
+        setOrderTotalPrice(0);
+      }
+    };
+
+    calculatePricing();
+  }, [pricing.items, tariff, margin, shipping, delivery]);
 
   useEffect(() => {
     // Only calculate pricing for items in the quote
@@ -318,7 +417,12 @@ const PricingSummary = ({
         ...quoteDialog.quote,
         items: quoteItems,
         totalAmount: pricing.grandTotal,
-        id: savedQuote?.id // Preserve the ID if editing an existing quote
+        id: savedQuote?.id, // Preserve the ID if editing an existing quote
+        // Include additional costs
+        tariff,
+        margin,
+        shipping,
+        delivery
       };
       
       saveQuote(quoteToSave);
@@ -327,7 +431,7 @@ const PricingSummary = ({
       
       // Notify parent components that the quote was saved
       if (onQuoteSaved) {
-        onQuoteSaved();
+        onQuoteSaved(quoteToSave);
       }
     } catch (error) {
       setQuoteDialog(prev => ({
@@ -2727,6 +2831,99 @@ const PricingSummary = ({
         onClose={() => setShowAddSuccess(false)}
         message="Item added to quote successfully"
       />
+
+      <Stack spacing={2}>
+        {/* Cost Adjustment Fields */}
+        <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                required
+                fullWidth
+                label="Tariff (USD)"
+                value={tariff}
+                onChange={(e) => handleNumericInput(e.target.value, 'tariff')}
+                size="small"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+                helperText="Total Value (Aluminum Tariff, Glass, Rubber Gaskets)"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                required
+                fullWidth
+                label="Margin"
+                value={margin}
+                onChange={(e) => handleNumericInput(e.target.value, 'margin')}
+                size="small"
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                }}
+                helperText="Profit Margin Percentage"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                required
+                fullWidth
+                label="Shipping"
+                value={shipping}
+                onChange={(e) => handleNumericInput(e.target.value, 'shipping')}
+                size="small"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+                helperText="Factory to Warehouse + Unloading"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                required
+                fullWidth
+                label="Delivery"
+                value={delivery}
+                onChange={(e) => handleNumericInput(e.target.value, 'delivery')}
+                size="small"
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                }}
+                helperText="Warehouse to Job Site"
+              />
+            </Grid>
+          </Grid>
+        </Box>
+
+        {/* Cost Breakdown Section */}
+        <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="h6" gutterBottom>
+            Cost Breakdown
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Typography variant="body2" color="text.secondary">
+                Items Cost: ${formatPrice(calculateTotalItemsCost())}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Tariff: ${formatPrice(parseFloat(tariff))}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Shipping: ${formatPrice(parseFloat(shipping))}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Delivery: ${formatPrice(parseFloat(delivery))}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontWeight: 'bold' }}>
+                Total Cost: ${formatPrice(totalCost)}
+              </Typography>
+              <Typography variant="body1" fontWeight="bold" color="primary" sx={{ mt: 1 }}>
+                Order Total Price (Including {margin}% Margin): ${formatPrice(orderTotalPrice)}
+              </Typography>
+            </Grid>
+          </Grid>
+        </Box>
+      </Stack>
     </Box>
   );
 };
