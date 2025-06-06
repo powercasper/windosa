@@ -20,7 +20,14 @@ import {
   Chip,
   Snackbar,
   TextField,
-  InputAdornment
+  InputAdornment,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableBody,
+  TableFooter,
+  TableCell
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -36,6 +43,8 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import PaidIcon from '@mui/icons-material/Paid';
+import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote, generatePDF } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
@@ -289,6 +298,7 @@ const PricingSummary = ({
   onEditItem,
   onRemoveItem,
   onQuoteSaved,
+  onCopyItem,  // Add new prop
   savedQuote = null
 }) => {
   const [pricing, setPricing] = useState({
@@ -939,10 +949,25 @@ const PricingSummary = ({
                       <Typography variant="subtitle1" color="primary">
                         ${total.toFixed(2)}
                       </Typography>
-                      <IconButton edge="end" aria-label="edit" onClick={() => onEditItem(item)}>
+                      {typeof onCopyItem === 'function' && (
+                        <IconButton 
+                          edge="end" 
+                          aria-label="copy" 
+                          onClick={() => {
+                            const itemCopy = JSON.parse(JSON.stringify(item));
+                            delete itemCopy.id;
+                            delete itemCopy.itemNumber;
+                            onCopyItem(itemCopy);
+                          }}
+                          title="Copy item"
+                        >
+                          <ContentCopyIcon />
+                        </IconButton>
+                      )}
+                      <IconButton edge="end" aria-label="edit" onClick={() => onEditItem(item)} title="Edit item">
                         <EditIcon />
                       </IconButton>
-                      <IconButton edge="end" aria-label="delete" onClick={() => onRemoveItem(item.id)}>
+                      <IconButton edge="end" aria-label="delete" onClick={() => onRemoveItem(item.id)} title="Delete item">
                         <DeleteIcon />
                       </IconButton>
                     </Stack>
@@ -1892,6 +1917,183 @@ const PricingSummary = ({
               </Paper>
             </Grid>
           </Grid>
+        </Box>
+
+        {/* Itemized Overview Table */}
+        <Box sx={{ mt: 4 }}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 3,
+              bgcolor: 'background.paper'
+            }}
+          >
+            <Typography variant="h6" gutterBottom color="primary" sx={{ pb: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FormatListNumberedIcon />
+              Itemized Overview
+            </Typography>
+
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Position</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Quantity [Pcs.]</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Area [ft²]</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Base Price</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Unit Price*</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Total</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {pricing.items.map(({ item, total }, index) => {
+                    const itemArea = (() => {
+                      if (item.systemType === 'Windows') {
+                        return ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
+                      } else if (item.systemType === 'Entrance Doors') {
+                        return (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                                item.dimensions.width +
+                                (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                               (item.dimensions.height + 
+                                (item.transom?.enabled ? item.transom.height : 0)) / 144);
+                      } else if (item.systemType === 'Sliding Doors') {
+                        return ((item.dimensions.width * item.dimensions.height) / 144);
+                      }
+                      return 0;
+                    })();
+
+                    // Calculate total area for all items
+                    const totalArea = pricing.items.reduce((sum, { item }) => {
+                      let area = 0;
+                      if (item.systemType === 'Windows') {
+                        area = (item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144;
+                      } else if (item.systemType === 'Entrance Doors') {
+                        area = ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                               item.dimensions.width +
+                               (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                              (item.dimensions.height + 
+                               (item.transom?.enabled ? item.transom.height : 0)) / 144;
+                      } else if (item.systemType === 'Sliding Doors') {
+                        area = (item.dimensions.width * item.dimensions.height) / 144;
+                      }
+                      return sum + area;
+                    }, 0);
+
+                    // Calculate proportional additional costs for this item
+                    const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
+                    const itemAdditionalCosts = (itemArea / totalArea) * additionalCosts;
+                    
+                    // Calculate unit price including additional costs and margin
+                    const baseUnitPrice = total;
+                    const unitPriceWithAdditions = baseUnitPrice + itemAdditionalCosts;
+                    const marginMultiplier = 1 / (1 - (parseFloat(margin || 0) / 100));
+                    const finalUnitPrice = unitPriceWithAdditions * marginMultiplier;
+                    
+                    const description = (() => {
+                      if (item.systemType === 'Windows') {
+                        return `${item.brand} ${item.systemModel} - ${item.panels.map(p => p.operationType).join('/')}`;
+                      } else if (item.systemType === 'Entrance Doors') {
+                        return `${item.brand} ${item.systemModel} - ${item.openingType}`;
+                      } else if (item.systemType === 'Sliding Doors') {
+                        return `${item.brand} ${item.systemModel} - ${item.operationType}`;
+                      }
+                      return '';
+                    })();
+
+                    return (
+                      <TableRow key={item.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                        <TableCell>{String(index + 1).padStart(3, '0')}</TableCell>
+                        <TableCell>1</TableCell>
+                        <TableCell>{description}</TableCell>
+                        <TableCell>{item.location || '-'}</TableCell>
+                        <TableCell align="right">{itemArea.toFixed(1)}</TableCell>
+                        <TableCell align="right">${baseUnitPrice.toFixed(2)}</TableCell>
+                        <TableCell align="right">${finalUnitPrice.toFixed(2)}</TableCell>
+                        <TableCell align="right">${finalUnitPrice.toFixed(2)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  <TableRow sx={{ 
+                    '& td': { 
+                      borderTop: '2px solid',
+                      borderColor: 'divider',
+                      py: 1.5,
+                      fontWeight: 'bold'
+                    } 
+                  }}>
+                    <TableCell colSpan={2}>{pricing.items.length} Positions</TableCell>
+                    <TableCell colSpan={2}></TableCell>
+                    <TableCell align="right">
+                      {pricing.items.reduce((sum, { item }) => {
+                        let area = 0;
+                        if (item.systemType === 'Windows') {
+                          area = (item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144;
+                        } else if (item.systemType === 'Entrance Doors') {
+                          area = ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                                 item.dimensions.width +
+                                 (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                                (item.dimensions.height + 
+                                 (item.transom?.enabled ? item.transom.height : 0)) / 144;
+                        } else if (item.systemType === 'Sliding Doors') {
+                          area = (item.dimensions.width * item.dimensions.height) / 144;
+                        }
+                        return sum + area;
+                      }, 0).toFixed(1)}
+                    </TableCell>
+                    <TableCell align="right">
+                      ${pricing.items.reduce((sum, { total }) => sum + total, 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell align="right"></TableCell>
+                    <TableCell align="right">
+                      ${(() => {
+                        const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
+                        const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
+                        const totalWithAdditions = baseCost + additionalCosts;
+                        const marginMultiplier = 1 / (1 - (parseFloat(margin || 0) / 100));
+                        return (totalWithAdditions * marginMultiplier).toFixed(2);
+                      })()}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={6}></TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Grand Total Net</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                      ${(() => {
+                        const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
+                        return baseCost.toFixed(2);
+                      })()}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow sx={{ 
+                    '& td': { 
+                      borderTop: '2px solid',
+                      borderColor: 'divider',
+                      py: 1.5
+                    }
+                  }}>
+                    <TableCell colSpan={6}></TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', fontSize: '1.1em' }}>Total Price</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1.1em' }}>
+                      ${(() => {
+                        const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
+                        const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
+                        const totalWithAdditions = baseCost + additionalCosts;
+                        const marginMultiplier = 1 / (1 - (parseFloat(margin || 0) / 100));
+                        return (totalWithAdditions * marginMultiplier).toFixed(2);
+                      })()}
+                    </TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+                * Unit Price includes proportionally distributed additional costs (tariff, shipping, delivery) and margin
+              </Typography>
+            </TableContainer>
+          </Paper>
         </Box>
       </Stack>
     </Box>
