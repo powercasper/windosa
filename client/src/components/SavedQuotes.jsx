@@ -74,7 +74,7 @@ const SavedQuotes = ({ onLoadQuote }) => {
   const renderItemConfiguration = (item) => {
     const Icon = iconMapping[item.systemType];
     
-    return (
+      return (
       <Box sx={{ width: '100%' }}>
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
           {Icon && <Icon sx={{ fontSize: 24, color: 'primary.main' }} />}
@@ -115,26 +115,26 @@ const SavedQuotes = ({ onLoadQuote }) => {
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               {item.panels.map((panel, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    width: '30px',
-                    height: '45px',
-                    bgcolor: panel.operationType === 'Fixed' ? 'grey.100' : 'primary.light',
-                    color: panel.operationType === 'Fixed' ? 'text.primary' : 'primary.contrastText',
-                    border: '1px solid',
-                    borderColor: panel.operationType === 'Fixed' ? 'grey.300' : 'primary.main',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+            <Box
+              key={index}
+              sx={{
+                width: '30px',
+                height: '45px',
+                bgcolor: panel.operationType === 'Fixed' ? 'grey.100' : 'primary.light',
+                color: panel.operationType === 'Fixed' ? 'text.primary' : 'primary.contrastText',
+                border: '1px solid',
+                borderColor: panel.operationType === 'Fixed' ? 'grey.300' : 'primary.main',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                     borderRadius: 1,
                     fontSize: '0.75rem',
-                    position: 'relative'
-                  }}
-                >
-                  {panel.operationType === 'Fixed' ? 'F' : 
-                   panel.operationType === 'Awning' ? 'A' :
-                   panel.operationType === 'Casement' ? 'C' :
+                position: 'relative'
+              }}
+            >
+                {panel.operationType === 'Fixed' ? 'F' : 
+                 panel.operationType === 'Awning' ? 'A' :
+                 panel.operationType === 'Casement' ? 'C' :
                    panel.operationType === 'Tilt Only' ? 'T' : 'TT'}
                   
                   {/* Grid Lines */}
@@ -178,23 +178,23 @@ const SavedQuotes = ({ onLoadQuote }) => {
                     </Box>
                   )}
 
-                  {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        [panel.handleLocation || 'right']: 0,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        width: '2px',
-                        height: '10px',
-                        bgcolor: 'primary.dark',
-                        mr: panel.handleLocation === 'right' ? 0.25 : 'auto',
-                        ml: panel.handleLocation === 'left' ? 0.25 : 'auto'
-                      }}
-                    />
-                  )}
-                </Box>
-              ))}
+              {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    [panel.handleLocation || 'right']: 0,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '2px',
+                    height: '10px',
+                    bgcolor: 'primary.dark',
+                    mr: panel.handleLocation === 'right' ? 0.25 : 'auto',
+                    ml: panel.handleLocation === 'left' ? 0.25 : 'auto'
+                  }}
+                />
+              )}
+            </Box>
+          ))}
             </Box>
           </Box>
         )}
@@ -460,7 +460,7 @@ const SavedQuotes = ({ onLoadQuote }) => {
                       </Typography>
                       <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
                         {(item.dimensions?.width || 0) / 2}"
-                      </Typography>
+          </Typography>
                       {/* Left Handle for Right Door */}
                       <Box
                         sx={{
@@ -477,7 +477,7 @@ const SavedQuotes = ({ onLoadQuote }) => {
                         }}
                       />
                     </Paper>
-                  </Box>
+        </Box>
                 ) : (
                   <Paper
                     sx={{
@@ -531,7 +531,7 @@ const SavedQuotes = ({ onLoadQuote }) => {
                           const totalHeight = item.dimensions.height;
                           const gridProfileHeight = (1 / totalHeight) * 100;
                           const position = ((i + 1) * 100) / item.grid.vertical;
-                          return (
+      return (
                             <Box
                               key={`h-${i}`}
                               sx={{
@@ -625,27 +625,27 @@ const SavedQuotes = ({ onLoadQuote }) => {
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               {item.panels.map((panel, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    width: '30px',
-                    height: '45px',
-                    bgcolor: panel.type === 'Fixed' ? 'grey.100' : 'primary.light',
-                    color: panel.type === 'Fixed' ? 'text.primary' : 'primary.contrastText',
-                    border: '1px solid',
-                    borderColor: panel.type === 'Fixed' ? 'grey.300' : 'primary.main',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+            <Box
+              key={index}
+              sx={{
+                width: '30px',
+                height: '45px',
+                bgcolor: panel.type === 'Fixed' ? 'grey.100' : 'primary.light',
+                color: panel.type === 'Fixed' ? 'text.primary' : 'primary.contrastText',
+                border: '1px solid',
+                borderColor: panel.type === 'Fixed' ? 'grey.300' : 'primary.main',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                     borderRadius: 1,
                     fontSize: '0.75rem'
-                  }}
-                >
+              }}
+            >
                   {panel.type === 'Fixed' ? 'F' :
                    panel.direction === 'left' ? '←' : '→'}
-                </Box>
-              ))}
             </Box>
+          ))}
+        </Box>
           </Box>
         )}
 
@@ -654,9 +654,9 @@ const SavedQuotes = ({ onLoadQuote }) => {
             <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <CommentIcon fontSize="small" /> Notes
             </Typography>
-            <Paper
-              variant="outlined"
-              sx={{
+            <Paper 
+              variant="outlined" 
+              sx={{ 
                 p: 1.5,
                 bgcolor: 'background.default',
                 whiteSpace: 'pre-wrap'
@@ -669,7 +669,7 @@ const SavedQuotes = ({ onLoadQuote }) => {
           </Box>
         )}
       </Box>
-    );
+      );
   };
 
   return (
