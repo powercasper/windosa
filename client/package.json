@@ -9,6 +9,7 @@
     "@mui/icons-material": "^7.1.0",
     "@mui/material": "^7.1.0",
     "@mui/x-data-grid": "^8.5.0",
+    "@react-pdf/renderer": "^4.3.0",
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.6.0",
     "formik": "^2.4.6",

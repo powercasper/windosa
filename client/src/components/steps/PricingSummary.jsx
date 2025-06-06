@@ -32,6 +32,7 @@ import CommentIcon from '@mui/icons-material/Comment';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote, generatePDF } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
+import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
 
 const STORAGE_KEY = 'orderAdditionalCosts';
 
@@ -381,25 +382,29 @@ const PricingSummary = ({
 
   const handleDownloadPDF = async () => {
     try {
-      const response = await generatePDF(quoteDialog.quote);
-      
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `quote-${quoteDialog.quote.quoteNumber}.pdf`;
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      window.URL.revokeObjectURL(url);
+      setIsGeneratingPDF(true);
+      const quoteData = {
+        ...quoteDialog.quote,
+        projectName: quoteDialog.quote.projectName || 'Untitled Project',
+        customerName: quoteDialog.quote.customerName || 'Customer',
+        date: quoteDialog.quote.date || new Date(),
+        salesRep: quoteDialog.quote.salesRep || '',
+        salesRepPhone: quoteDialog.quote.salesRepPhone || '',
+        salesRepEmail: quoteDialog.quote.salesRepEmail || '',
+        totalAmount: pricing.grandTotal,
+      };
+
+      // Import the generateQuotePDF function
+      const { generateQuotePDF } = await import('../../utils/pdfGenerator');
+      await generateQuotePDF(quoteData, quoteItems);
+      setIsGeneratingPDF(false);
     } catch (error) {
       console.error('Error downloading PDF:', error);
       setQuoteDialog(prev => ({
         ...prev,
         error: 'Failed to download PDF. Please try again.'
       }));
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -803,450 +808,9 @@ const PricingSummary = ({
                 borderRadius: 1,
                 p: 1,
                 bgcolor: 'background.paper',
-                aspectRatio: configuration.dimensions?.width && configuration.dimensions?.height ? 
-                  `${(configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                    configuration.dimensions.width + 
-                    (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0)} / 
-                   ${configuration.dimensions.height + (configuration.transom?.enabled ? configuration.transom.height : 0)}` : '16/9',
                 maxHeight: '200px'
               }}>
-                {/* Transom */}
-                {configuration.transom?.enabled && (
-                  <Box sx={{ 
-                    display: 'flex', 
-                    gap: 1,
-                    height: `${(configuration.transom.height / (configuration.dimensions.height + configuration.transom.height)) * 100}%`
-                  }}>
-                    <Paper
-                      sx={{
-                        p: 0.5,
-                        flex: 1,
-                        bgcolor: 'grey.100',
-                        color: 'text.primary',
-                        textAlign: 'center',
-                        border: '1px solid',
-                        borderColor: 'grey.300',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minHeight: 0
-                      }}
-                    >
-                      <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                        Transom ({configuration.transom.height}")
-                      </Typography>
-                    </Paper>
-                  </Box>
-                )}
-
-                {/* Door Layout */}
-                <Box sx={{ 
-                  display: 'flex', 
-                  gap: 1,
-                  flex: 1,
-                  height: configuration.transom?.enabled ? 
-                    `${(configuration.dimensions.height / (configuration.dimensions.height + configuration.transom.height)) * 100}%` : 
-                    '100%'
-                }}>
-                  {configuration.systemType === 'Windows' && configuration.panels ? (
-                    <Box sx={{ display: 'flex', gap: 0.5, height: '100%', flex: 1 }}>
-                      {configuration.panels.map((panel, index) => (
-                        <Paper
-                          key={index}
-                          sx={{
-                            p: 0.5,
-                            width: `${(panel.width / configuration.panels.reduce((sum, p) => sum + p.width, 0)) * 100}%`,
-                            height: '100%',
-                            bgcolor: panel.operationType === 'Fixed' ? 'grey.100' : 'primary.light',
-                            color: panel.operationType === 'Fixed' ? 'text.primary' : 'primary.contrastText',
-                            border: '1px solid',
-                            borderColor: panel.operationType === 'Fixed' ? 'grey.300' : 'primary.main',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            position: 'relative',
-                            minHeight: 0
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.7rem' }}>
-                            {panel.operationType === 'Fixed' ? 'F' : 
-                             panel.operationType === 'Awning' ? 'A' :
-                             panel.operationType === 'Casement' ? 'C' :
-                             panel.operationType === 'Tilt Only' ? 'T' : 'TT'}
-                          </Typography>
-                          <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                            {panel.width}"
-                          </Typography>
-                          {/* Grid Lines */}
-                          {configuration.grid?.enabled && (
-                            <Box sx={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              pointerEvents: 'none'
-                            }}>
-                              {/* Vertical Grid Lines */}
-                              {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => (
-                                <Box
-                                  key={`v-${i}`}
-                                  sx={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    bottom: 0,
-                                    left: `${((i + 1) * 100) / configuration.grid.horizontal}%`,
-                                    width: '1px',
-                                    bgcolor: 'grey.400',
-                                    opacity: 0.8
-                                  }}
-                                />
-                              ))}
-                              {/* Horizontal Grid Lines */}
-                              {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => (
-                                <Box
-                                  key={`h-${i}`}
-                                  sx={{
-                                    position: 'absolute',
-                                    left: 0,
-                                    right: 0,
-                                    top: `${((i + 1) * 100) / configuration.grid.vertical}%`,
-                                    height: '1px',
-                                    bgcolor: 'grey.400',
-                                    opacity: 0.8
-                                  }}
-                                />
-                              ))}
-                            </Box>
-                          )}
-                        </Paper>
-                      ))}
-                    </Box>
-                  ) : configuration.systemType === 'Sliding Doors' ? (
-                    <Box sx={{ display: 'flex', gap: 0.5, height: '100%', flex: 1 }}>
-                      {configuration.panels?.map((panel, index) => (
-                        <Paper
-                          key={index}
-                          sx={{
-                            p: 0.5,
-                            flex: 1,
-                            height: '100%',
-                            bgcolor: panel.type === 'Fixed' ? 'grey.100' : 'primary.light',
-                            color: panel.type === 'Fixed' ? 'text.primary' : 'primary.contrastText',
-                            border: '1px solid',
-                            borderColor: panel.type === 'Fixed' ? 'grey.300' : 'primary.main',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            position: 'relative',
-                            minHeight: 0
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.7rem' }}>
-                            {panel.type === 'Fixed' ? 'F' : (panel.direction === 'left' ? '←' : '→')}
-                          </Typography>
-                          <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                            Panel {index + 1}
-                          </Typography>
-                          {/* Grid Lines */}
-                          {configuration.grid?.enabled && (
-                            <Box sx={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              pointerEvents: 'none'
-                            }}>
-                              {/* Vertical Grid Lines */}
-                              {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => (
-                                <Box
-                                  key={`v-${i}`}
-                                  sx={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    bottom: 0,
-                                    left: `${((i + 1) * 100) / configuration.grid.horizontal}%`,
-                                    width: '1px',
-                                    bgcolor: 'grey.400',
-                                    opacity: 0.8
-                                  }}
-                                />
-                              ))}
-                              {/* Horizontal Grid Lines */}
-                              {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => (
-                                <Box
-                                  key={`h-${i}`}
-                                  sx={{
-                                    position: 'absolute',
-                                    left: 0,
-                                    right: 0,
-                                    top: `${((i + 1) * 100) / configuration.grid.vertical}%`,
-                                    height: '1px',
-                                    bgcolor: 'grey.400',
-                                    opacity: 0.8
-                                  }}
-                                />
-                              ))}
-                            </Box>
-                          )}
-                        </Paper>
-                      ))}
-                    </Box>
-                  ) : configuration.systemType === 'Entrance Doors' ? (
-                    <Box sx={{ display: 'flex', gap: 1, flex: 1 }}>
-                      {/* Left Sidelight */}
-                      {configuration.leftSidelight?.enabled && (
-                        <Paper
-                          sx={{
-                            p: 0.5,
-                            width: `${(configuration.leftSidelight.width / ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                              configuration.dimensions.width + 
-                              (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0))) * 100}%`,
-                            bgcolor: 'grey.100',
-                            color: 'text.primary',
-                            textAlign: 'center',
-                            border: '1px solid',
-                            borderColor: 'grey.300',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minHeight: 0
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                            Left ({configuration.leftSidelight.width}")
-                          </Typography>
-                        </Paper>
-                      )}
-
-                      {/* Door Panels */}
-                      {configuration.openingType === 'Double Door' && (
-                        <Box sx={{ display: 'flex', gap: 0, flex: 1 }}>
-                          {/* Left Door Panel */}
-                          <Paper
-                            sx={{
-                              p: 1,
-                              flex: 1,
-                              bgcolor: 'primary.light',
-                              color: 'primary.contrastText',
-                              textAlign: 'center',
-                              border: '1px solid',
-                              borderColor: 'primary.main',
-                              borderRight: '2px solid',
-                              borderRightColor: 'grey.400',
-                              position: 'relative',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              minHeight: '60px'
-                            }}
-                          >
-                            {/* Grid Lines for Glass Doors */}
-                            {configuration.doorType === 'glass' && configuration.grid?.enabled && (
-                              <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                pointerEvents: 'none'
-                              }}>
-                                {/* Vertical Grid Lines */}
-                                {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => {
-                                  const doorWidth = configuration.dimensions.width / 2;
-                                  const gridProfileWidth = (1 / doorWidth) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.horizontal;
-                                  return (
-                                    <Box
-                                      key={`v-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        bottom: 0,
-                                        left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
-                                        width: `${gridProfileWidth}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                                {/* Horizontal Grid Lines */}
-                                {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => {
-                                  const totalHeight = configuration.dimensions.height;
-                                  const gridProfileHeight = (1 / totalHeight) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.vertical;
-                                  return (
-                                    <Box
-                                      key={`h-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        left: 0,
-                                        right: 0,
-                                        top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
-                                        height: `${gridProfileHeight}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </Box>
-                            )}
-                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.7rem' }}>
-                              Left Panel
-                            </Typography>
-                            <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                              {(configuration.dimensions?.width || 0) / 2}"
-                            </Typography>
-                            {/* Right Handle for Left Door */}
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                right: 0,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                width: '3px',
-                                height: '12px',
-                                bgcolor: 'primary.dark',
-                                borderRadius: '2px',
-                                mr: 0.5,
-                                zIndex: 2
-                              }}
-                            />
-                          </Paper>
-
-                          {/* Right Door Panel */}
-                          <Paper
-                            sx={{
-                              p: 1,
-                              flex: 1,
-                              bgcolor: 'primary.light',
-                              color: 'primary.contrastText',
-                              textAlign: 'center',
-                              border: '1px solid',
-                              borderColor: 'primary.main',
-                              borderLeft: '2px solid',
-                              borderLeftColor: 'grey.400',
-                              position: 'relative',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              minHeight: '60px'
-                            }}
-                          >
-                            {/* Grid Lines for Glass Doors */}
-                            {configuration.doorType === 'glass' && configuration.grid?.enabled && (
-                              <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                pointerEvents: 'none'
-                              }}>
-                                {/* Vertical Grid Lines */}
-                                {Array.from({ length: configuration.grid.horizontal - 1 }).map((_, i) => {
-                                  const doorWidth = configuration.dimensions.width / 2;
-                                  const gridProfileWidth = (1 / doorWidth) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.horizontal;
-                                  return (
-                                    <Box
-                                      key={`v-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        bottom: 0,
-                                        left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
-                                        width: `${gridProfileWidth}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                                {/* Horizontal Grid Lines */}
-                                {Array.from({ length: configuration.grid.vertical - 1 }).map((_, i) => {
-                                  const totalHeight = configuration.dimensions.height;
-                                  const gridProfileHeight = (1 / totalHeight) * 100;
-                                  const position = ((i + 1) * 100) / configuration.grid.vertical;
-                                  return (
-                                    <Box
-                                      key={`h-${i}`}
-                                      sx={{
-                                        position: 'absolute',
-                                        left: 0,
-                                        right: 0,
-                                        top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
-                                        height: `${gridProfileHeight}%`,
-                                        bgcolor: 'grey.300',
-                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </Box>
-                            )}
-                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.7rem' }}>
-                              Right Panel
-                            </Typography>
-                            <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                              {(configuration.dimensions?.width || 0) / 2}"
-                            </Typography>
-                            {/* Left Handle for Right Door */}
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                left: 0,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                width: '3px',
-                                height: '12px',
-                                bgcolor: 'primary.dark',
-                                borderRadius: '2px',
-                                ml: 0.5,
-                                zIndex: 2
-                              }}
-                            />
-                          </Paper>
-                        </Box>
-                      )}
-
-                      {/* Right Sidelight */}
-                      {configuration.rightSidelight?.enabled && (
-                        <Paper
-                          sx={{
-                            p: 0.5,
-                            width: `${(configuration.rightSidelight.width / ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                              configuration.dimensions.width + 
-                              (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0))) * 100}%`,
-                            bgcolor: 'grey.100',
-                            color: 'text.primary',
-                            textAlign: 'center',
-                            border: '1px solid',
-                            borderColor: 'grey.300',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minHeight: 0
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                            Right ({configuration.rightSidelight.width}")
-                          </Typography>
-                        </Paper>
-                      )}
-                    </Box>
-                  ) : null}
-                </Box>
+                <ConfigurationPreviewUI configuration={configuration} />
               </Box>
             </Grid>
 
@@ -1482,1241 +1046,328 @@ const PricingSummary = ({
                   </Stack>
 
                   <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
+                    {/* Left Column - Configuration Details */}
+                    <Grid item xs={12} md={4}>
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                          System Details
+                          Configuration Details
                         </Typography>
                         <Stack spacing={1}>
-                          <Typography variant="body2">
-                            Type: {item.systemType}
-                          </Typography>
-                          {item.systemType === 'Windows' && item.panels ? (
-                            <Box>
-                              {/* Door Configuration Card */}
-                              <Paper 
-                                variant="outlined" 
-                                sx={{ 
-                                  p: 2,
-                                  bgcolor: 'background.default',
-                                  mb: 3
-                                }}
-                              >
-                                <Grid container spacing={3}>
-                                  {/* Left Column - Configuration Details */}
-                                  <Grid item xs={12} md={4}>
-                                    <Stack spacing={1}>
-                                      <Typography variant="subtitle2" color="text.secondary">
-                                        Configuration Details
-                              </Typography>
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                          Type:
-                                        </Typography>
-                                        <Typography variant="body2">
-                                          {item.systemType}
-                                        </Typography>
-                                      </Box>
-                                      {item.grid?.enabled && (
-                                        <Box sx={{ display: 'flex', gap: 1 }}>
-                                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                            Grid:
-                                          </Typography>
-                                          <Typography variant="body2">
-                                            {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
-                                          </Typography>
-                                        </Box>
-                                      )}
-                                      {item.panels.map((panel, idx) => (
-                                        <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
-                                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                            Panel {idx + 1}:
-                                          </Typography>
-                                          <Typography variant="body2">
-                                            {panel.operationType} ({panel.width}")
-                                            {panel.operationType !== 'Fixed' && item.hasMosquitoNet && ' + Mosquito Net'}
-                                          </Typography>
-                                        </Box>
-                                      ))}
-                                    </Stack>
-                                  </Grid>
-
-                                  {/* Middle Column - Visual Configuration */}
-                                  <Grid item xs={12} md={4}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                      Configuration Preview
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                                      Scaled Preview (Not Actual Size)
-                                    </Typography>
-                                    <Box sx={{ 
-                                      display: 'flex', 
-                                      flexDirection: 'column', 
-                                      gap: 1,
-                                      border: '2px solid',
-                                      borderColor: 'grey.300',
-                                      borderRadius: 1,
-                                      p: 1,
-                                      bgcolor: 'background.paper',
-                                      aspectRatio: item.dimensions?.width && item.dimensions?.height ? 
-                                        `${item.panels.reduce((sum, panel) => sum + panel.width, 0)} / ${item.dimensions.height}` : '16/9',
-                                      maxHeight: '200px'
-                                    }}>
-                                      <Box sx={{ display: 'flex', gap: 0.5, height: '100%' }}>
-                                        {item.panels.map((panel, index) => (
-                                          <Paper
-                                    key={index}
-                                    sx={{
-                                              p: 0.5,
-                                              width: `${(panel.width / item.panels.reduce((sum, p) => sum + p.width, 0)) * 100}%`,
-                                      bgcolor: panel.operationType === 'Fixed' ? 'grey.100' : 'primary.light',
-                                      color: panel.operationType === 'Fixed' ? 'text.primary' : 'primary.contrastText',
-                                      border: '1px solid',
-                                      borderColor: panel.operationType === 'Fixed' ? 'grey.300' : 'primary.main',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                              position: 'relative',
-                                              minHeight: 0
-                                            }}
-                                          >
-                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
-                                              {panel.operationType === 'Fixed' ? 'F' : 
-                                               panel.operationType === 'Tilt & Turn' ? 'TT' :
-                                               panel.operationType === 'Casement' ? 'C' :
-                                               panel.operationType === 'Awning' ? 'A' : 'TO'}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                                              {panel.width}"
-                                            </Typography>
-                                    {panel.operationType !== 'Fixed' && item.hasMosquitoNet && (
-                                              <Typography variant="caption" sx={{ fontSize: '0.5rem', color: 'success.main' }}>
-                                                Net
-                                              </Typography>
-                                            )}
-                                            {(panel.operationType === 'Tilt & Turn' || panel.operationType === 'Casement') && (
-                                              <Box
-                                        sx={{
-                                          position: 'absolute',
-                                                  right: 0,
-                                                  top: '50%',
-                                                  transform: 'translateY(-50%)',
-                                                  width: '2px',
-                                                  height: '8px',
-                                                  bgcolor: 'primary.dark',
-                                                  borderRadius: '1px',
-                                                  mr: 0.25
-                                                }}
-                                              />
-                                            )}
-                                            {/* Grid Lines */}
-                                            {item.grid?.enabled && (
-                                              <Box sx={{
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                bottom: 0,
-                                                pointerEvents: 'none'
-                                              }}>
-                                                {/* Vertical Grid Lines */}
-                                                {Array.from({ length: item.grid.horizontal - 1 }).map((_, i) => (
-                                                  <Box
-                                                    key={`v-${i}`}
-                                                    sx={{
-                                                      position: 'absolute',
-                                                      top: 0,
-                                                      bottom: 0,
-                                                      left: `${((i + 1) * 100) / item.grid.horizontal}%`,
-                                                      width: '1px',
-                                                      bgcolor: 'grey.400'
-                                                    }}
-                                                  />
-                                                ))}
-                                                {/* Horizontal Grid Lines */}
-                                                {Array.from({ length: item.grid.vertical - 1 }).map((_, i) => (
-                                                  <Box
-                                                    key={`h-${i}`}
-                                                    sx={{
-                                                      position: 'absolute',
-                                                      left: 0,
-                                                      right: 0,
-                                                      top: `${((i + 1) * 100) / item.grid.vertical}%`,
-                                                      height: '1px',
-                                                      bgcolor: 'grey.400'
-                                                    }}
-                                                  />
-                                                ))}
-                                  </Box>
-                                            )}
-                                          </Paper>
-                                ))}
-                              </Box>
-                                    </Box>
-                                  </Grid>
-
-                                  {/* Right Column - Dimensions Summary */}
-                                  <Grid item xs={12} md={4}>
-                                    <Stack spacing={2}>
-                                      <Box>
-                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                          System Dimensions
-                                        </Typography>
-                                        <Stack spacing={1}>
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                            <Typography variant="body2" color="text.secondary">Total Width:</Typography>
-                                            <Typography variant="body2">
-                                              {item.panels.reduce((sum, panel) => sum + panel.width, 0)}"
-                              </Typography>
-                                          </Box>
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                            <Typography variant="body2" color="text.secondary">Height:</Typography>
-                                            <Typography variant="body2">
-                                              {item.dimensions?.height}"
-                                            </Typography>
-                                          </Box>
-                                        </Stack>
-                                      </Box>
-
-                                      <Box>
-                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                          Area Calculations
-                                        </Typography>
-                                        <Stack spacing={1}>
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                            <Typography variant="body2" color="text.secondary">Total Area:</Typography>
-                                            <Typography variant="body2">
-                                              {((item.panels.reduce((sum, panel) => sum + panel.width, 0) * 
-                                                item.dimensions?.height) / 144).toFixed(1)} sq ft
-                                            </Typography>
-                                          </Box>
-                                        </Stack>
-                                      </Box>
-                                    </Stack>
-                                  </Grid>
-                                </Grid>
-                              </Paper>
-
-                              {/* Finish Details Card */}
-                              <Paper 
-                                variant="outlined" 
-                                sx={{ 
-                                  p: 2,
-                                  bgcolor: 'background.default',
-                                  mb: 2
-                                }}
-                              >
-                                <Grid container spacing={3}>
-                                  <Grid item xs={12} md={6}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                      Finish Details
-                                    </Typography>
-                                    <Stack direction="row" spacing={3}>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Type:</Typography>
-                                        <Typography variant="body2">{item.finish.type}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Style:</Typography>
-                                        <Typography variant="body2">{item.finish.color}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">RAL:</Typography>
-                                        <Typography variant="body2">{item.finish.ralColor}</Typography>
-                                      </Box>
-                                    </Stack>
-                                  </Grid>
-                                  <Grid item xs={12} md={6}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                      Cost Breakdown
-                                    </Typography>
-                                    <Stack direction="row" spacing={3}>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">System:</Typography>
-                                        <Typography variant="body2">${systemCost.toFixed(2)}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Glass:</Typography>
-                                        <Typography variant="body2">${glassCost.toFixed(2)}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Labor:</Typography>
-                                        <Typography variant="body2">${laborCost.toFixed(2)}</Typography>
-                                      </Box>
-                                    </Stack>
-                                  </Grid>
-                                </Grid>
-                              </Paper>
-
-                              {/* Notes if any */}
-                              {item.notes && (
-                                <Paper 
-                                  variant="outlined" 
-                                  sx={{ 
-                                    p: 2,
-                                    bgcolor: 'background.default'
-                                  }}
-                                >
-                                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                    Notes
-                                  </Typography>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {item.notes}
-                                  </Typography>
-                                </Paper>
-                              )}
-                            </Box>
-                          ) : item.systemType === 'Sliding Doors' ? (
-                            <Box>
-                              {/* Door Configuration Card */}
-                              <Paper 
-                                variant="outlined" 
-                                sx={{ 
-                                  p: 2,
-                                  bgcolor: 'background.default',
-                                  mb: 3
-                                }}
-                              >
-                                <Grid container spacing={3}>
-                                  {/* Left Column - Configuration Details */}
-                                  <Grid item xs={12} md={4}>
-                                    <Stack spacing={1}>
-                                      <Typography variant="subtitle2" color="text.secondary">
-                                        Configuration Details
-                              </Typography>
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                          Type:
-                                        </Typography>
-                                        <Typography variant="body2">
-                                          {item.systemType}
-                                        </Typography>
-                                      </Box>
-                                      {item.grid?.enabled && (
-                                        <Box sx={{ display: 'flex', gap: 1 }}>
-                                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                            Grid:
-                                          </Typography>
-                                          <Typography variant="body2">
-                                            {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
-                                          </Typography>
-                                        </Box>
-                                      )}
-                                      {item.panels?.map((panel, idx) => (
-                                        <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
-                                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                            Panel {idx + 1}:
-                                          </Typography>
-                                          <Typography variant="body2">
-                                            {panel.type} {panel.type === 'Sliding' ? `(${panel.direction === 'left' ? '←' : '→'})` : ''}
-                                          </Typography>
-                                        </Box>
-                                      ))}
-                                    </Stack>
-                                  </Grid>
-
-                                  {/* Middle Column - Visual Configuration */}
-                                  <Grid item xs={12} md={4}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                      Configuration Preview
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                                      Scaled Preview (Not Actual Size)
-                                    </Typography>
-                                    <Box sx={{ 
-                                      display: 'flex', 
-                                      flexDirection: 'column', 
-                                      gap: 1,
-                                      border: '2px solid',
-                                      borderColor: 'grey.300',
-                                      borderRadius: 1,
-                                      p: 1,
-                                      bgcolor: 'background.paper',
-                                      aspectRatio: item.dimensions?.width && item.dimensions?.height ? 
-                                        `${item.dimensions.width} / ${item.dimensions.height}` : '16/9',
-                                      maxHeight: '200px'
-                                    }}>
-                                      <Box sx={{ display: 'flex', gap: 0.5, height: '100%' }}>
-                                {item.panels?.map((panel, index) => (
-                                          <Paper
-                                    key={index}
-                                    sx={{
-                                              p: 0.5,
-                                              flex: 1,
-                                      bgcolor: panel.type === 'Fixed' ? 'grey.100' : 'primary.light',
-                                      color: panel.type === 'Fixed' ? 'text.primary' : 'primary.contrastText',
-                                      border: '1px solid',
-                                      borderColor: panel.type === 'Fixed' ? 'grey.300' : 'primary.main',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                              position: 'relative',
-                                              minHeight: 0
-                                            }}
-                                          >
-                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
-                                              {panel.type === 'Fixed' ? 'F' : (panel.direction === 'left' ? '←' : '→')}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                                              Panel {index + 1}
-                                            </Typography>
-                                            {/* Grid Lines */}
-                                            {item.grid?.enabled && (
-                                              <Box sx={{
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                bottom: 0,
-                                                pointerEvents: 'none'
-                                              }}>
-                                                {/* Vertical Grid Lines */}
-                                                {Array.from({ length: item.grid.horizontal - 1 }).map((_, i) => (
-                                                  <Box
-                                                    key={`v-${i}`}
-                                                    sx={{
-                                                      position: 'absolute',
-                                                      top: 0,
-                                                      bottom: 0,
-                                                      left: `${((i + 1) * 100) / item.grid.horizontal}%`,
-                                                      width: '1px',
-                                                      bgcolor: 'grey.400'
-                                                    }}
-                                                  />
-                                                ))}
-                                                {/* Horizontal Grid Lines */}
-                                                {Array.from({ length: item.grid.vertical - 1 }).map((_, i) => (
-                                                  <Box
-                                                    key={`h-${i}`}
-                                                    sx={{
-                                                      position: 'absolute',
-                                                      left: 0,
-                                                      right: 0,
-                                                      top: `${((i + 1) * 100) / item.grid.vertical}%`,
-                                                      height: '1px',
-                                                      bgcolor: 'grey.400'
-                                                    }}
-                                                  />
-                                                ))}
-                                  </Box>
-                                            )}
-                                          </Paper>
-                                ))}
-                              </Box>
-                                    </Box>
-                                  </Grid>
-
-                                  {/* Right Column - Dimensions Summary */}
-                                  <Grid item xs={12} md={4}>
-                                    <Stack spacing={2}>
-                                      <Box>
-                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                          System Dimensions
-                                        </Typography>
-                                        <Stack spacing={1}>
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                            <Typography variant="body2" color="text.secondary">Width:</Typography>
-                                            <Typography variant="body2">
-                                              {item.dimensions?.width}"
-                                            </Typography>
-                                          </Box>
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                            <Typography variant="body2" color="text.secondary">Height:</Typography>
-                                            <Typography variant="body2">
-                                              {item.dimensions?.height}"
-                                            </Typography>
-                                          </Box>
-                                        </Stack>
-                                      </Box>
-
-                                      <Box>
-                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                          Area Calculations
-                                        </Typography>
-                                        <Stack spacing={1}>
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                            <Typography variant="body2" color="text.secondary">Total Area:</Typography>
-                                            <Typography variant="body2">
-                                              {((item.dimensions?.width * item.dimensions?.height) / 144).toFixed(1)} sq ft
-                                            </Typography>
-                                          </Box>
-                                        </Stack>
-                                      </Box>
-                                    </Stack>
-                                  </Grid>
-                                </Grid>
-                              </Paper>
-
-                              {/* Finish Details Card */}
-                              <Paper 
-                                variant="outlined" 
-                                sx={{ 
-                                  p: 2,
-                                  bgcolor: 'background.default',
-                                  mb: 2
-                                }}
-                              >
-                                <Grid container spacing={3}>
-                                  <Grid item xs={12} md={6}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                      Finish Details
-                                    </Typography>
-                                    <Stack direction="row" spacing={3}>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Type:</Typography>
-                                        <Typography variant="body2">{item.finish.type}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Style:</Typography>
-                                        <Typography variant="body2">{item.finish.color}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">RAL:</Typography>
-                                        <Typography variant="body2">{item.finish.ralColor}</Typography>
-                                      </Box>
-                                    </Stack>
-                                  </Grid>
-                                  <Grid item xs={12} md={6}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                      Cost Breakdown
-                                    </Typography>
-                                    <Stack direction="row" spacing={3}>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">System:</Typography>
-                                        <Typography variant="body2">${systemCost.toFixed(2)}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Glass:</Typography>
-                                        <Typography variant="body2">${glassCost.toFixed(2)}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Labor:</Typography>
-                                        <Typography variant="body2">${laborCost.toFixed(2)}</Typography>
-                                      </Box>
-                                    </Stack>
-                                  </Grid>
-                                </Grid>
-                              </Paper>
-
-                              {/* Notes if any */}
-                              {item.notes && (
-                                <Paper 
-                                  variant="outlined" 
-                                  sx={{ 
-                                    p: 2,
-                                    bgcolor: 'background.default'
-                                  }}
-                                >
-                                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                    Notes
-                                  </Typography>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {item.notes}
-                                  </Typography>
-                                </Paper>
-                              )}
-                            </Box>
-                          ) : item.systemType === 'Entrance Doors' ? (
-                            <Box>
-                              {/* Door Configuration Card */}
-                              <Paper 
-                                variant="outlined" 
-                                sx={{ 
-                                  p: 2,
-                                  bgcolor: 'background.default',
-                                  mb: 3
-                                }}
-                              >
-                                <Grid container spacing={3}>
-                                  {/* Left Column - Configuration Details */}
-                                  <Grid item xs={12} md={4}>
-                                    <Stack spacing={1}>
-                                      <Typography variant="subtitle2" color="text.secondary">
-                                        Configuration Details
-                                      </Typography>
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                          Opening:
-                                        </Typography>
-                            <Typography variant="body2">
-                                          {item.openingType}
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                              Type:
                             </Typography>
-                                      </Box>
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                          Swing:
-                                        </Typography>
-                                        <Typography variant="body2">
-                                          {item.swingDirection}
-                                        </Typography>
-                                      </Box>
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                          Handle:
-                                        </Typography>
-                                        <Typography variant="body2">
-                                          {item.handleType}
-                                        </Typography>
-                                      </Box>
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                          Lock:
-                                        </Typography>
-                                        <Typography variant="body2">
-                                          {item.lockType}
-                                        </Typography>
-                                      </Box>
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                          Threshold:
-                                        </Typography>
-                                        <Typography variant="body2">
-                                          {item.threshold}
-                                        </Typography>
-                                      </Box>
-                                      <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                          Hinge:
-                                        </Typography>
-                                        <Typography variant="body2">
-                                          {item.hingeType}
-                                        </Typography>
-                                      </Box>
-                                    </Stack>
-                                  </Grid>
-
-                                  {/* Middle Column - Visual Configuration */}
-                                  <Grid item xs={12} md={4}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                      Configuration Preview
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                                      Scaled Preview (Not Actual Size)
-                                    </Typography>
-                                    <Box sx={{ 
-                                      display: 'flex', 
-                                      flexDirection: 'column', 
-                                      gap: 1,
-                                      border: '2px solid',
-                                      borderColor: 'grey.300',
-                                      borderRadius: 1,
-                                      p: 1,
-                                      bgcolor: 'background.paper',
-                                      aspectRatio: item.dimensions?.width && item.dimensions?.height ? 
-                                        `${(item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-                                          item.dimensions.width + 
-                                          (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)} / 
-                                         ${item.dimensions.height + (item.transom?.enabled ? item.transom.height : 0)}` : '16/9',
-                                      maxHeight: '200px'
-                                    }}>
-                                      {/* Transom */}
-                                      {item.transom?.enabled && (
-                                        <Box sx={{ 
-                                          display: 'flex', 
-                                          gap: 1,
-                                          height: `${(item.transom.height / (item.dimensions.height + item.transom.height)) * 100}%`
-                                        }}>
-                                          <Paper
-                                            sx={{
-                                              p: 0.5,
-                                              flex: 1,
-                                              bgcolor: 'grey.100',
-                                              color: 'text.primary',
-                                              textAlign: 'center',
-                                              border: '1px solid',
-                                              borderColor: 'grey.300',
-                                              display: 'flex',
-                                              flexDirection: 'column',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              minHeight: 0
-                                            }}
-                                          >
-                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
-                                              Transom ({item.transom.height}")
-                                            </Typography>
-                                          </Paper>
-                                        </Box>
-                                      )}
-
-                                      {/* Door and Sidelights */}
-                                      <Box sx={{ display: 'flex', gap: 1, flex: 1 }}>
-                                        {/* Left Sidelight */}
-                                        {item.leftSidelight?.enabled && (
-                                          <Paper
-                                            sx={{
-                                              p: 0.5,
-                                              width: `${(item.leftSidelight.width / ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-                                                item.dimensions.width + 
-                                                (item.rightSidelight?.enabled ? item.rightSidelight.width : 0))) * 100}%`,
-                                              bgcolor: 'grey.100',
-                                              color: 'text.primary',
-                                              textAlign: 'center',
-                                              border: '1px solid',
-                                              borderColor: 'grey.300',
-                                              display: 'flex',
-                                              flexDirection: 'column',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              minHeight: 0
-                                            }}
-                                          >
-                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
-                                              Left ({item.leftSidelight.width}")
-                                            </Typography>
-                                          </Paper>
-                                        )}
-
-                                        {/* Door Section */}
-                                        {item.openingType === 'Single Door' && (
-                                          <Paper
-                                            sx={{
-                                              p: 0.5,
-                                              flex: 1,
-                                              bgcolor: 'primary.light',
-                                              color: 'primary.contrastText',
-                                              textAlign: 'center',
-                                              border: '1px solid',
-                                              borderColor: 'primary.main',
-                                              position: 'relative',
-                                              display: 'flex',
-                                              flexDirection: 'column',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              minHeight: 0
-                                            }}
-                                          >
-                                            {/* Grid Lines for Glass Doors */}
-                                            {item.doorType === 'glass' && item.grid?.enabled && (
-                                              <Box sx={{
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                bottom: 0,
-                                                pointerEvents: 'none'
-                                              }}>
-                                                {/* Vertical Grid Lines */}
-                                                {Array.from({ length: item.grid.horizontal - 1 }).map((_, i) => {
-                                                  const doorWidth = item.dimensions.width;
-                                                  const gridProfileWidth = (1 / doorWidth) * 100;
-                                                  const position = ((i + 1) * 100) / item.grid.horizontal;
-                                                  return (
-                                                    <Box
-                                                      key={`v-${i}`}
-                                                      sx={{
-                                                        position: 'absolute',
-                                                        top: 0,
-                                                        bottom: 0,
-                                                        left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
-                                                        width: `${gridProfileWidth}%`,
-                                                        bgcolor: 'grey.300',
-                                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                                      }}
-                                                    />
-                                                  );
-                                                })}
-                                                {/* Horizontal Grid Lines */}
-                                                {Array.from({ length: item.grid.vertical - 1 }).map((_, i) => {
-                                                  const totalHeight = item.dimensions.height;
-                                                  const gridProfileHeight = (1 / totalHeight) * 100;
-                                                  const position = ((i + 1) * 100) / item.grid.vertical;
-                                                  return (
-                                                    <Box
-                                                      key={`h-${i}`}
-                                                      sx={{
-                                                        position: 'absolute',
-                                                        left: 0,
-                                                        right: 0,
-                                                        top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
-                                                        height: `${gridProfileHeight}%`,
-                                                        bgcolor: 'grey.300',
-                                                        boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                                      }}
-                                                    />
-                                                  );
-                                                })}
-                                              </Box>
-                                            )}
-                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
-                                              Door ({item.dimensions?.width}")
-                                            </Typography>
-                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
-                                              {item.doorType === 'panel' ? 'Panel' : 'Glass'} Door • {item.swingDirection}
-                                            </Typography>
-                                            <Box
-                                              sx={{
-                                                position: 'absolute',
-                                                [item.swingDirection?.toLowerCase().includes('left') ? 'left' : 'right']: 0,
-                                                top: '50%',
-                                                transform: 'translateY(-50%)',
-                                                width: '2px',
-                                                height: '8px',
-                                                bgcolor: 'primary.dark',
-                                                borderRadius: '1px',
-                                                [item.swingDirection?.toLowerCase().includes('left') ? 'ml' : 'mr']: 0.25
-                                              }}
-                                            />
-                                          </Paper>
-                                        )}
-
-                                        {item.openingType === 'Double Door' && (
-                                          <Box sx={{ display: 'flex', gap: 0, flex: 1 }}>
-                                            {/* Left Door Panel */}
-                                            <Paper
-                                              sx={{
-                                                p: 1,
-                                                flex: 1,
-                                                bgcolor: 'primary.light',
-                                                color: 'primary.contrastText',
-                                                textAlign: 'center',
-                                                border: '1px solid',
-                                                borderColor: 'primary.main',
-                                                borderRight: '2px solid',
-                                                borderRightColor: 'grey.400',
-                                                position: 'relative',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                minHeight: '60px'
-                                              }}
-                                            >
-                                              {/* Grid Lines for Glass Doors */}
-                                              {item.doorType === 'glass' && item.grid?.enabled && (
-                                                <Box sx={{
-                                                  position: 'absolute',
-                                                  top: 0,
-                                                  left: 0,
-                                                  right: 0,
-                                                  bottom: 0,
-                                                  pointerEvents: 'none'
-                                                }}>
-                                                  {/* Vertical Grid Lines */}
-                                                  {Array.from({ length: item.grid.horizontal - 1 }).map((_, i) => {
-                                                    const doorWidth = item.dimensions.width / 2;
-                                                    const gridProfileWidth = (1 / doorWidth) * 100;
-                                                    const position = ((i + 1) * 100) / item.grid.horizontal;
-                                                    return (
-                                                      <Box
-                                                        key={`v-${i}`}
-                                                        sx={{
-                                                          position: 'absolute',
-                                                          top: 0,
-                                                          bottom: 0,
-                                                          left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
-                                                          width: `${gridProfileWidth}%`,
-                                                          bgcolor: 'grey.300',
-                                                          boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                                        }}
-                                                      />
-                                                    );
-                                                  })}
-                                                  {/* Horizontal Grid Lines */}
-                                                  {Array.from({ length: item.grid.vertical - 1 }).map((_, i) => {
-                                                    const totalHeight = item.dimensions.height;
-                                                    const gridProfileHeight = (1 / totalHeight) * 100;
-                                                    const position = ((i + 1) * 100) / item.grid.vertical;
-                                                    return (
-                                                      <Box
-                                                        key={`h-${i}`}
-                                                        sx={{
-                                                          position: 'absolute',
-                                                          left: 0,
-                                                          right: 0,
-                                                          top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
-                                                          height: `${gridProfileHeight}%`,
-                                                          bgcolor: 'grey.300',
-                                                          boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                                        }}
-                                                      />
-                                                    );
-                                                  })}
-                                                </Box>
-                                              )}
-                                              <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.7rem' }}>
-                                                Left Panel
-                                              </Typography>
-                                              <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                                                {(item.dimensions?.width || 0) / 2}"
-                                              </Typography>
-                                              {/* Right Handle for Left Door */}
-                                              <Box
-                                                sx={{
-                                                  position: 'absolute',
-                                                  right: 0,
-                                                  top: '50%',
-                                                  transform: 'translateY(-50%)',
-                                                  width: '3px',
-                                                  height: '12px',
-                                                  bgcolor: 'primary.dark',
-                                                  borderRadius: '2px',
-                                                  mr: 0.5,
-                                                  zIndex: 2
-                                                }}
-                                              />
-                                            </Paper>
-
-                                            {/* Right Door Panel */}
-                                            <Paper
-                                              sx={{
-                                                p: 1,
-                                                flex: 1,
-                                                bgcolor: 'primary.light',
-                                                color: 'primary.contrastText',
-                                                textAlign: 'center',
-                                                border: '1px solid',
-                                                borderColor: 'primary.main',
-                                                borderLeft: '2px solid',
-                                                borderLeftColor: 'grey.400',
-                                                position: 'relative',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                minHeight: '60px'
-                                              }}
-                                            >
-                                              {/* Grid Lines for Glass Doors */}
-                                              {item.doorType === 'glass' && item.grid?.enabled && (
-                                                <Box sx={{
-                                                  position: 'absolute',
-                                                  top: 0,
-                                                  left: 0,
-                                                  right: 0,
-                                                  bottom: 0,
-                                                  pointerEvents: 'none'
-                                                }}>
-                                                  {/* Vertical Grid Lines */}
-                                                  {Array.from({ length: item.grid.horizontal - 1 }).map((_, i) => {
-                                                    const doorWidth = item.dimensions.width / 2;
-                                                    const gridProfileWidth = (1 / doorWidth) * 100;
-                                                    const position = ((i + 1) * 100) / item.grid.horizontal;
-                                                    return (
-                                                      <Box
-                                                        key={`v-${i}`}
-                                                        sx={{
-                                                          position: 'absolute',
-                                                          top: 0,
-                                                          bottom: 0,
-                                                          left: `calc(${position}% - ${gridProfileWidth / 2}%)`,
-                                                          width: `${gridProfileWidth}%`,
-                                                          bgcolor: 'grey.300',
-                                                          boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                                        }}
-                                                      />
-                                                    );
-                                                  })}
-                                                  {/* Horizontal Grid Lines */}
-                                                  {Array.from({ length: item.grid.vertical - 1 }).map((_, i) => {
-                                                    const totalHeight = item.dimensions.height;
-                                                    const gridProfileHeight = (1 / totalHeight) * 100;
-                                                    const position = ((i + 1) * 100) / item.grid.vertical;
-                                                    return (
-                                                      <Box
-                                                        key={`h-${i}`}
-                                                        sx={{
-                                                          position: 'absolute',
-                                                          left: 0,
-                                                          right: 0,
-                                                          top: `calc(${position}% - ${gridProfileHeight / 2}%)`,
-                                                          height: `${gridProfileHeight}%`,
-                                                          bgcolor: 'grey.300',
-                                                          boxShadow: '0 0 1px rgba(0,0,0,0.3)'
-                                                        }}
-                                                      />
-                                                    );
-                                                  })}
-                                                </Box>
-                                              )}
-                                              <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.7rem' }}>
-                                                Right Panel
-                                              </Typography>
-                                              <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                                                {(item.dimensions?.width || 0) / 2}"
-                                              </Typography>
-                                              {/* Left Handle for Right Door */}
-                                              <Box
-                                                sx={{
-                                                  position: 'absolute',
-                                                  left: 0,
-                                                  top: '50%',
-                                                  transform: 'translateY(-50%)',
-                                                  width: '3px',
-                                                  height: '12px',
-                                                  bgcolor: 'primary.dark',
-                                                  borderRadius: '2px',
-                                                  ml: 0.5,
-                                                  zIndex: 2
-                                                }}
-                                              />
-                                            </Paper>
-                                          </Box>
-                                        )}
-
-                                        {item.openingType === 'Pivot Door' && (
-                                          <Paper
-                                            sx={{
-                                              p: 0.5,
-                                              flex: 1,
-                                              bgcolor: 'primary.light',
-                                              color: 'primary.contrastText',
-                                              textAlign: 'center',
-                                              border: '1px solid',
-                                              borderColor: 'primary.main',
-                                              position: 'relative',
-                                              minHeight: '60px',
-                                              display: 'flex',
-                                              flexDirection: 'column',
-                                              alignItems: 'center',
-                                              justifyContent: 'center'
-                                            }}
-                                          >
-                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                              Pivot ({item.dimensions?.width}")
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>
-                                              {item.dimensions?.width}" × {item.dimensions?.height}"
-                                            </Typography>
-                                            <Box
-                                              sx={{
-                                                position: 'absolute',
-                                                [item.handleLocation || 'right']: 0,
-                                                top: '50%',
-                                                transform: 'translateY(-50%)',
-                                                width: '4px',
-                                                height: '16px',
-                                                bgcolor: 'primary.dark',
-                                                borderRadius: '2px',
-                                                mr: item.handleLocation === 'right' ? 0.5 : 'auto',
-                                                ml: item.handleLocation === 'left' ? 0.5 : 'auto'
-                                              }}
-                                            />
-                                            <Box
-                                              sx={{
-                                                position: 'absolute',
-                                                left: '50%',
-                                                top: '50%',
-                                                width: '8px',
-                                                height: '8px',
-                                                bgcolor: 'primary.dark',
-                                                borderRadius: '50%',
-                                                transform: 'translate(-50%, -50%)'
-                                              }}
-                                            />
-                                          </Paper>
-                                        )}
-
-                                        {/* Right Sidelight */}
-                                        {item.rightSidelight?.enabled && (
-                                          <Paper
-                                            sx={{
-                                              p: 0.5,
-                                              width: `${(item.rightSidelight.width / ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-                                                item.dimensions.width + 
-                                                (item.rightSidelight?.enabled ? item.rightSidelight.width : 0))) * 100}%`,
-                                              bgcolor: 'grey.100',
-                                              color: 'text.primary',
-                                              textAlign: 'center',
-                                              border: '1px solid',
-                                              borderColor: 'grey.300',
-                                              display: 'flex',
-                                              flexDirection: 'column',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              minHeight: 0
-                                            }}
-                                          >
-                                            <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.6rem' }}>
-                                              Right ({item.rightSidelight.width}")
-                                            </Typography>
-                                          </Paper>
-                                        )}
-                                      </Box>
-                                    </Box>
-                                  </Grid>
-
-                                  {/* Right Column - Dimensions Summary */}
-                                  <Grid item xs={12} md={4}>
-                                    <Stack spacing={2}>
-                                      <Box>
-                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                          System Dimensions
-                                        </Typography>
-                                        <Stack spacing={1}>
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                            <Typography variant="body2" color="text.secondary">Total Width:</Typography>
-                                            <Typography variant="body2">
-                                              {(item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) + 
-                                               (item.dimensions?.width || 0) +
-                                               (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0)}"
-                                            </Typography>
-                                          </Box>
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                            <Typography variant="body2" color="text.secondary">Total Height:</Typography>
-                                            <Typography variant="body2">
-                                              {(item.dimensions?.height || 0) + 
-                                               (item.transom?.enabled ? (item.transom?.height || 0) : 0)}"
-                                            </Typography>
-                                          </Box>
-                                        </Stack>
-                                      </Box>
-
-                                      <Box>
-                                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                          Area Calculations
-                                        </Typography>
-                                        <Stack spacing={1}>
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                            <Typography variant="body2" color="text.secondary">Door Area:</Typography>
-                                            <Typography variant="body2">
-                                              {((item.dimensions?.width || 0) * (item.dimensions?.height || 0) / 144).toFixed(1)} sq ft
-                                            </Typography>
-                                          </Box>
-                                          {(item.leftSidelight?.enabled || item.rightSidelight?.enabled || item.transom?.enabled) && (
-                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                              <Typography variant="body2" color="text.secondary">Glass Area:</Typography>
-                                              <Typography variant="body2">
-                                                {(
-                                                  ((item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) * 
-                                                   (item.dimensions?.height || 0) +
-                                                   (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0) * 
-                                                   (item.dimensions?.height || 0) +
-                                                  ((item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) + 
-                                                   (item.dimensions?.width || 0) +
-                                                   (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0)) * 
-                                                   (item.transom?.enabled ? (item.transom?.height || 0) : 0)
-                                                  ) / 144
-                                                ).toFixed(1)} sq ft
-                                              </Typography>
-                                            </Box>
-                                          )}
-                                          <Box sx={{ 
-                                            display: 'flex', 
-                                            justifyContent: 'space-between', 
-                                            alignItems: 'baseline',
-                                            pt: 1,
-                                            borderTop: '1px solid',
-                                            borderColor: 'divider'
-                                          }}>
-                                            <Typography variant="subtitle2" color="primary">Total Area:</Typography>
-                                            <Typography variant="subtitle2" color="primary">
-                                              {(
-                                                ((item.leftSidelight?.enabled ? (item.leftSidelight?.width || 0) : 0) + 
-                                                 (item.dimensions?.width || 0) +
-                                                 (item.rightSidelight?.enabled ? (item.rightSidelight?.width || 0) : 0)) * 
-                                                ((item.dimensions?.height || 0) + 
-                                                 (item.transom?.enabled ? (item.transom?.height || 0) : 0)) / 144
-                                              ).toFixed(1)} sq ft
-                                            </Typography>
-                                          </Box>
-                                        </Stack>
-                                      </Box>
-                                    </Stack>
-                                  </Grid>
-                                </Grid>
-                              </Paper>
-
-                              {/* Finish Details Card */}
-                              <Paper 
-                                variant="outlined" 
-                                sx={{ 
-                                  p: 2,
-                                  bgcolor: 'background.default',
-                                  mb: 2
-                                }}
-                              >
-                                <Grid container spacing={3}>
-                                  <Grid item xs={12} md={6}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                      Finish Details
-                                    </Typography>
-                                    <Stack direction="row" spacing={3}>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Type:</Typography>
-                                        <Typography variant="body2">{item.finish.type}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Style:</Typography>
-                                        <Typography variant="body2">{item.finish.color}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">RAL:</Typography>
-                                        <Typography variant="body2">{item.finish.ralColor}</Typography>
-                                      </Box>
-                                    </Stack>
-                                  </Grid>
-                                  <Grid item xs={12} md={6}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                      Cost Breakdown
-                                    </Typography>
-                                    <Stack direction="row" spacing={3}>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">System:</Typography>
-                                        <Typography variant="body2">${systemCost.toFixed(2)}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Glass:</Typography>
-                                        <Typography variant="body2">${glassCost.toFixed(2)}</Typography>
-                                      </Box>
-                                      <Box>
-                                        <Typography variant="body2" color="text.secondary">Labor:</Typography>
-                                        <Typography variant="body2">${laborCost.toFixed(2)}</Typography>
-                                      </Box>
-                                    </Stack>
-                                  </Grid>
-                                </Grid>
-                              </Paper>
-
-                              {/* Notes if any */}
-                              {item.notes && (
-                                <Paper 
-                                  variant="outlined" 
-                                  sx={{ 
-                                    p: 2,
-                                    bgcolor: 'background.default'
-                                  }}
-                                >
-                                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                    Notes
-                                  </Typography>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {item.notes}
-                                  </Typography>
-                                </Paper>
-                              )}
-                            </Box>
-                          ) : item.operationType ? (
                             <Typography variant="body2">
-                              Operation: {item.operationType}
+                              {item.systemType}
                             </Typography>
-                          ) : null}
-                        </Stack>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                          Dimensions
-                        </Typography>
-                        <Stack direction="row" spacing={2} alignItems="center">
-                          <Chip 
-                            icon={<SquareFootIcon />} 
-                            label={`Width: ${item.dimensions.width}"`}
-                            variant="outlined"
-                            size="small"
-                          />
-                          <Chip 
-                            icon={<SquareFootIcon />} 
-                            label={`Height: ${item.dimensions.height}"`}
-                            variant="outlined"
-                            size="small"
-                          />
+                          </Box>
+                          {item.systemType === 'Windows' && (
+                            <>
+                              {item.grid?.enabled && (
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                    Grid:
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
+                                  </Typography>
+                                </Box>
+                              )}
+                              {item.panels.map((panel, idx) => (
+                                <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
+                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                    Panel {idx + 1}:
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    {panel.operationType} ({panel.width}")
+                                    {panel.operationType !== 'Fixed' && item.hasMosquitoNet && ' + Mosquito Net'}
+                                  </Typography>
+                                </Box>
+                              ))}
+                            </>
+                          )}
+                          {item.systemType === 'Sliding Doors' && (
+                            <>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                  Configuration:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {item.operationType || 'Custom'}
+                                </Typography>
+                              </Box>
+                              {item.grid?.enabled && (
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                    Grid:
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
+                                  </Typography>
+                                </Box>
+                              )}
+                              {item.panels?.map((panel, idx) => (
+                                <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
+                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                    Panel {idx + 1}:
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    {panel.type} {panel.type === 'Sliding' ? `(${panel.direction === 'left' ? '←' : '→'})` : ''}
+                                  </Typography>
+                                </Box>
+                              ))}
+                            </>
+                          )}
+                          {item.systemType === 'Entrance Doors' && (
+                            <>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                  Opening:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {item.openingType}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                  Swing:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {item.swingDirection}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                  Handle:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {item.handleType}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                  Lock:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {item.lockType}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                  Threshold:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {item.threshold}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                  Hinge:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {item.hingeType}
+                                </Typography>
+                              </Box>
+                              {item.grid?.enabled && (
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                    Grid:
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
+                                  </Typography>
+                                </Box>
+                              )}
+                            </>
+                          )}
                         </Stack>
                       </Box>
                     </Grid>
+
+                    {/* Middle Column - Visual Configuration */}
+                    <Grid item xs={12} md={4}>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Configuration Preview
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                        Scaled Preview (Not Actual Size)
+                      </Typography>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: 1,
+                        border: '2px solid',
+                        borderColor: 'grey.300',
+                        borderRadius: 1,
+                        p: 1,
+                        bgcolor: 'background.paper',
+                        maxHeight: '200px'
+                      }}>
+                        <ConfigurationPreviewUI configuration={item} />
+                      </Box>
+                    </Grid>
+
+                    {/* Right Column - Dimensions Summary */}
+                    <Grid item xs={12} md={4}>
+                      <Stack spacing={2}>
+                        <Box>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            System Dimensions
+                          </Typography>
+                          <Stack spacing={1}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <Typography variant="body2" color="text.secondary">Total Width:</Typography>
+                              <Typography variant="body2">
+                                {item.systemType === 'Windows' ?
+                                  item.panels.reduce((sum, panel) => sum + panel.width, 0) :
+                                  item.systemType === 'Sliding Doors' ?
+                                    item.dimensions?.width :
+                                    ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                                     item.dimensions.width +
+                                     (item.rightSidelight?.enabled ? item.rightSidelight.width : 0))}"
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <Typography variant="body2" color="text.secondary">Total Height:</Typography>
+                              <Typography variant="body2">
+                                {item.dimensions?.height +
+                                 (item.systemType === 'Entrance Doors' && item.transom?.enabled ? 
+                                   item.transom.height : 0)}"
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            Area Calculations
+                          </Typography>
+                          <Stack spacing={1}>
+                            {item.systemType === 'Entrance Doors' && (
+                              <>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                  <Typography variant="body2" color="text.secondary">Door Area:</Typography>
+                                  <Typography variant="body2">
+                                    {((item.dimensions?.width * item.dimensions?.height) / 144).toFixed(1)} sq ft
+                                  </Typography>
+                                </Box>
+                                {(item.leftSidelight?.enabled || item.rightSidelight?.enabled || item.transom?.enabled) && (
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                    <Typography variant="body2" color="text.secondary">Glass Area:</Typography>
+                                    <Typography variant="body2">
+                                      {(
+                                        ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) * 
+                                         item.dimensions.height +
+                                         (item.rightSidelight?.enabled ? item.rightSidelight.width : 0) * 
+                                         item.dimensions.height +
+                                        ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                                         item.dimensions.width +
+                                         (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                                         (item.transom?.enabled ? item.transom.height : 0)
+                                            ) / 144
+                                      ).toFixed(1)} sq ft
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </>
+                            )}
+                            <Box sx={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'baseline',
+                              pt: item.systemType === 'Entrance Doors' ? 1 : 0,
+                              borderTop: item.systemType === 'Entrance Doors' ? '1px solid' : 'none',
+                              borderColor: 'divider'
+                            }}>
+                              <Typography variant="subtitle2" color="primary">Total Area:</Typography>
+                              <Typography variant="subtitle2" color="primary">
+                                {item.systemType === 'Windows' ?
+                                  ((item.panels.reduce((sum, panel) => sum + panel.width, 0) * 
+                                    item.dimensions?.height) / 144).toFixed(1) :
+                                  item.systemType === 'Sliding Doors' ?
+                                    ((item.dimensions?.width * item.dimensions?.height) / 144).toFixed(1) :
+                                    (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                                      item.dimensions.width +
+                                      (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                                     (item.dimensions.height + 
+                                      (item.transom?.enabled ? item.transom.height : 0)) / 144
+                                    ).toFixed(1)} sq ft
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </Box>
+                      </Stack>
+                    </Grid>
                   </Grid>
+
+                  {/* Finish Details Card */}
+                  <Paper 
+                    variant="outlined" 
+                    sx={{ 
+                      p: 2,
+                      bgcolor: 'background.default',
+                      mb: 2
+                    }}
+                  >
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Finish Details
+                        </Typography>
+                        <Stack direction="row" spacing={3}>
+                          <Box>
+                            <Typography variant="body2" color="text.secondary">Type:</Typography>
+                            <Typography variant="body2">{item.finish.type}</Typography>
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" color="text.secondary">Style:</Typography>
+                            <Typography variant="body2">{item.finish.color}</Typography>
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" color="text.secondary">RAL:</Typography>
+                            <Typography variant="body2">{item.finish.ralColor}</Typography>
+                          </Box>
+                        </Stack>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Cost Breakdown
+                        </Typography>
+                        <Stack direction="row" spacing={3}>
+                          <Box>
+                            <Typography variant="body2" color="text.secondary">System:</Typography>
+                            <Typography variant="body2">${systemCost.toFixed(2)}</Typography>
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" color="text.secondary">Glass:</Typography>
+                            <Typography variant="body2">${glassCost.toFixed(2)}</Typography>
+                          </Box>
+                          <Box>
+                            <Typography variant="body2" color="text.secondary">Labor:</Typography>
+                            <Typography variant="body2">${laborCost.toFixed(2)}</Typography>
+                          </Box>
+                        </Stack>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+
+                  {/* Notes if any */}
+                  {item.notes && (
+                    <Paper 
+                      variant="outlined" 
+                      sx={{ 
+                        p: 2,
+                        bgcolor: 'background.default'
+                      }}
+                    >
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Notes
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {item.notes}
+                      </Typography>
+                    </Paper>
+                  )}
                 </ListItem>
               </React.Fragment>
             ))}
@@ -2807,8 +1458,13 @@ const PricingSummary = ({
               <Button onClick={handleSaveQuote} color="primary" variant="contained">
                 {savedQuote ? 'Update Quote' : 'Save Quote'}
               </Button>
-              <Button onClick={handleDownloadPDF} color="primary">
-                Download PDF
+              <Button 
+                onClick={handleDownloadPDF} 
+                color="primary"
+                disabled={isGeneratingPDF}
+                startIcon={isGeneratingPDF ? <CircularProgress size={20} /> : null}
+              >
+                {isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}
               </Button>
             </>
           )}
