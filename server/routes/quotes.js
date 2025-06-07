@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const generateQuotePDF = require('../utils/pdfGenerator');
 const { 
   unitCostPerSqft, 
   laborRates,
@@ -346,31 +345,6 @@ router.post('/quotes/generate', async (req, res) => {
   } catch (error) {
     console.error('Error generating quote:', error);
     res.status(500).json({ error: 'Failed to generate quote' });
-  }
-});
-
-// Generate PDF quote
-router.post('/quotes/generate-pdf', async (req, res) => {
-  try {
-    const { quote } = req.body;
-    
-    if (!quote) {
-      return res.status(400).json({ error: 'Quote data is required' });
-    }
-
-    // Generate PDF buffer
-    const pdfBuffer = await generateQuotePDF(quote);
-
-    // Set response headers for PDF download
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=quote-${quote.quoteNumber}.pdf`);
-    
-    // Send PDF buffer
-    res.send(pdfBuffer);
-
-  } catch (error) {
-    console.error('Error generating PDF:', error);
-    res.status(500).json({ error: 'Failed to generate PDF' });
   }
 });
 

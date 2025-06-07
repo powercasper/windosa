@@ -1,22 +1,27 @@
 import { pdf } from '@react-pdf/renderer';
-import QuotePDF from '../components/pdf/QuotePDF';
 import React from 'react';
+import QuoteDocument from '../components/pdf/QuoteDocument';
 
-export const generateQuotePDF = async (quote, items) => {
+export const generateQuotePDF = async (quote) => {
   try {
-    const doc = <QuotePDF quote={quote} items={items} />;
+    // Create PDF document
+    const doc = <QuoteDocument quote={quote} />;
     const asPdf = pdf();
     asPdf.updateContainer(doc);
     const blob = await asPdf.toBlob();
     
+    // Create download link
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Quotation_Windo_${quote.projectName.replace(/\s+/g, '_')}_${new Date().toLocaleDateString().replace(/\//g, '_')}.pdf`;
+    link.download = `Quote_${quote.quoteNumber}_${new Date().toISOString().split('T')[0]}.pdf`;
     
+    // Trigger download
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    // Cleanup
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Error generating PDF:', error);

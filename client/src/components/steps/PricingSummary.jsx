@@ -46,9 +46,10 @@ import PaidIcon from '@mui/icons-material/Paid';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
-import { generateQuote, generatePDF } from '../../api/config';
+import { generateQuote } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
+import { generateQuotePDF } from '../../utils/pdfGenerator';
 
 const STORAGE_KEY = 'orderAdditionalCosts';
 
@@ -316,7 +317,6 @@ const PricingSummary = ({
   });
   const [showAddSuccess, setShowAddSuccess] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   
   // Initialize costs from storage or defaults
   const storedCosts = getStoredCosts();
@@ -327,6 +327,9 @@ const PricingSummary = ({
   
   const [totalCost, setTotalCost] = useState(0);
   const [orderTotalPrice, setOrderTotalPrice] = useState(0);
+
+  // Add isGeneratingPDF state
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // Store costs whenever they change
   useEffect(() => {
@@ -459,34 +462,6 @@ const PricingSummary = ({
     }
   };
 
-  const handleDownloadPDF = async () => {
-    try {
-      setIsGeneratingPDF(true);
-      const quoteData = {
-        ...quoteDialog.quote,
-        projectName: quoteDialog.quote.projectName || 'Untitled Project',
-        customerName: quoteDialog.quote.customerName || 'Customer',
-        date: quoteDialog.quote.date || new Date(),
-        salesRep: quoteDialog.quote.salesRep || '',
-        salesRepPhone: quoteDialog.quote.salesRepPhone || '',
-        salesRepEmail: quoteDialog.quote.salesRepEmail || '',
-        totalAmount: pricing.grandTotal,
-      };
-
-      // Import the generateQuotePDF function
-      const { generateQuotePDF } = await import('../../utils/pdfGenerator');
-      await generateQuotePDF(quoteData, quoteItems);
-      setIsGeneratingPDF(false);
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
-      setQuoteDialog(prev => ({
-        ...prev,
-        error: 'Failed to download PDF. Please try again.'
-      }));
-      setIsGeneratingPDF(false);
-    }
-  };
-
   const handleAddToQuote = () => {
     onAddToQuote();
     setShowAddSuccess(true);
@@ -522,6 +497,110 @@ const PricingSummary = ({
         ...prev,
         error: 'Failed to save quote. Please try again.'
       }));
+    }
+  };
+
+  // Add handleDownloadPDF function
+  const handleDownloadPDF = async () => {
+    try {
+      setIsGeneratingPDF(true);
+
+      // Calculate total area for cost distribution
+      const totalArea = pricing.items.reduce((sum, { item }) => {
+        if (item.systemType === 'Windows') {
+          return sum + ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
+        } else if (item.systemType === 'Entrance Doors') {
+          return sum + (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                      item.dimensions.width +
+                      (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                     (item.dimensions.height + 
+                      (item.transom?.enabled ? item.transom.height : 0)) / 144);
+        } else if (item.systemType === 'Sliding Doors') {
+          return sum + ((item.dimensions.width * item.dimensions.height) / 144);
+        }
+        return sum;
+      }, 0);
+
+      // Calculate additional costs per sq ft
+      const additionalCosts = {
+        tariff: parseFloat(tariff || 0),
+        shipping: parseFloat(shipping || 0),
+        delivery: parseFloat(delivery || 0),
+        margin: parseFloat(margin || 0)
+      };
+      
+      const totalAdditionalCosts = additionalCosts.tariff + additionalCosts.shipping + additionalCosts.delivery;
+      const additionalCostPerSqFt = totalArea > 0 ? totalAdditionalCosts / totalArea : 0;
+
+      // Prepare items with all necessary data
+      const itemsWithPricing = pricing.items.map(({ item, systemCost, glassCost, laborCost, total, area }) => {
+        const itemArea = (() => {
+          if (item.systemType === 'Windows') {
+            return ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
+          } else if (item.systemType === 'Entrance Doors') {
+            return (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                    item.dimensions.width +
+                    (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                   (item.dimensions.height + 
+                    (item.transom?.enabled ? item.transom.height : 0)) / 144);
+          } else if (item.systemType === 'Sliding Doors') {
+            return ((item.dimensions.width * item.dimensions.height) / 144);
+          }
+          return 0;
+        })();
+
+        // Calculate item's proportional additional costs
+        const itemAdditionalCosts = itemArea * additionalCostPerSqFt;
+        const totalWithAdditions = total + itemAdditionalCosts;
+        const marginMultiplier = 1 / (1 - (additionalCosts.margin / 100));
+        const finalPrice = totalWithAdditions * marginMultiplier;
+
+        return {
+          ...item,
+          pricing: {
+            systemCost,
+            glassCost,
+            laborCost,
+            baseTotal: total,
+            additionalCosts: itemAdditionalCosts,
+            finalPrice,
+            area: itemArea
+          },
+          dimensions: {
+            ...item.dimensions,
+            totalWidth: item.systemType === 'Windows' ?
+              item.panels.reduce((sum, panel) => sum + panel.width, 0) :
+              ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+               item.dimensions.width +
+               (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)),
+            totalHeight: item.dimensions.height +
+              (item.systemType === 'Entrance Doors' && item.transom?.enabled ? 
+               item.transom.height : 0)
+          }
+        };
+      });
+
+      await generateQuotePDF({
+        ...quoteDialog.quote,
+        items: itemsWithPricing,
+        totalAmount: pricing.grandTotal,
+        additionalCosts,
+        totalArea,
+        pricing: {
+          totalSystemCost: pricing.totalSystemCost,
+          totalGlassCost: pricing.totalGlassCost,
+          totalLaborCost: pricing.totalLaborCost,
+          grandTotal: pricing.grandTotal
+        }
+      });
+      setIsGeneratingPDF(false);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      setQuoteDialog(prev => ({
+        ...prev,
+        error: 'Failed to download PDF. Please try again.'
+      }));
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -565,9 +644,9 @@ const PricingSummary = ({
               Current Item
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Typography variant="h6" color="primary">
-                {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
-              </Typography>
+            <Typography variant="h6" color="primary">
+              {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
+            </Typography>
               <Button
                 variant="contained"
                 color="primary"
@@ -596,7 +675,7 @@ const PricingSummary = ({
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
                     Scaled Preview (Not Actual Size)
-                  </Typography>
+                    </Typography>
                   <Box sx={{ 
                     display: 'flex', 
                     flexDirection: 'column', 
@@ -631,33 +710,33 @@ const PricingSummary = ({
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                       Type:
-                    </Typography>
-                    <Typography variant="body2">
+                  </Typography>
+                  <Typography variant="body2">
                       {configuration.systemType}
-                    </Typography>
+                  </Typography>
                   </Box>
                   {configuration.systemType === 'Entrance Doors' && (
                     <>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                           Opening:
-                        </Typography>
+                            </Typography>
                         <Typography variant="body2">
                           {configuration.openingType}
-                        </Typography>
+                            </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                           Swing:
-                        </Typography>
+                          </Typography>
                         <Typography variant="body2">
                           {configuration.swingDirection}
                         </Typography>
-                      </Box>
+                    </Box>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                           Handle:
-                        </Typography>
+                      </Typography>
                         <Typography variant="body2">
                           {configuration.handleType}
                         </Typography>
@@ -690,12 +769,12 @@ const PricingSummary = ({
                         <Box sx={{ display: 'flex', gap: 1 }}>
                           <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                             Grid:
-                          </Typography>
+              </Typography>
                           <Typography variant="body2">
                             {configuration.grid.horizontal}H × {configuration.grid.vertical}V Divided Lights
-                          </Typography>
-                        </Box>
-                      )}
+              </Typography>
+                          </Box>
+                        )}
                     </>
                   )}
                   {configuration.systemType === 'Windows' && configuration.panels && (
@@ -708,7 +787,7 @@ const PricingSummary = ({
                           {panel.operationType} ({panel.width}")
                           {panel.operationType !== 'Fixed' && configuration.hasMosquitoNet && ' + Mosquito Net'}
                         </Typography>
-                      </Box>
+                  </Box>
                     ))
                   )}
                   {configuration.systemType === 'Sliding Doors' && configuration.panels && (
@@ -716,22 +795,22 @@ const PricingSummary = ({
                       <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
                           Panel {idx + 1}:
-                        </Typography>
+                                  </Typography>
                         <Typography variant="body2">
                           {panel.type} {panel.type === 'Sliding' ? `(${panel.direction === 'left' ? '←' : '→'})` : ''}
-                        </Typography>
-                      </Box>
+                                  </Typography>
+                                    </Box>
                     ))
                   )}
                 </Stack>
-              </Paper>
+                                </Paper>
             </Grid>
 
             {/* System Dimensions */}
             <Grid item xs={12} md={4}>
-              <Paper
+                                <Paper
                 variant="outlined"
-                sx={{
+                                  sx={{
                   height: '100%',
                   p: 2,
                   bgcolor: 'background.paper'
@@ -739,165 +818,165 @@ const PricingSummary = ({
               >
                 <Typography variant="subtitle1" color="primary" gutterBottom sx={{ pb: 1, borderBottom: 1, borderColor: 'divider' }}>
                   System Dimensions
-                </Typography>
+                                  </Typography>
                 <Stack spacing={2} sx={{ mt: 2 }}>
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Measurements
+                </Typography>
+                  <Stack spacing={1}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <Typography variant="body2" color="text.secondary">Total Width:</Typography>
+                      <Typography variant="body2">
+                        {configuration.systemType === 'Windows' ?
+                          configuration.panels.reduce((sum, panel) => sum + panel.width, 0) :
+                          configuration.systemType === 'Sliding Doors' ?
+                            configuration.dimensions?.width :
+                            ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                             configuration.dimensions.width +
+                             (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0))}"
                     </Typography>
-                    <Stack spacing={1}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <Typography variant="body2" color="text.secondary">Total Width:</Typography>
-                        <Typography variant="body2">
-                          {configuration.systemType === 'Windows' ?
-                            configuration.panels.reduce((sum, panel) => sum + panel.width, 0) :
-                            configuration.systemType === 'Sliding Doors' ?
-                              configuration.dimensions?.width :
-                              ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                               configuration.dimensions.width +
-                               (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0))}"
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <Typography variant="body2" color="text.secondary">Total Height:</Typography>
-                        <Typography variant="body2">
-                          {configuration.dimensions?.height +
-                           (configuration.systemType === 'Entrance Doors' && configuration.transom?.enabled ? 
-                             configuration.transom.height : 0)}"
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </Box>
+              </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <Typography variant="body2" color="text.secondary">Total Height:</Typography>
+                      <Typography variant="body2">
+                        {configuration.dimensions?.height +
+                         (configuration.systemType === 'Entrance Doors' && configuration.transom?.enabled ? 
+                           configuration.transom.height : 0)}"
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Box>
 
                   <Box>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Area Calculations
                     </Typography>
-                    <Stack spacing={1}>
-                      {configuration.systemType === 'Entrance Doors' && (
-                        <>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                            <Typography variant="body2" color="text.secondary">Door Area:</Typography>
-                            <Typography variant="body2">
-                              {((configuration.dimensions?.width * configuration.dimensions?.height) / 144).toFixed(1)} sq ft
-                            </Typography>
-                          </Box>
-                          {(configuration.leftSidelight?.enabled || configuration.rightSidelight?.enabled || configuration.transom?.enabled) && (
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                              <Typography variant="body2" color="text.secondary">Glass Area:</Typography>
-                              <Typography variant="body2">
-                                {(
-                                  ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) * 
-                                   configuration.dimensions.height +
-                                   (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0) * 
-                                   configuration.dimensions.height +
-                                  ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                                   configuration.dimensions.width +
-                                   (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0)) * 
-                                   (configuration.transom?.enabled ? configuration.transom.height : 0)
-                                      ) / 144
-                                ).toFixed(1)} sq ft
+                  <Stack spacing={1}>
+                    {configuration.systemType === 'Entrance Doors' && (
+                      <>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <Typography variant="body2" color="text.secondary">Door Area:</Typography>
+                          <Typography variant="body2">
+                            {((configuration.dimensions?.width * configuration.dimensions?.height) / 144).toFixed(1)} sq ft
                               </Typography>
-                            </Box>
-                          )}
-                        </>
-                      )}
-                      <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'baseline',
-                        pt: configuration.systemType === 'Entrance Doors' ? 1 : 0,
-                        borderTop: configuration.systemType === 'Entrance Doors' ? '1px solid' : 'none',
-                        borderColor: 'divider'
-                      }}>
-                        <Typography variant="subtitle2" color="primary">Total Area:</Typography>
-                        <Typography variant="subtitle2" color="primary">
-                          {configuration.systemType === 'Windows' ?
-                            ((configuration.panels.reduce((sum, panel) => sum + panel.width, 0) * 
-                              configuration.dimensions?.height) / 144).toFixed(1) :
-                            configuration.systemType === 'Sliding Doors' ?
-                              ((configuration.dimensions?.width * configuration.dimensions?.height) / 144).toFixed(1) :
-                              (((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                                configuration.dimensions.width +
-                                (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0)) * 
-                               (configuration.dimensions.height + 
-                                (configuration.transom?.enabled ? configuration.transom.height : 0)) / 144
-                                  ).toFixed(1)} sq ft
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </Box>
-                </Stack>
+                        </Box>
+                          {(configuration.leftSidelight?.enabled || configuration.rightSidelight?.enabled || configuration.transom?.enabled) && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <Typography variant="body2" color="text.secondary">Glass Area:</Typography>
+                            <Typography variant="body2">
+                              {(
+                                ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) * 
+                                 configuration.dimensions.height +
+                                 (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0) * 
+                                 configuration.dimensions.height +
+                                ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                                 configuration.dimensions.width +
+                                 (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0)) * 
+                                 (configuration.transom?.enabled ? configuration.transom.height : 0)
+                                    ) / 144
+                              ).toFixed(1)} sq ft
+                                </Typography>
+                          </Box>
+                        )}
+                      </>
+                    )}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'baseline',
+                      pt: configuration.systemType === 'Entrance Doors' ? 1 : 0,
+                      borderTop: configuration.systemType === 'Entrance Doors' ? '1px solid' : 'none',
+                      borderColor: 'divider'
+                    }}>
+                      <Typography variant="subtitle2" color="primary">Total Area:</Typography>
+                            <Typography variant="subtitle2" color="primary">
+                        {configuration.systemType === 'Windows' ?
+                          ((configuration.panels.reduce((sum, panel) => sum + panel.width, 0) * 
+                            configuration.dimensions?.height) / 144).toFixed(1) :
+                          configuration.systemType === 'Sliding Doors' ?
+                            ((configuration.dimensions?.width * configuration.dimensions?.height) / 144).toFixed(1) :
+                            (((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                              configuration.dimensions.width +
+                              (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0)) * 
+                             (configuration.dimensions.height + 
+                              (configuration.transom?.enabled ? configuration.transom.height : 0)) / 144
+                            ).toFixed(1)} sq ft
+                            </Typography>
+                    </Box>
+                  </Stack>
+                </Box>
+              </Stack>
               </Paper>
-            </Grid>
+                    </Grid>
 
             {/* Finish Details and Cost Breakdown */}
             <Grid item xs={12}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 2,
-                  bgcolor: 'background.default',
-                  mb: 2
-                }}
-              >
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Finish Details
-                    </Typography>
-                    <Stack direction="row" spacing={3}>
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">Type:</Typography>
+          <Paper 
+            variant="outlined" 
+            sx={{ 
+              p: 2,
+              bgcolor: 'background.default',
+              mb: 2
+            }}
+          >
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Finish Details
+                </Typography>
+                <Stack direction="row" spacing={3}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">Type:</Typography>
                         <Typography variant="body2">{configuration.finish?.type}</Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">Style:</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">Style:</Typography>
                         <Typography variant="body2">{configuration.finish?.color}</Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">RAL:</Typography>
+                </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">RAL:</Typography>
                         <Typography variant="body2">{configuration.finish?.ralColor}</Typography>
-                      </Box>
-                    </Stack>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Cost Breakdown
-                    </Typography>
-                    <Stack direction="row" spacing={3}>
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">System:</Typography>
+              </Box>
+                </Stack>
+            </Grid>
+            <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Cost Breakdown
+                </Typography>
+                  <Stack direction="row" spacing={3}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">System:</Typography>
                         <Typography variant="body2">${currentItemPrice?.systemCost.toFixed(2) || '0.00'}</Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">Glass:</Typography>
+              </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Glass:</Typography>
                         <Typography variant="body2">${currentItemPrice?.glassCost.toFixed(2) || '0.00'}</Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">Labor:</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Labor:</Typography>
                         <Typography variant="body2">${currentItemPrice?.laborCost.toFixed(2) || '0.00'}</Typography>
-                      </Box>
-                    </Stack>
-                  </Grid>
+                    </Box>
+                  </Stack>
                 </Grid>
-              </Paper>
+            </Grid>
+          </Paper>
 
               {configuration.notes && (
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2,
-                    bgcolor: 'background.default'
-                  }}
-                >
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Notes
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {configuration.notes}
-                  </Typography>
-                </Paper>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                p: 2,
+                bgcolor: 'background.default'
+                    }}
+                  >
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Notes
+              </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {configuration.notes}
+                    </Typography>
+                  </Paper>
               )}
             </Grid>
           </Grid>
@@ -1258,7 +1337,7 @@ const PricingSummary = ({
                                          (item.dimensions.height + 
                                           (item.transom?.enabled ? item.transom.height : 0)) / 144
                                               ).toFixed(1)} sq ft
-                        </Typography>
+                                            </Typography>
                                           </Box>
                                         </Stack>
                                       </Box>
