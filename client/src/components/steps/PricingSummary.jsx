@@ -776,7 +776,7 @@ const PricingSummary = ({
                           </Box>
                         )}
                     </>
-                  )}
+                )}
                   {configuration.systemType === 'Windows' && configuration.panels && (
                     configuration.panels.map((panel, idx) => (
                       <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
@@ -789,7 +789,7 @@ const PricingSummary = ({
                         </Typography>
                   </Box>
                     ))
-                  )}
+                )}
                   {configuration.systemType === 'Sliding Doors' && configuration.panels && (
                     configuration.panels.map((panel, idx) => (
                       <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
@@ -1102,7 +1102,7 @@ const PricingSummary = ({
                                 variant="outlined" 
                                 sx={{ 
                             height: '100%',
-                            p: 2,
+                                  p: 2,
                             bgcolor: 'background.paper'
                           }}
                         >
@@ -1249,8 +1249,8 @@ const PricingSummary = ({
                             height: '100%',
                             p: 2,
                             bgcolor: 'background.paper'
-                          }}
-                        >
+                                            }}
+                                          >
                           <Typography variant="subtitle1" color="primary" gutterBottom sx={{ pb: 1, borderBottom: 1, borderColor: 'divider' }}>
                             System Dimensions
                                             </Typography>
