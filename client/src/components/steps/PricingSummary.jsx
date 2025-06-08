@@ -989,15 +989,25 @@ const PricingSummary = ({
             <Typography variant="h6">
               Quote Items
             </Typography>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={onStartNew}
-              startIcon={<AddIcon />}
-              size="small"
-            >
-              Add Another Item
-            </Button>
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={onStartNew}
+                startIcon={<AddIcon />}
+                size="small"
+              >
+                Add Another Item
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleGenerateQuote}
+                size="small"
+              >
+                Generate Quote
+              </Button>
+            </Stack>
           </Box>
           <List>
             {pricing.items.map(({ item, systemCost, glassCost, laborCost, total }, index) => (
