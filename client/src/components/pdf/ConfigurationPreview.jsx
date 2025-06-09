@@ -78,11 +78,11 @@ const styles = StyleSheet.create({
   },
   handle: {
     position: 'absolute',
-    width: 2,
-    height: 8,
+    width: 4,
+    height: 12,
     backgroundColor: '#1976d2',
-    top: '50%',
-    transform: 'translateY(-50%)',
+    borderRadius: 1,
+    top: '46%',
   },
   gridLines: {
     position: 'absolute',
@@ -90,19 +90,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    opacity: 0.2,
+    opacity: 0.3,
   },
   gridLine: {
     position: 'absolute',
-    backgroundColor: '#999',
+    backgroundColor: '#666',
   },
   horizontalGrid: {
-    height: '0.5pt',
+    height: '1pt',
     left: 0,
     right: 0,
   },
   verticalGrid: {
-    width: '0.5pt',
+    width: '1pt',
     top: 0,
     bottom: 0,
   },
@@ -144,29 +144,29 @@ const ConfigurationPreview = ({ configuration }) => {
   const renderGridLines = (horizontal, vertical) => {
     const lines = [];
     
-    // Horizontal lines
+    // Vertical lines (based on horizontal divisions)
     for (let i = 1; i < horizontal; i++) {
-      lines.push(
-        <View
-          key={`h${i}`}
-          style={[
-            styles.gridLine,
-            styles.horizontalGrid,
-            { top: `${(i / horizontal) * 100}%` }
-          ]}
-        />
-      );
-    }
-    
-    // Vertical lines
-    for (let i = 1; i < vertical; i++) {
       lines.push(
         <View
           key={`v${i}`}
           style={[
             styles.gridLine,
             styles.verticalGrid,
-            { left: `${(i / vertical) * 100}%` }
+            { left: `${(i / horizontal) * 100}%` }
+          ]}
+        />
+      );
+    }
+    
+    // Horizontal lines (based on vertical divisions)
+    for (let i = 1; i < vertical; i++) {
+      lines.push(
+        <View
+          key={`h${i}`}
+          style={[
+            styles.gridLine,
+            styles.horizontalGrid,
+            { top: `${(i / vertical) * 100}%` }
           ]}
         />
       );
@@ -192,12 +192,11 @@ const ConfigurationPreview = ({ configuration }) => {
               <Text style={styles.panelLabel}>{panel.operationType}</Text>
               <Text style={styles.panelLabel}>{panel.width}"</Text>
               {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-              
-              {/* Handle for operable windows */}
+              {/* Add handle for non-fixed windows */}
               {panel.operationType !== 'Fixed' && (
                 <View style={[
                   styles.handle, 
-                  { [panel.handleLocation === 'left' ? 'left' : 'right']: 1 }
+                  { [panel.handleLocation || 'right']: 3 }
                 ]} />
               )}
             </View>
@@ -265,6 +264,12 @@ const ConfigurationPreview = ({ configuration }) => {
                   ]}>
                     {panel.direction === 'left' ? '← TO LEFT' : 'TO RIGHT →'}
                   </Text>
+
+                  {/* Handle for sliding door - positioned opposite to sliding direction */}
+                  <View style={[
+                    styles.handle, 
+                    { [panel.direction === 'left' ? 'right' : 'left']: 3 }
+                  ]} />
                 </>
               )}
               {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
@@ -286,7 +291,7 @@ const ConfigurationPreview = ({ configuration }) => {
               <Text style={styles.panelLabel}>{(configuration.dimensions.width / 2).toFixed(1)}"</Text>
               {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
               {/* Right handle for left panel */}
-              <View style={[styles.handle, { right: 1 }]} />
+              <View style={[styles.handle, { right: 3 }]} />
             </View>
           </View>
 
@@ -297,7 +302,7 @@ const ConfigurationPreview = ({ configuration }) => {
               <Text style={styles.panelLabel}>{(configuration.dimensions.width / 2).toFixed(1)}"</Text>
               {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
               {/* Left handle for right panel */}
-              <View style={[styles.handle, { left: 1 }]} />
+              <View style={[styles.handle, { left: 3 }]} />
             </View>
           </View>
         </View>
@@ -313,7 +318,7 @@ const ConfigurationPreview = ({ configuration }) => {
             {/* Handle based on configuration */}
             <View style={[
               styles.handle, 
-              { [configuration.handleLocation === 'left' ? 'left' : 'right']: 1 }
+              { [configuration.handleLocation === 'left' ? 'left' : 'right']: 3 }
             ]} />
           </View>
         </View>

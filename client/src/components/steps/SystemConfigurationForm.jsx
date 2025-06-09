@@ -1709,8 +1709,8 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                     </Typography>
 
                     <ConfigurationPreviewUI configuration={configuration} maxHeight="300px" />
-                  </Paper>
-                </Box>
+                            </Paper>
+                          </Box>
               </Paper>
             </Stack>
           </Box>
