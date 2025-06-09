@@ -176,32 +176,82 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                 {panel.operationType}
                 {panel.type === 'Sliding' ? ` (${panel.direction === 'left' ? '←' : '→'})` : ''}
               </Typography>
+              {/* Add operation description for clarity */}
+              {panel.operationType !== 'Fixed' && (
+                <Typography variant="caption" sx={{...styles.caption, fontSize: '9px', color: '#888', marginTop: '-2px'}}>
+                  {panel.operationType === 'Casement' && '(open out)'}
+                  {panel.operationType === 'Awning' && '(open out)'}
+                  {panel.operationType === 'Tilt Only' && '(open in)'}
+                  {panel.operationType === 'Tilt & Turn' && '(open in)'}
+                </Typography>
+              )}
               {panel.operationType !== 'Fixed' && (
                 <Box
                   sx={{
                     ...styles.handle,
-                    [panel.handleLocation || 'right']: '3px',
+                    ...(panel.operationType === 'Awning' 
+                      ? { left: '45%', top: '85%', transform: 'none' }  // Bottom center for awning
+                      : { [panel.handleLocation || 'right']: '3px' }  // Side position for others
+                    )
                   }}
                 />
               )}
-              {/* Add hinges for non-fixed windows - opposite side to handle */}
+              {/* Add hinges for non-fixed windows */}
               {panel.operationType !== 'Fixed' && (
                 <>
-                  <Box sx={{
-                    ...styles.hinge,
-                    [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
-                    top: '20%'
-                  }} />
-                  <Box sx={{
-                    ...styles.hinge,
-                    [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
-                    top: '50%'
-                  }} />
-                  <Box sx={{
-                    ...styles.hinge,
-                    [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
-                    top: '80%'
-                  }} />
+                  {panel.operationType === 'Awning' ? (
+                    // Top hinges for awning windows
+                    <>
+                      <Box sx={{ ...styles.hinge, left: '20%', top: '1px' }} />
+                      <Box sx={{ ...styles.hinge, left: '45%', top: '1px' }} />
+                      <Box sx={{ ...styles.hinge, left: '70%', top: '1px' }} />
+                    </>
+                  ) : panel.operationType === 'Tilt Only' ? (
+                    // Bottom hinges for tilt-only windows
+                    <>
+                      <Box sx={{ ...styles.hinge, left: '20%', bottom: '1px' }} />
+                      <Box sx={{ ...styles.hinge, left: '45%', bottom: '1px' }} />
+                      <Box sx={{ ...styles.hinge, left: '70%', bottom: '1px' }} />
+                    </>
+                  ) : panel.operationType === 'Tilt & Turn' ? (
+                    // Side hinges for tilt and turn windows (opposite side to handle)
+                    <>
+                      <Box sx={{
+                        ...styles.hinge,
+                        [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
+                        top: '20%'
+                      }} />
+                      <Box sx={{
+                        ...styles.hinge,
+                        [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
+                        top: '50%'
+                      }} />
+                      <Box sx={{
+                        ...styles.hinge,
+                        [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
+                        top: '80%'
+                      }} />
+                    </>
+                  ) : (
+                    // Side hinges for other window types
+                    <>
+                      <Box sx={{
+                        ...styles.hinge,
+                        [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
+                        top: '20%'
+                      }} />
+                      <Box sx={{
+                        ...styles.hinge,
+                        [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
+                        top: '50%'
+                      }} />
+                      <Box sx={{
+                        ...styles.hinge,
+                        [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
+                        top: '80%'
+                      }} />
+                    </>
+                  )}
                 </>
               )}
             </Box>

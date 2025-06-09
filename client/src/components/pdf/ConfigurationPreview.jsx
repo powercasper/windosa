@@ -197,30 +197,76 @@ const ConfigurationPreview = ({ configuration }) => {
           >
             <View style={styles.panelContent}>
               <Text style={styles.panelLabel}>{panel.operationType}</Text>
+              {/* Add operation description for clarity */}
+              {panel.operationType !== 'Fixed' && (
+                <Text style={[styles.panelLabel, { fontSize: 5, color: '#888' }]}>
+                  {panel.operationType === 'Casement' && '(open out)'}
+                  {panel.operationType === 'Awning' && '(open out)'}
+                  {panel.operationType === 'Tilt Only' && '(open in)'}
+                  {panel.operationType === 'Tilt & Turn' && '(open in)'}
+                </Text>
+              )}
               <Text style={styles.panelLabel}>{Math.round(panel.width)}"</Text>
               {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
               {/* Add handle for non-fixed windows */}
               {panel.operationType !== 'Fixed' && (
                 <View style={[
                   styles.handle, 
-                  { [panel.handleLocation || 'right']: 3 }
+                  panel.operationType === 'Awning' 
+                    ? { left: '45%', top: '85%' }  // Bottom center for awning
+                    : { [panel.handleLocation || 'right']: 3 }  // Side position for others
                 ]} />
               )}
-              {/* Add hinges for non-fixed windows - opposite side to handle */}
+              {/* Add hinges for non-fixed windows */}
               {panel.operationType !== 'Fixed' && (
                 <>
-                  <View style={[
-                    styles.hinge, 
-                    { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '20%' }
-                  ]} />
-                  <View style={[
-                    styles.hinge, 
-                    { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '50%' }
-                  ]} />
-                  <View style={[
-                    styles.hinge, 
-                    { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '80%' }
-                  ]} />
+                  {panel.operationType === 'Awning' ? (
+                    // Top hinges for awning windows
+                    <>
+                      <View style={[styles.hinge, { left: '20%', top: 1 }]} />
+                      <View style={[styles.hinge, { left: '45%', top: 1 }]} />
+                      <View style={[styles.hinge, { left: '70%', top: 1 }]} />
+                    </>
+                  ) : panel.operationType === 'Tilt Only' ? (
+                    // Bottom hinges for tilt-only windows
+                    <>
+                      <View style={[styles.hinge, { left: '20%', bottom: 1 }]} />
+                      <View style={[styles.hinge, { left: '45%', bottom: 1 }]} />
+                      <View style={[styles.hinge, { left: '70%', bottom: 1 }]} />
+                    </>
+                  ) : panel.operationType === 'Tilt & Turn' ? (
+                    // Side hinges for tilt and turn windows (opposite side to handle)
+                    <>
+                      <View style={[
+                        styles.hinge, 
+                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '20%' }
+                      ]} />
+                      <View style={[
+                        styles.hinge, 
+                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '50%' }
+                      ]} />
+                      <View style={[
+                        styles.hinge, 
+                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '80%' }
+                      ]} />
+                    </>
+                  ) : (
+                    // Side hinges for other window types
+                    <>
+                      <View style={[
+                        styles.hinge, 
+                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '20%' }
+                      ]} />
+                      <View style={[
+                        styles.hinge, 
+                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '50%' }
+                      ]} />
+                      <View style={[
+                        styles.hinge, 
+                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '80%' }
+                      ]} />
+                    </>
+                  )}
                 </>
               )}
             </View>
