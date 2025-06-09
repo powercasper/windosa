@@ -8,6 +8,7 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: '#f8f8f8',
     height: 150,
+    width: '100%',
   },
   preview: {
     flex: 1,
@@ -60,6 +61,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderColor: '#666',
   },
+  doorPanel: {
+    backgroundColor: '#bbdefb',
+    borderColor: '#1976d2',
+  },
   arrow: {
     position: 'absolute',
     fontSize: 8,
@@ -70,6 +75,14 @@ const styles = StyleSheet.create({
   },
   arrowRight: {
     right: 2,
+  },
+  handle: {
+    position: 'absolute',
+    width: 2,
+    height: 8,
+    backgroundColor: '#1976d2',
+    top: '50%',
+    transform: 'translateY(-50%)',
   },
   gridLines: {
     position: 'absolute',
@@ -92,10 +105,42 @@ const styles = StyleSheet.create({
     width: '0.5pt',
     top: 0,
     bottom: 0,
+  },
+  doubleDoorContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    height: '100%',
+    gap: 1,
+  },
+  leftDoorPanel: {
+    flex: 1,
+    borderRight: '1pt solid #999',
+  },
+  rightDoorPanel: {
+    flex: 1,
+    borderLeft: '1pt solid #999',
   }
 });
 
 const ConfigurationPreview = ({ configuration }) => {
+  // Calculate dynamic aspect ratio based on actual dimensions
+  const getAspectRatio = () => {
+    if (!configuration.dimensions?.width || !configuration.dimensions?.height) {
+      return 1.6; // Default 16:10 ratio
+    }
+    
+    const totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                      configuration.dimensions.width + 
+                      (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+    const totalHeight = configuration.dimensions.height + 
+                       (configuration.transom?.enabled ? configuration.transom.height : 0);
+    
+    return totalWidth / totalHeight;
+  };
+
+  const aspectRatio = getAspectRatio();
+  const containerHeight = 150;
+  const containerWidth = containerHeight * aspectRatio;
   const renderGridLines = (horizontal, vertical) => {
     const lines = [];
     
@@ -147,6 +192,14 @@ const ConfigurationPreview = ({ configuration }) => {
               <Text style={styles.panelLabel}>{panel.operationType}</Text>
               <Text style={styles.panelLabel}>{panel.width}"</Text>
               {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+              
+              {/* Handle for operable windows */}
+              {panel.operationType !== 'Fixed' && (
+                <View style={[
+                  styles.handle, 
+                  { [panel.handleLocation === 'left' ? 'left' : 'right']: 1 }
+                ]} />
+              )}
             </View>
           </View>
         );
@@ -168,9 +221,51 @@ const ConfigurationPreview = ({ configuration }) => {
             <View style={styles.panelContent}>
               <Text style={styles.panelLabel}>{panel.type}</Text>
               {panel.type === 'Sliding' && (
-                <Text style={[styles.arrow, panel.direction === 'left' ? styles.arrowLeft : styles.arrowRight]}>
-                  {panel.direction === 'left' ? '←' : '→'}
-                </Text>
+                <>
+                  {/* Movement Arrow - Positioned to show direction from current position */}
+                  <Text style={[
+                    styles.arrow, 
+                    { 
+                      fontSize: 14, 
+                      fontWeight: 'bold',
+                      color: '#1976d2',
+                      position: 'absolute',
+                      top: '20%',
+                      [panel.direction === 'left' ? 'right' : 'left']: '15%',
+                    }
+                  ]}>
+                    {panel.direction === 'left' ? '←' : '→'}
+                  </Text>
+                  
+                  {/* Sash Current Position Indicator */}
+                  <View style={{
+                    position: 'absolute',
+                    bottom: '25%',
+                    [panel.direction === 'left' ? 'right' : 'left']: '10%',
+                    width: 2,
+                    height: '25%',
+                    backgroundColor: '#1976d2',
+                    opacity: 0.6,
+                  }} />
+                  
+                  {/* Direction Label - Positioned near movement destination */}
+                  <Text style={[
+                    styles.panelLabel,
+                    {
+                      fontSize: 4,
+                      fontWeight: 'bold',
+                      color: '#1976d2',
+                      position: 'absolute',
+                      bottom: '8%',
+                      [panel.direction === 'left' ? 'left' : 'right']: '8%',
+                      backgroundColor: 'rgba(255,255,255,0.9)',
+                      padding: 1,
+                      border: '0.5pt solid #1976d2',
+                    }
+                  ]}>
+                    {panel.direction === 'left' ? '← TO LEFT' : 'TO RIGHT →'}
+                  </Text>
+                </>
               )}
               {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
             </View>
@@ -180,19 +275,54 @@ const ConfigurationPreview = ({ configuration }) => {
     }
 
     // Entrance Doors
-    return (
-      <View style={[styles.panel, { width: '100%' }]}>
-        <View style={styles.panelContent}>
-          <Text style={styles.panelLabel}>{configuration.openingType}</Text>
-          <Text style={styles.panelLabel}>{configuration.swingDirection}</Text>
-          {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+    if (configuration.openingType === 'Double Door') {
+      // Double Door Configuration
+      return (
+        <View style={styles.doubleDoorContainer}>
+          {/* Left Door Panel */}
+          <View style={[styles.panel, styles.doorPanel, styles.leftDoorPanel]}>
+            <View style={styles.panelContent}>
+              <Text style={styles.panelLabel}>Left Panel</Text>
+              <Text style={styles.panelLabel}>{(configuration.dimensions.width / 2).toFixed(1)}"</Text>
+              {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+              {/* Right handle for left panel */}
+              <View style={[styles.handle, { right: 1 }]} />
+            </View>
+          </View>
+
+          {/* Right Door Panel */}
+          <View style={[styles.panel, styles.doorPanel, styles.rightDoorPanel]}>
+            <View style={styles.panelContent}>
+              <Text style={styles.panelLabel}>Right Panel</Text>
+              <Text style={styles.panelLabel}>{(configuration.dimensions.width / 2).toFixed(1)}"</Text>
+              {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+              {/* Left handle for right panel */}
+              <View style={[styles.handle, { left: 1 }]} />
+            </View>
+          </View>
         </View>
-      </View>
-    );
+      );
+    } else {
+      // Single Door Configuration
+      return (
+        <View style={[styles.panel, styles.doorPanel, { width: '100%' }]}>
+          <View style={styles.panelContent}>
+            <Text style={styles.panelLabel}>{configuration.openingType}</Text>
+            <Text style={styles.panelLabel}>{configuration.dimensions.width}"</Text>
+            {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+            {/* Handle based on configuration */}
+            <View style={[
+              styles.handle, 
+              { [configuration.handleLocation === 'left' ? 'left' : 'right']: 1 }
+            ]} />
+          </View>
+        </View>
+      );
+    }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width: Math.min(containerWidth, 300) }]}>
       <View style={styles.preview}>
         {/* Dimension Labels */}
         <Text style={[styles.dimensionLabel, styles.widthLabel]}>

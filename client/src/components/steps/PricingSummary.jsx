@@ -990,15 +990,15 @@ const PricingSummary = ({
               Quote Items
             </Typography>
             <Stack direction="row" spacing={2}>
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={onStartNew}
-                startIcon={<AddIcon />}
-                size="small"
-              >
-                Add Another Item
-              </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={onStartNew}
+              startIcon={<AddIcon />}
+              size="small"
+            >
+              Add Another Item
+            </Button>
               <Button
                 variant="contained"
                 color="primary"

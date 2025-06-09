@@ -202,10 +202,93 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
               }}
             >
               {configuration.grid?.enabled && renderGrid()}
-              <Typography variant="caption" sx={styles.caption}>
+              
+              {/* Sliding Direction Indicator */}
+              {panel.type === 'Sliding' && (
+                <>
+                  {/* Movement Arrow - Positioned to show direction from current position */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: '15%',
+                      [panel.direction === 'left' ? 'right' : 'left']: '15%',
+                      fontSize: '20px',
+                      fontWeight: 'bold',
+                      color: '#1976d2',
+                      textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+                      zIndex: 10,
+                    }}
+                  >
+                    {panel.direction === 'left' ? '←' : '→'}
+                  </Box>
+                  
+                  {/* Sliding Path Indicator - Shows the movement path */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: '25%',
+                      left: panel.direction === 'left' ? '5%' : '25%',
+                      right: panel.direction === 'right' ? '5%' : '25%',
+                      height: '2px',
+                      bgcolor: '#1976d2',
+                      borderRadius: '1px',
+                      opacity: 0.8,
+                      zIndex: 5,
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        [panel.direction === 'left' ? 'left' : 'right']: '-3px',
+                        top: '-1px',
+                        width: '6px',
+                        height: '4px',
+                        bgcolor: '#1976d2',
+                        clipPath: panel.direction === 'left' 
+                          ? 'polygon(0 50%, 100% 0, 100% 100%)' 
+                          : 'polygon(100% 50%, 0 0, 0 100%)',
+                      }
+                    }}
+                  />
+                  
+                  {/* Sash Current Position Indicator */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      bottom: '20%',
+                      [panel.direction === 'left' ? 'right' : 'left']: '8%',
+                      width: '3px',
+                      height: '30%',
+                      bgcolor: '#1976d2',
+                      borderRadius: '1.5px',
+                      opacity: 0.6,
+                      zIndex: 5,
+                    }}
+                  />
+                  
+                  {/* Direction Label - Positioned near movement destination */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      bottom: '5%',
+                      [panel.direction === 'left' ? 'left' : 'right']: '8%',
+                      fontSize: '7px',
+                      fontWeight: 'bold',
+                      color: '#1976d2',
+                      bgcolor: 'rgba(255,255,255,0.9)',
+                      padding: '1px 3px',
+                      borderRadius: '2px',
+                      zIndex: 10,
+                      border: '1px solid #1976d2',
+                    }}
+                                      >
+                      {panel.direction === 'left' ? '← TO LEFT' : 'TO RIGHT →'}
+                  </Box>
+                </>
+              )}
+              
+              <Typography variant="caption" sx={{...styles.caption, zIndex: 1}}>
                 {panel.type}
-                {panel.type === 'Sliding' ? ` (${panel.direction === 'left' ? '←' : '→'})` : ''}
               </Typography>
+              
               {panel.type === 'Sliding' && (
                 <Box
                   sx={{
@@ -215,6 +298,7 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                     transform: 'translateY(-50%)',
                     marginRight: panel.direction === 'right' ? '1px' : 'auto',
                     marginLeft: panel.direction === 'left' ? '1px' : 'auto',
+                    zIndex: 5,
                   }}
                 />
               )}
