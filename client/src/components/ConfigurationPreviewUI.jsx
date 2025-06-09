@@ -81,6 +81,13 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
       top: '50%',
       transform: 'translateY(-50%)',
     },
+    hinge: {
+      position: 'absolute',
+      width: '6px',
+      height: '3px',
+      bgcolor: '#666',
+      borderRadius: '1px',
+    },
     caption: {
       fontSize: '12px',
       color: '#666',
@@ -177,6 +184,26 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                   }}
                 />
               )}
+              {/* Add hinges for non-fixed windows - opposite side to handle */}
+              {panel.operationType !== 'Fixed' && (
+                <>
+                  <Box sx={{
+                    ...styles.hinge,
+                    [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
+                    top: '20%'
+                  }} />
+                  <Box sx={{
+                    ...styles.hinge,
+                    [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
+                    top: '50%'
+                  }} />
+                  <Box sx={{
+                    ...styles.hinge,
+                    [panel.handleLocation === 'left' ? 'right' : 'left']: '1px',
+                    top: '80%'
+                  }} />
+                </>
+              )}
             </Box>
           ))}
         </Box>
@@ -266,6 +293,10 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                     right: '3px',
                   }}
                 />
+                {/* Hinges for left panel - on left side (opposite to handle) */}
+                <Box sx={{ ...styles.hinge, left: '1px', top: '15%' }} />
+                <Box sx={{ ...styles.hinge, left: '1px', top: '46%' }} />
+                <Box sx={{ ...styles.hinge, left: '1px', top: '77%' }} />
               </Box>
 
               {/* Right Door Panel */}
@@ -290,6 +321,10 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                     left: '3px',
                   }}
                 />
+                {/* Hinges for right panel - on right side (opposite to handle) */}
+                <Box sx={{ ...styles.hinge, right: '1px', top: '15%' }} />
+                <Box sx={{ ...styles.hinge, right: '1px', top: '46%' }} />
+                <Box sx={{ ...styles.hinge, right: '1px', top: '77%' }} />
               </Box>
             </Box>
           ) : (
@@ -314,6 +349,26 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                     [configuration.doorSwing]: '3px',
                   }}
                 />
+              )}
+              {/* Hinges on opposite side to handle */}
+              {configuration.doorSwing && (
+                <>
+                  <Box sx={{
+                    ...styles.hinge,
+                    [configuration.doorSwing === 'left' ? 'right' : 'left']: '1px',
+                    top: '15%'
+                  }} />
+                  <Box sx={{
+                    ...styles.hinge,
+                    [configuration.doorSwing === 'left' ? 'right' : 'left']: '1px',
+                    top: '46%'
+                  }} />
+                  <Box sx={{
+                    ...styles.hinge,
+                    [configuration.doorSwing === 'left' ? 'right' : 'left']: '1px',
+                    top: '77%'
+                  }} />
+                </>
               )}
             </Box>
           )}

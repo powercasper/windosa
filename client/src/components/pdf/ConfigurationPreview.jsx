@@ -84,6 +84,13 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     top: '46%',
   },
+  hinge: {
+    position: 'absolute',
+    width: 6,
+    height: 3,
+    backgroundColor: '#666',
+    borderRadius: 0.5,
+  },
   gridLines: {
     position: 'absolute',
     top: 0,
@@ -190,7 +197,7 @@ const ConfigurationPreview = ({ configuration }) => {
           >
             <View style={styles.panelContent}>
               <Text style={styles.panelLabel}>{panel.operationType}</Text>
-              <Text style={styles.panelLabel}>{panel.width}"</Text>
+              <Text style={styles.panelLabel}>{Math.round(panel.width)}"</Text>
               {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
               {/* Add handle for non-fixed windows */}
               {panel.operationType !== 'Fixed' && (
@@ -198,6 +205,23 @@ const ConfigurationPreview = ({ configuration }) => {
                   styles.handle, 
                   { [panel.handleLocation || 'right']: 3 }
                 ]} />
+              )}
+              {/* Add hinges for non-fixed windows - opposite side to handle */}
+              {panel.operationType !== 'Fixed' && (
+                <>
+                  <View style={[
+                    styles.hinge, 
+                    { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '20%' }
+                  ]} />
+                  <View style={[
+                    styles.hinge, 
+                    { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '50%' }
+                  ]} />
+                  <View style={[
+                    styles.hinge, 
+                    { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '80%' }
+                  ]} />
+                </>
               )}
             </View>
           </View>
@@ -221,48 +245,16 @@ const ConfigurationPreview = ({ configuration }) => {
               <Text style={styles.panelLabel}>{panel.type}</Text>
               {panel.type === 'Sliding' && (
                 <>
-                  {/* Movement Arrow - Positioned to show direction from current position */}
-                  <Text style={[
-                    styles.arrow, 
-                    { 
-                      fontSize: 14, 
-                      fontWeight: 'bold',
-                      color: '#1976d2',
-                      position: 'absolute',
-                      top: '20%',
-                      [panel.direction === 'left' ? 'right' : 'left']: '15%',
-                    }
-                  ]}>
-                    {panel.direction === 'left' ? '←' : '→'}
-                  </Text>
-                  
-                  {/* Sash Current Position Indicator */}
-                  <View style={{
+                  {/* Direction Text - Shows sliding direction */}
+                  <Text style={{
+                    fontSize: 8, 
+                    fontWeight: 'bold',
+                    color: '#1976d2',
                     position: 'absolute',
-                    bottom: '25%',
-                    [panel.direction === 'left' ? 'right' : 'left']: '10%',
-                    width: 2,
-                    height: '25%',
-                    backgroundColor: '#1976d2',
-                    opacity: 0.6,
-                  }} />
-                  
-                  {/* Direction Label - Positioned near movement destination */}
-                  <Text style={[
-                    styles.panelLabel,
-                    {
-                      fontSize: 4,
-                      fontWeight: 'bold',
-                      color: '#1976d2',
-                      position: 'absolute',
-                      bottom: '8%',
-                      [panel.direction === 'left' ? 'left' : 'right']: '8%',
-                      backgroundColor: 'rgba(255,255,255,0.9)',
-                      padding: 1,
-                      border: '0.5pt solid #1976d2',
-                    }
-                  ]}>
-                    {panel.direction === 'left' ? '← TO LEFT' : 'TO RIGHT →'}
+                    top: '70%',
+                    left: '40%',
+                  }}>
+                    {panel.direction === 'left' ? 'LEFT' : 'RIGHT'}
                   </Text>
 
                   {/* Handle for sliding door - positioned opposite to sliding direction */}
@@ -288,10 +280,14 @@ const ConfigurationPreview = ({ configuration }) => {
           <View style={[styles.panel, styles.doorPanel, styles.leftDoorPanel]}>
             <View style={styles.panelContent}>
               <Text style={styles.panelLabel}>Left Panel</Text>
-              <Text style={styles.panelLabel}>{(configuration.dimensions.width / 2).toFixed(1)}"</Text>
+              <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width / 2)}"</Text>
               {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
               {/* Right handle for left panel */}
               <View style={[styles.handle, { right: 3 }]} />
+              {/* Hinges for left panel - on left side (opposite to handle) */}
+              <View style={[styles.hinge, { left: 1, top: '15%' }]} />
+              <View style={[styles.hinge, { left: 1, top: '46%' }]} />
+              <View style={[styles.hinge, { left: 1, top: '77%' }]} />
             </View>
           </View>
 
@@ -299,10 +295,14 @@ const ConfigurationPreview = ({ configuration }) => {
           <View style={[styles.panel, styles.doorPanel, styles.rightDoorPanel]}>
             <View style={styles.panelContent}>
               <Text style={styles.panelLabel}>Right Panel</Text>
-              <Text style={styles.panelLabel}>{(configuration.dimensions.width / 2).toFixed(1)}"</Text>
+              <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width / 2)}"</Text>
               {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
               {/* Left handle for right panel */}
               <View style={[styles.handle, { left: 3 }]} />
+              {/* Hinges for right panel - on right side (opposite to handle) */}
+              <View style={[styles.hinge, { right: 1, top: '15%' }]} />
+              <View style={[styles.hinge, { right: 1, top: '46%' }]} />
+              <View style={[styles.hinge, { right: 1, top: '77%' }]} />
             </View>
           </View>
         </View>
@@ -313,12 +313,25 @@ const ConfigurationPreview = ({ configuration }) => {
         <View style={[styles.panel, styles.doorPanel, { width: '100%' }]}>
           <View style={styles.panelContent}>
             <Text style={styles.panelLabel}>{configuration.openingType}</Text>
-            <Text style={styles.panelLabel}>{configuration.dimensions.width}"</Text>
+            <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width)}"</Text>
             {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
             {/* Handle based on configuration */}
             <View style={[
               styles.handle, 
               { [configuration.handleLocation === 'left' ? 'left' : 'right']: 3 }
+            ]} />
+            {/* Hinges on opposite side to handle */}
+            <View style={[
+              styles.hinge, 
+              { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '15%' }
+            ]} />
+            <View style={[
+              styles.hinge, 
+              { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '46%' }
+            ]} />
+            <View style={[
+              styles.hinge, 
+              { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '77%' }
             ]} />
           </View>
         </View>
@@ -330,12 +343,16 @@ const ConfigurationPreview = ({ configuration }) => {
     <View style={[styles.container, { width: Math.min(containerWidth, 300) }]}>
       <View style={styles.preview}>
         {/* Dimension Labels */}
-        <Text style={[styles.dimensionLabel, styles.widthLabel]}>
-          {configuration.dimensions.totalWidth}"
-        </Text>
-        <Text style={[styles.dimensionLabel, styles.heightLabel]}>
-          {configuration.dimensions.totalHeight}"
-        </Text>
+        {configuration.dimensions?.totalWidth && (
+          <Text style={[styles.dimensionLabel, styles.widthLabel]}>
+            {Math.round(configuration.dimensions.totalWidth)}"
+          </Text>
+        )}
+        {configuration.dimensions?.totalHeight && (
+          <Text style={[styles.dimensionLabel, styles.heightLabel]}>
+            {Math.round(configuration.dimensions.totalHeight)}"
+          </Text>
+        )}
         
         {renderPanels()}
       </View>
