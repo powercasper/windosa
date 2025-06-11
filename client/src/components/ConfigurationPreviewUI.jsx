@@ -2,6 +2,68 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 
 const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
+  // Calculate total dimensions for better scaling
+  const calculateDimensions = () => {
+    let totalWidth = 0;
+    let totalHeight = 0;
+    
+    if (configuration.systemType === 'Windows' && configuration.panels) {
+      totalWidth = configuration.panels.reduce((sum, panel) => sum + panel.width, 0);
+      totalHeight = configuration.dimensions?.height || 48;
+    } else if (configuration.systemType === 'Sliding Doors') {
+      totalWidth = configuration.dimensions?.width || 72;
+      totalHeight = configuration.dimensions?.height || 80;
+    } else if (configuration.systemType === 'Entrance Doors') {
+      totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                   configuration.dimensions.width + 
+                   (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+      totalHeight = configuration.dimensions.height + 
+                    (configuration.transom?.enabled ? configuration.transom.height : 0);
+    }
+    
+    return { totalWidth, totalHeight };
+  };
+
+  const { totalWidth, totalHeight } = calculateDimensions();
+  
+  // Calculate constrained aspect ratio to prevent extreme ratios
+  const rawAspectRatio = totalWidth && totalHeight ? totalWidth / totalHeight : 1.5;
+  const constrainedAspectRatio = Math.max(0.4, Math.min(3.5, rawAspectRatio));
+  
+  // Calculate responsive dimensions based on constraints
+  const getOptimalDimensions = () => {
+    const baseMaxHeight = parseInt(maxHeight) || 200;
+    
+    if (rawAspectRatio < 0.5) {
+      // Very tall/narrow - ensure minimum width while respecting height
+      const minWidth = 120;
+      const optimalHeight = Math.min(baseMaxHeight * 1.3, 300);
+      return {
+        width: Math.max(minWidth, optimalHeight * constrainedAspectRatio),
+        height: optimalHeight,
+        aspectRatio: constrainedAspectRatio
+      };
+    } else if (rawAspectRatio > 2.5) {
+      // Very wide - ensure reasonable height while respecting width
+      const minHeight = 80;
+      const optimalHeight = Math.max(minHeight, baseMaxHeight * 0.8);
+      return {
+        width: optimalHeight * constrainedAspectRatio,
+        height: optimalHeight,
+        aspectRatio: constrainedAspectRatio
+      };
+    } else {
+      // Normal proportions
+      return {
+        width: baseMaxHeight * constrainedAspectRatio,
+        height: baseMaxHeight,
+        aspectRatio: constrainedAspectRatio
+      };
+    }
+  };
+
+  const { width: containerWidth, height: containerHeight, aspectRatio } = getOptimalDimensions();
+
   const styles = {
     container: {
       display: 'flex',
@@ -11,22 +73,22 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
       borderRadius: '4px',
       padding: '4px',
       bgcolor: '#fff',
-      aspectRatio: configuration.dimensions?.width && configuration.dimensions?.height ? 
-        `${(configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-          configuration.dimensions.width + 
-          (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0)} / 
-         ${configuration.dimensions.height + (configuration.transom?.enabled ? configuration.transom.height : 0)}` : '16/9',
-      maxHeight,
-      minHeight: '100px',
-      width: '100%',
+      width: `${containerWidth}px`,
+      height: `${containerHeight}px`,
+      minWidth: '120px',
+      minHeight: '80px',
+      maxWidth: '500px',
+      maxHeight: `${Math.min(containerHeight, 350)}px`,
       position: 'relative',
+      margin: '0 auto', // Center the preview
     },
     transom: {
       display: 'flex',
       gap: '4px',
       height: configuration.transom?.enabled ? 
-        `${(configuration.transom.height / (configuration.dimensions.height + configuration.transom.height)) * 100}%` : 'auto',
+        `${Math.max(15, (configuration.transom.height / totalHeight) * 100)}%` : 'auto',
       width: '100%',
+      minHeight: configuration.transom?.enabled ? '20px' : 'auto',
     },
     transomPanel: {
       padding: '2px',
@@ -39,16 +101,17 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: '20px',
+      minHeight: '18px',
+      fontSize: Math.max(9, Math.min(12, containerHeight / 20)),
     },
     mainSection: {
       display: 'flex',
       gap: '4px',
       flex: 1,
       height: configuration.transom?.enabled ? 
-        `${(configuration.dimensions.height / (configuration.dimensions.height + configuration.transom.height)) * 100}%` : '100%',
+        `${Math.min(85, ((totalHeight - (configuration.transom?.height || 0)) / totalHeight) * 100)}%` : '100%',
       width: '100%',
-      minHeight: '60px',
+      minHeight: '40px',
     },
     sidelight: {
       padding: '2px',
@@ -60,7 +123,8 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: '40px',
+      minHeight: '30px',
+      fontSize: Math.max(8, Math.min(11, containerHeight / 25)),
     },
     panel: {
       padding: '2px',
@@ -70,12 +134,13 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
       alignItems: 'center',
       justifyContent: 'center',
       position: 'relative',
-      minHeight: '40px',
+      minHeight: '30px',
+      fontSize: Math.max(8, Math.min(11, containerHeight / 25)),
     },
     handle: {
       position: 'absolute',
-      width: '4px',
-      height: '12px',
+      width: Math.max(3, Math.min(6, containerWidth / 40)),
+      height: Math.max(8, Math.min(15, containerHeight / 20)),
       bgcolor: '#1976d2',
       borderRadius: '2px',
       top: '50%',
@@ -83,16 +148,17 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
     },
     hinge: {
       position: 'absolute',
-      width: '6px',
-      height: '3px',
+      width: Math.max(4, Math.min(8, containerWidth / 30)),
+      height: Math.max(2, Math.min(4, containerHeight / 60)),
       bgcolor: '#666',
       borderRadius: '1px',
     },
     caption: {
-      fontSize: '12px',
+      fontSize: Math.max(8, Math.min(12, containerHeight / 20)),
       color: '#666',
       textAlign: 'center',
       width: '100%',
+      lineHeight: 1.2,
     },
     gridLine: {
       position: 'absolute',
@@ -178,7 +244,12 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
               </Typography>
               {/* Add operation description for clarity */}
               {panel.operationType !== 'Fixed' && (
-                <Typography variant="caption" sx={{...styles.caption, fontSize: '9px', color: '#888', marginTop: '-2px'}}>
+                <Typography variant="caption" sx={{
+                  ...styles.caption, 
+                  fontSize: Math.max(6, styles.caption.fontSize * 0.8), 
+                  color: '#888', 
+                  marginTop: '-1px'
+                }}>
                   {panel.operationType === 'Casement' && '(open out)'}
                   {panel.operationType === 'Awning' && '(open out)'}
                   {panel.operationType === 'Tilt Only' && '(open in)'}
@@ -190,8 +261,8 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                   sx={{
                     ...styles.handle,
                     ...(panel.operationType === 'Awning' 
-                      ? { left: '45%', top: '85%', transform: 'none' }  // Bottom center for awning
-                      : { [panel.handleLocation || 'right']: '3px' }  // Side position for others
+                      ? { left: '45%', top: '85%', transform: 'none' }
+                      : { [panel.handleLocation || 'right']: '2px' }
                     )
                   }}
                 />
@@ -286,7 +357,7 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                 <Box
                   sx={{
                     ...styles.handle,
-                    [panel.direction === 'left' ? 'right' : 'left']: '3px',
+                    [panel.direction === 'left' ? 'right' : 'left']: '2px',
                   }}
                 />
               )}
@@ -335,12 +406,12 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
               >
                 {configuration.grid?.enabled && renderGrid()}
                 <Typography variant="caption" sx={styles.caption}>
-                  Left Panel ({configuration.dimensions.width / 2}")
+                  Left Panel ({(configuration.dimensions.width / 2).toFixed(0)}")
                 </Typography>
                 <Box
                   sx={{
                     ...styles.handle,
-                    right: '3px',
+                    right: '2px',
                   }}
                 />
                 {/* Hinges for left panel - on left side (opposite to handle) */}
@@ -363,12 +434,12 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
               >
                 {configuration.grid?.enabled && renderGrid()}
                 <Typography variant="caption" sx={styles.caption}>
-                  Right Panel ({configuration.dimensions.width / 2}")
+                  Right Panel ({(configuration.dimensions.width / 2).toFixed(0)}")
                 </Typography>
                 <Box
                   sx={{
                     ...styles.handle,
-                    left: '3px',
+                    left: '2px',
                   }}
                 />
                 {/* Hinges for right panel - on right side (opposite to handle) */}
@@ -396,7 +467,7 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                 <Box
                   sx={{
                     ...styles.handle,
-                    [configuration.doorSwing]: '3px',
+                    [configuration.doorSwing]: '2px',
                   }}
                 />
               )}

@@ -1117,7 +1117,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                         Scale Preview (Not Actual Size)
                       </Typography>
 
-                      <ConfigurationPreviewUI configuration={configuration} maxHeight="300px" />
+                      <ConfigurationPreviewUI configuration={configuration} />
                     </Paper>
                   </Box>
                 </Paper>
@@ -1258,7 +1258,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                         Scale Preview (Not Actual Size)
                       </Typography>
 
-                      <ConfigurationPreviewUI configuration={configuration} maxHeight="300px" />
+                      <ConfigurationPreviewUI configuration={configuration} />
                     </Paper>
                   </Box>
                 </Paper>
@@ -1726,7 +1726,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                       Scale Preview (Not Actual Size)
                     </Typography>
 
-                    <ConfigurationPreviewUI configuration={configuration} maxHeight="300px" />
+                    <ConfigurationPreviewUI configuration={configuration} />
                             </Paper>
                           </Box>
               </Paper>
