@@ -42,7 +42,8 @@ const emptyConfiguration = {
   doorType: 'glass',
   grid: { enabled: true, horizontal: 2, vertical: 3 },
   location: '',
-  itemNumber: 0
+  itemNumber: 0,
+  quantity: 1
 };
 
 const ConfigurationStepper = ({ 
@@ -156,14 +157,22 @@ const ConfigurationStepper = ({
   };
 
   const handleRemoveFromQuote = (itemId) => {
-    setQuoteItems(prev => {
-      // Remove the item and renumber remaining items
-      const filtered = prev.filter(item => item.id !== itemId);
-      return filtered.map((item, index) => ({
-        ...item,
-        itemNumber: index + 1
-      }));
-    });
+    setQuoteItems(quoteItems.filter(item => item.id !== itemId));
+  };
+
+  const handleCopyItem = (itemToCopy) => {
+    // Generate a new item number (next available number)
+    const newItemNumber = Math.max(...quoteItems.map(item => item.itemNumber), 0) + 1;
+    
+    // Create the new item with a new ID and item number
+    const newItem = {
+      ...itemToCopy,
+      id: Date.now(), // Simple way to generate a unique ID
+      itemNumber: newItemNumber
+    };
+    
+    // Add the new item to the quote items
+    setQuoteItems([...quoteItems, newItem]);
   };
 
   const handleQuoteSaved = () => {
@@ -239,6 +248,7 @@ const ConfigurationStepper = ({
           }}
           onEditItem={handleEditItem}
           onRemoveItem={handleRemoveFromQuote}
+          onCopyItem={handleCopyItem}
           onQuoteSaved={handleQuoteSaved}
           savedQuote={currentQuote}
         />;

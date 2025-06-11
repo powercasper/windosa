@@ -15,7 +15,7 @@ import {
   DialogContent,
 } from '@mui/material';
 import ConfigurationStepper from './components/ConfigurationStepper';
-import { fetchMetadata } from './api/config';
+import { getMetadata } from './api/config';
 import SavedQuotes from './components/SavedQuotes';
 import AddIcon from '@mui/icons-material/Add';
 
@@ -65,7 +65,7 @@ const App = () => {
   useEffect(() => {
     const loadMetadata = async () => {
       try {
-        const data = await fetchMetadata();
+        const data = await getMetadata();
         setMetadata(data);
         setError(null);
       } catch (err) {

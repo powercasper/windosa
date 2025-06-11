@@ -13,11 +13,10 @@ const api = axios.create({
 export const endpoints = {
   metadata: '/metadata',
   generateQuote: '/quotes/generate',
-  generatePDF: '/quotes/generate-pdf',
 };
 
 // API functions
-export const fetchMetadata = async () => {
+export const getMetadata = async () => {
   try {
     const response = await api.get(endpoints.metadata);
     return response.data;
@@ -27,27 +26,12 @@ export const fetchMetadata = async () => {
   }
 };
 
-export const generateQuote = async (configuration) => {
+export const generateQuote = async (data) => {
   try {
-    const response = await api.post(endpoints.generateQuote, configuration);
+    const response = await api.post(endpoints.generateQuote, data);
     return response.data;
   } catch (error) {
     console.error('Error generating quote:', error);
-    throw error;
-  }
-};
-
-export const generatePDF = async (quote) => {
-  try {
-    const response = await api.post(endpoints.generatePDF, { quote }, {
-      responseType: 'arraybuffer',
-      headers: {
-        'Accept': 'application/pdf'
-      }
-    });
-    return response;
-  } catch (error) {
-    console.error('Error generating PDF:', error);
     throw error;
   }
 };
