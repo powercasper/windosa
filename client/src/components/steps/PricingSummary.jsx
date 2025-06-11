@@ -133,6 +133,9 @@ const calculateItemPrice = (item) => {
   let totalLaborCost = 0;
   let totalArea = 0;
 
+  // Get quantity (default to 1 if not specified)
+  const quantity = item.quantity || 1;
+
   // Glass rates remain the same per sq ft regardless of operation type
   const glassRates = {
     'Double Pane': 12.5,
@@ -260,11 +263,11 @@ const calculateItemPrice = (item) => {
   }
 
   return {
-    systemCost: totalSystemCost,
-    glassCost: totalGlassCost,
-    laborCost: totalLaborCost,
-    total: totalSystemCost + totalGlassCost + totalLaborCost,
-    area: totalArea
+    systemCost: totalSystemCost * quantity,
+    glassCost: totalGlassCost * quantity,
+    laborCost: totalLaborCost * quantity,
+    total: (totalSystemCost + totalGlassCost + totalLaborCost) * quantity,
+    area: totalArea * quantity
   };
 };
 
@@ -640,13 +643,30 @@ const PricingSummary = ({
       {!isConfigurationEmpty && (
         <Paper sx={{ p: 3, mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">
-              Current Item
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h6">
+                Current Item
+              </Typography>
+              {configuration.quantity && configuration.quantity > 1 && (
+                <Chip 
+                  size="small" 
+                  label={`Qty: ${configuration.quantity}`}
+                  color="primary"
+                  variant="outlined"
+                />
+              )}
+            </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Typography variant="h6" color="primary">
-              {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
-            </Typography>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography variant="h6" color="primary">
+                  {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
+                </Typography>
+                {configuration.quantity && configuration.quantity > 1 && currentItemPrice && (
+                  <Typography variant="caption" color="text.secondary">
+                    {formatCurrency(currentItemPrice.total / configuration.quantity)} each
+                  </Typography>
+                )}
+              </Box>
               <Button
                 variant="contained"
                 color="primary"
@@ -1027,6 +1047,15 @@ const PricingSummary = ({
                       <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <WindowIcon color="primary" />
                         Item {item.itemNumber} - {item.brand} {item.systemModel}
+                        {item.quantity && item.quantity > 1 && (
+                          <Chip 
+                            size="small" 
+                            label={`Qty: ${item.quantity}`}
+                            color="primary"
+                            variant="outlined"
+                            sx={{ ml: 1 }}
+                          />
+                        )}
                       </Typography>
                       {item.location && (
                         <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -1035,9 +1064,16 @@ const PricingSummary = ({
                       )}
                     </Box>
                     <Stack direction="row" spacing={1} alignItems="center">
-                      <Typography variant="subtitle1" color="primary">
-                        ${total.toFixed(2)}
-                      </Typography>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="subtitle1" color="primary">
+                          ${total.toFixed(2)}
+                        </Typography>
+                        {item.quantity && item.quantity > 1 && (
+                          <Typography variant="caption" color="text.secondary">
+                            ${(total / item.quantity).toFixed(2)} each
+                          </Typography>
+                        )}
+                      </Box>
                       {typeof onCopyItem === 'function' && (
                         <IconButton 
                           edge="end" 
@@ -2094,12 +2130,12 @@ const PricingSummary = ({
                     return (
                       <TableRow key={item.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                         <TableCell>{String(index + 1).padStart(3, '0')}</TableCell>
-                        <TableCell>1</TableCell>
+                        <TableCell>{item.quantity || 1}</TableCell>
                         <TableCell>{description}</TableCell>
                         <TableCell>{item.location || '-'}</TableCell>
                         <TableCell align="right">{itemArea.toFixed(1)}</TableCell>
-                        <TableCell align="right">${baseUnitPrice.toFixed(2)}</TableCell>
-                        <TableCell align="right">${finalUnitPrice.toFixed(2)}</TableCell>
+                        <TableCell align="right">${(baseUnitPrice / (item.quantity || 1)).toFixed(2)}</TableCell>
+                        <TableCell align="right">${(finalUnitPrice / (item.quantity || 1)).toFixed(2)}</TableCell>
                         <TableCell align="right">${finalUnitPrice.toFixed(2)}</TableCell>
                       </TableRow>
                     );

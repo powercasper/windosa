@@ -12,11 +12,19 @@ const styles = StyleSheet.create({
   },
   preview: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
     position: 'relative',
+  },
+  mainPreview: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    width: '100%',
   },
   panel: {
     height: '100%',
@@ -126,6 +134,24 @@ const styles = StyleSheet.create({
   rightDoorPanel: {
     flex: 1,
     borderLeft: '1pt solid #999',
+  },
+  transom: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#ccc',
+    border: '1pt solid #ccc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    padding: 4,
+  },
+  sidelight: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#ccc',
+    border: '1pt solid #ccc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    padding: 4,
   }
 });
 
@@ -184,205 +210,258 @@ const ConfigurationPreview = ({ configuration }) => {
 
   const renderPanels = () => {
     if (configuration.systemType === 'Windows') {
-      return configuration.panels.map((panel, index) => {
-        const width = (panel.width / configuration.panels.reduce((sum, p) => sum + p.width, 0)) * 100;
-        return (
-          <View
-            key={index}
-            style={[
-              styles.panel,
-              panel.operationType === 'Fixed' ? styles.fixedPanel : styles.slidingPanel,
-              { width: `${width}%` }
-            ]}
-          >
-            <View style={styles.panelContent}>
-              <Text style={styles.panelLabel}>{panel.operationType}</Text>
-              {/* Add operation description for clarity */}
-              {panel.operationType !== 'Fixed' && (
-                <Text style={[styles.panelLabel, { fontSize: 5, color: '#888' }]}>
-                  {panel.operationType === 'Casement' && '(open out)'}
-                  {panel.operationType === 'Awning' && '(open out)'}
-                  {panel.operationType === 'Tilt Only' && '(open in)'}
-                  {panel.operationType === 'Tilt & Turn' && '(open in)'}
-                </Text>
-              )}
-              <Text style={styles.panelLabel}>{Math.round(panel.width)}"</Text>
-              {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-              {/* Add handle for non-fixed windows */}
-              {panel.operationType !== 'Fixed' && (
-                <View style={[
-                  styles.handle, 
-                  panel.operationType === 'Awning' 
-                    ? { left: '45%', top: '85%' }  // Bottom center for awning
-                    : { [panel.handleLocation || 'right']: 3 }  // Side position for others
-                ]} />
-              )}
-              {/* Add hinges for non-fixed windows */}
-              {panel.operationType !== 'Fixed' && (
-                <>
-                  {panel.operationType === 'Awning' ? (
-                    // Top hinges for awning windows
+      return (
+        <View style={styles.mainPreview}>
+          {configuration.panels.map((panel, index) => {
+            const width = (panel.width / configuration.panels.reduce((sum, p) => sum + p.width, 0)) * 100;
+            return (
+              <View
+                key={index}
+                style={[
+                  styles.panel,
+                  panel.operationType === 'Fixed' ? styles.fixedPanel : styles.slidingPanel,
+                  { width: `${width}%` }
+                ]}
+              >
+                <View style={styles.panelContent}>
+                  <Text style={styles.panelLabel}>{panel.operationType}</Text>
+                  {/* Add operation description for clarity */}
+                  {panel.operationType !== 'Fixed' && (
+                    <Text style={[styles.panelLabel, { fontSize: 5, color: '#888' }]}>
+                      {panel.operationType === 'Casement' && '(open out)'}
+                      {panel.operationType === 'Awning' && '(open out)'}
+                      {panel.operationType === 'Tilt Only' && '(open in)'}
+                      {panel.operationType === 'Tilt & Turn' && '(open in)'}
+                    </Text>
+                  )}
+                  <Text style={styles.panelLabel}>{Math.round(panel.width)}"</Text>
+                  {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+                  {/* Add handle for non-fixed windows */}
+                  {panel.operationType !== 'Fixed' && (
+                    <View style={[
+                      styles.handle, 
+                      panel.operationType === 'Awning' 
+                        ? { left: '45%', top: '85%' }  // Bottom center for awning
+                        : { [panel.handleLocation || 'right']: 3 }  // Side position for others
+                    ]} />
+                  )}
+                  {/* Add hinges for non-fixed windows */}
+                  {panel.operationType !== 'Fixed' && (
                     <>
-                      <View style={[styles.hinge, { left: '20%', top: 1 }]} />
-                      <View style={[styles.hinge, { left: '45%', top: 1 }]} />
-                      <View style={[styles.hinge, { left: '70%', top: 1 }]} />
-                    </>
-                  ) : panel.operationType === 'Tilt Only' ? (
-                    // Bottom hinges for tilt-only windows
-                    <>
-                      <View style={[styles.hinge, { left: '20%', bottom: 1 }]} />
-                      <View style={[styles.hinge, { left: '45%', bottom: 1 }]} />
-                      <View style={[styles.hinge, { left: '70%', bottom: 1 }]} />
-                    </>
-                  ) : panel.operationType === 'Tilt & Turn' ? (
-                    // Side hinges for tilt and turn windows (opposite side to handle)
-                    <>
-                      <View style={[
-                        styles.hinge, 
-                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '20%' }
-                      ]} />
-                      <View style={[
-                        styles.hinge, 
-                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '50%' }
-                      ]} />
-                      <View style={[
-                        styles.hinge, 
-                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '80%' }
-                      ]} />
-                    </>
-                  ) : (
-                    // Side hinges for other window types
-                    <>
-                      <View style={[
-                        styles.hinge, 
-                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '20%' }
-                      ]} />
-                      <View style={[
-                        styles.hinge, 
-                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '50%' }
-                      ]} />
-                      <View style={[
-                        styles.hinge, 
-                        { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '80%' }
-                      ]} />
+                      {panel.operationType === 'Awning' ? (
+                        // Top hinges for awning windows
+                        <>
+                          <View style={[styles.hinge, { left: '20%', top: 1 }]} />
+                          <View style={[styles.hinge, { left: '45%', top: 1 }]} />
+                          <View style={[styles.hinge, { left: '70%', top: 1 }]} />
+                        </>
+                      ) : panel.operationType === 'Tilt Only' ? (
+                        // Bottom hinges for tilt-only windows
+                        <>
+                          <View style={[styles.hinge, { left: '20%', bottom: 1 }]} />
+                          <View style={[styles.hinge, { left: '45%', bottom: 1 }]} />
+                          <View style={[styles.hinge, { left: '70%', bottom: 1 }]} />
+                        </>
+                      ) : panel.operationType === 'Tilt & Turn' ? (
+                        // Side hinges for tilt and turn windows (opposite side to handle)
+                        <>
+                          <View style={[
+                            styles.hinge, 
+                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '20%' }
+                          ]} />
+                          <View style={[
+                            styles.hinge, 
+                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '50%' }
+                          ]} />
+                          <View style={[
+                            styles.hinge, 
+                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '80%' }
+                          ]} />
+                        </>
+                      ) : (
+                        // Side hinges for other window types
+                        <>
+                          <View style={[
+                            styles.hinge, 
+                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '20%' }
+                          ]} />
+                          <View style={[
+                            styles.hinge, 
+                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '50%' }
+                          ]} />
+                          <View style={[
+                            styles.hinge, 
+                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '80%' }
+                          ]} />
+                        </>
+                      )}
                     </>
                   )}
-                </>
-              )}
-            </View>
-          </View>
-        );
-      });
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      );
     }
 
     if (configuration.systemType === 'Sliding Doors') {
-      return configuration.panels.map((panel, index) => {
-        const width = 100 / configuration.panels.length;
-        return (
-          <View
-            key={index}
-            style={[
-              styles.panel,
-              panel.type === 'Fixed' ? styles.fixedPanel : styles.slidingPanel,
-              { width: `${width}%` }
-            ]}
-          >
-            <View style={styles.panelContent}>
-              <Text style={styles.panelLabel}>{panel.type}</Text>
-              {panel.type === 'Sliding' && (
-                <>
-                  {/* Direction Text - Shows sliding direction */}
-                  <Text style={{
-                    fontSize: 8, 
-                    fontWeight: 'bold',
-                    color: '#1976d2',
-                    position: 'absolute',
-                    top: '70%',
-                    left: '40%',
-                  }}>
-                    {panel.direction === 'left' ? 'LEFT' : 'RIGHT'}
-                  </Text>
+      return (
+        <View style={styles.mainPreview}>
+          {configuration.panels.map((panel, index) => {
+            const width = 100 / configuration.panels.length;
+            return (
+              <View
+                key={index}
+                style={[
+                  styles.panel,
+                  panel.type === 'Fixed' ? styles.fixedPanel : styles.slidingPanel,
+                  { width: `${width}%` }
+                ]}
+              >
+                <View style={styles.panelContent}>
+                  <Text style={styles.panelLabel}>{panel.type}</Text>
+                  {panel.type === 'Sliding' && (
+                    <>
+                      {/* Direction Text - Shows sliding direction */}
+                      <Text style={{
+                        fontSize: 8, 
+                        fontWeight: 'bold',
+                        color: '#1976d2',
+                        position: 'absolute',
+                        top: '70%',
+                        left: '40%',
+                      }}>
+                        {panel.direction === 'left' ? 'LEFT' : 'RIGHT'}
+                      </Text>
 
-                  {/* Handle for sliding door - positioned opposite to sliding direction */}
+                      {/* Handle for sliding door - positioned opposite to sliding direction */}
+                      <View style={[
+                        styles.handle, 
+                        { [panel.direction === 'left' ? 'right' : 'left']: 3 }
+                      ]} />
+                    </>
+                  )}
+                  {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      );
+    }
+
+    // Entrance Doors - need to include transom and sidelights
+    const totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                      configuration.dimensions.width + 
+                      (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+
+    const transomHeight = configuration.transom?.enabled ? configuration.transom.height : 0;
+    const totalHeight = configuration.dimensions.height + transomHeight;
+    
+    // Calculate width percentages for sidelights and door
+    const leftSidelightPercent = configuration.leftSidelight?.enabled ? 
+      (configuration.leftSidelight.width / totalWidth) * 100 : 0;
+    const rightSidelightPercent = configuration.rightSidelight?.enabled ? 
+      (configuration.rightSidelight.width / totalWidth) * 100 : 0;
+    const doorPercent = (configuration.dimensions.width / totalWidth) * 100;
+
+    return (
+      <>
+        {/* Transom Section */}
+        {configuration.transom?.enabled && (
+          <View style={[styles.transom, { height: (transomHeight / totalHeight) * 100 + '%' }]}>
+            <Text style={styles.panelLabel}>Transom ({configuration.transom.height}")</Text>
+          </View>
+        )}
+
+        {/* Main Door Section */}
+        <View style={[styles.mainPreview, { height: configuration.transom?.enabled ? 
+          (configuration.dimensions.height / totalHeight) * 100 + '%' : '100%' }]}>
+          
+          {/* Left Sidelight */}
+          {configuration.leftSidelight?.enabled && (
+            <View style={[styles.sidelight, { width: leftSidelightPercent + '%' }]}>
+              <Text style={styles.panelLabel}>Left</Text>
+              <Text style={styles.panelLabel}>({configuration.leftSidelight.width}")</Text>
+            </View>
+          )}
+
+          {/* Door Panel(s) */}
+          <View style={{ width: doorPercent + '%', height: '100%' }}>
+            {configuration.openingType === 'Double Door' ? (
+              // Double Door Configuration
+              <View style={styles.doubleDoorContainer}>
+                {/* Left Door Panel */}
+                <View style={[styles.panel, styles.doorPanel, styles.leftDoorPanel]}>
+                  <View style={styles.panelContent}>
+                    <Text style={styles.panelLabel}>Left Panel</Text>
+                    <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width / 2)}"</Text>
+                    {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+                    {/* Right handle for left panel */}
+                    <View style={[styles.handle, { right: 3 }]} />
+                    {/* Hinges for left panel - on left side (opposite to handle) */}
+                    <View style={[styles.hinge, { left: 1, top: '15%' }]} />
+                    <View style={[styles.hinge, { left: 1, top: '46%' }]} />
+                    <View style={[styles.hinge, { left: 1, top: '77%' }]} />
+                  </View>
+                </View>
+
+                {/* Right Door Panel */}
+                <View style={[styles.panel, styles.doorPanel, styles.rightDoorPanel]}>
+                  <View style={styles.panelContent}>
+                    <Text style={styles.panelLabel}>Right Panel</Text>
+                    <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width / 2)}"</Text>
+                    {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+                    {/* Left handle for right panel */}
+                    <View style={[styles.handle, { left: 3 }]} />
+                    {/* Hinges for right panel - on right side (opposite to handle) */}
+                    <View style={[styles.hinge, { right: 1, top: '15%' }]} />
+                    <View style={[styles.hinge, { right: 1, top: '46%' }]} />
+                    <View style={[styles.hinge, { right: 1, top: '77%' }]} />
+                  </View>
+                </View>
+              </View>
+            ) : (
+              // Single Door Configuration
+              <View style={[styles.panel, styles.doorPanel, { width: '100%' }]}>
+                <View style={styles.panelContent}>
+                  <Text style={styles.panelLabel}>{configuration.openingType}</Text>
+                  <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width)}"</Text>
+                  {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+                  {/* Handle based on configuration */}
                   <View style={[
                     styles.handle, 
-                    { [panel.direction === 'left' ? 'right' : 'left']: 3 }
+                    { [configuration.handleLocation === 'left' ? 'left' : 'right']: 3 }
                   ]} />
-                </>
-              )}
-              {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-            </View>
-          </View>
-        );
-      });
-    }
-
-    // Entrance Doors
-    if (configuration.openingType === 'Double Door') {
-      // Double Door Configuration
-      return (
-        <View style={styles.doubleDoorContainer}>
-          {/* Left Door Panel */}
-          <View style={[styles.panel, styles.doorPanel, styles.leftDoorPanel]}>
-            <View style={styles.panelContent}>
-              <Text style={styles.panelLabel}>Left Panel</Text>
-              <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width / 2)}"</Text>
-              {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-              {/* Right handle for left panel */}
-              <View style={[styles.handle, { right: 3 }]} />
-              {/* Hinges for left panel - on left side (opposite to handle) */}
-              <View style={[styles.hinge, { left: 1, top: '15%' }]} />
-              <View style={[styles.hinge, { left: 1, top: '46%' }]} />
-              <View style={[styles.hinge, { left: 1, top: '77%' }]} />
-            </View>
+                  {/* Hinges on opposite side to handle */}
+                  <View style={[
+                    styles.hinge, 
+                    { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '15%' }
+                  ]} />
+                  <View style={[
+                    styles.hinge, 
+                    { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '46%' }
+                  ]} />
+                  <View style={[
+                    styles.hinge, 
+                    { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '77%' }
+                  ]} />
+                </View>
+              </View>
+            )}
           </View>
 
-          {/* Right Door Panel */}
-          <View style={[styles.panel, styles.doorPanel, styles.rightDoorPanel]}>
-            <View style={styles.panelContent}>
-              <Text style={styles.panelLabel}>Right Panel</Text>
-              <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width / 2)}"</Text>
-              {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-              {/* Left handle for right panel */}
-              <View style={[styles.handle, { left: 3 }]} />
-              {/* Hinges for right panel - on right side (opposite to handle) */}
-              <View style={[styles.hinge, { right: 1, top: '15%' }]} />
-              <View style={[styles.hinge, { right: 1, top: '46%' }]} />
-              <View style={[styles.hinge, { right: 1, top: '77%' }]} />
+          {/* Right Sidelight */}
+          {configuration.rightSidelight?.enabled && (
+            <View style={[styles.sidelight, { width: rightSidelightPercent + '%' }]}>
+              <Text style={styles.panelLabel}>Right</Text>
+              <Text style={styles.panelLabel}>({configuration.rightSidelight.width}")</Text>
             </View>
-          </View>
+          )}
         </View>
-      );
-    } else {
-      // Single Door Configuration
-      return (
-        <View style={[styles.panel, styles.doorPanel, { width: '100%' }]}>
-          <View style={styles.panelContent}>
-            <Text style={styles.panelLabel}>{configuration.openingType}</Text>
-            <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width)}"</Text>
-            {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-            {/* Handle based on configuration */}
-            <View style={[
-              styles.handle, 
-              { [configuration.handleLocation === 'left' ? 'left' : 'right']: 3 }
-            ]} />
-            {/* Hinges on opposite side to handle */}
-            <View style={[
-              styles.hinge, 
-              { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '15%' }
-            ]} />
-            <View style={[
-              styles.hinge, 
-              { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '46%' }
-            ]} />
-            <View style={[
-              styles.hinge, 
-              { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '77%' }
-            ]} />
-          </View>
-        </View>
-      );
-    }
+      </>
+    );
   };
 
   return (

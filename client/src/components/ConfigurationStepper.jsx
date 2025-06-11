@@ -42,7 +42,8 @@ const emptyConfiguration = {
   doorType: 'glass',
   grid: { enabled: true, horizontal: 2, vertical: 3 },
   location: '',
-  itemNumber: 0
+  itemNumber: 0,
+  quantity: 1
 };
 
 const ConfigurationStepper = ({ 

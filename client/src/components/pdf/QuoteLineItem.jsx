@@ -132,7 +132,7 @@ const QuoteLineItem = ({ item }) => {
                   <Text style={styles.label}>Type:</Text>
                   <Text style={styles.value}>{item.systemType}</Text>
                 </View>
-                {item.systemType === 'Windows' && item.panels.map((panel, idx) => (
+                {item.systemType === 'Windows' && item.panels && item.panels.map((panel, idx) => (
                   <View key={idx} style={styles.row}>
                     <Text style={styles.label}>Panel {idx + 1}:</Text>
                     <Text style={styles.value}>
