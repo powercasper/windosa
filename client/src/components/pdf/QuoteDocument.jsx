@@ -153,6 +153,9 @@ const QuoteDocument = ({ quote }) => {
     return items.map(item => [item]);
   };
 
+  // Calculate total quantity
+  const totalQuantity = quote.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
   const itemPages = splitIntoPages(quote.items);
   const totalPages = 1 + itemPages.length; // 1 header page + item pages
 
@@ -197,6 +200,12 @@ const QuoteDocument = ({ quote }) => {
               <Text style={styles.projectLabel}>Total Items:</Text>
               <Text style={styles.projectValue}>{quote.items.length}</Text>
             </View>
+            {totalQuantity > quote.items.length && (
+              <View style={styles.projectDetail}>
+                <Text style={styles.projectLabel}>Total Quantity:</Text>
+                <Text style={styles.projectValue}>{totalQuantity}</Text>
+              </View>
+            )}
             <View style={styles.projectDetail}>
               <Text style={styles.projectLabel}>Total Area:</Text>
               <Text style={styles.projectValue}>

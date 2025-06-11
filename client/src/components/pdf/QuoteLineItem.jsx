@@ -12,19 +12,40 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
     paddingBottom: 5,
     borderBottom: '1pt solid #eee',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quantityBadge: {
+    backgroundColor: '#1976d2',
+    color: '#fff',
+    padding: '2pt 6pt',
+    borderRadius: 2,
+    fontSize: 8,
+    fontWeight: 'bold',
   },
   title: {
     fontSize: 11,
     fontWeight: 'bold',
     color: '#1976d2',
   },
+  priceSection: {
+    textAlign: 'right',
+  },
   price: {
     fontSize: 11,
     fontWeight: 'bold',
     color: '#1976d2',
+  },
+  unitPrice: {
+    fontSize: 8,
+    color: '#666',
   },
   location: {
     fontSize: 9,
@@ -97,16 +118,33 @@ const QuoteLineItem = ({ item }) => {
   const formatArea = (value) => `${value.toFixed(1)} sq ft`;
   const formatPrice = (value) => `$${value.toFixed(2)}`;
 
+  const quantity = item.quantity || 1;
+  const unitPrice = item.pricing.finalPrice / quantity;
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>
-          Item {item.itemNumber} - {item.brand} {item.systemModel}
-        </Text>
-        <Text style={styles.price}>
-          {formatPrice(item.pricing.finalPrice)}
-        </Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.title}>
+            Item {item.itemNumber} - {item.brand} {item.systemModel}
+          </Text>
+          {quantity > 1 && (
+            <Text style={styles.quantityBadge}>
+              Qty: {quantity}
+            </Text>
+          )}
+        </View>
+        <View style={styles.priceSection}>
+          <Text style={styles.price}>
+            {formatPrice(item.pricing.finalPrice)}
+          </Text>
+          {quantity > 1 && (
+            <Text style={styles.unitPrice}>
+              {formatPrice(unitPrice)} per unit
+            </Text>
+          )}
+        </View>
       </View>
 
       {/* Location */}
@@ -128,6 +166,12 @@ const QuoteLineItem = ({ item }) => {
             <View style={styles.column}>
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Configuration Details</Text>
+                {quantity > 1 && (
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Quantity:</Text>
+                    <Text style={styles.value}>{quantity} units</Text>
+                  </View>
+                )}
                 <View style={styles.row}>
                   <Text style={styles.label}>Type:</Text>
                   <Text style={styles.value}>{item.systemType}</Text>
@@ -204,15 +248,24 @@ const QuoteLineItem = ({ item }) => {
                 <Text style={styles.sectionTitle}>Cost Breakdown</Text>
                 <View style={styles.row}>
                   <Text style={styles.label}>System:</Text>
-                  <Text style={styles.value}>{formatPrice(item.pricing.systemCost)}</Text>
+                  <Text style={styles.value}>
+                    {formatPrice(item.pricing.systemCost)}
+                    {quantity > 1 && ` (${formatPrice(item.pricing.systemCost / quantity)} each)`}
+                  </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Glass:</Text>
-                  <Text style={styles.value}>{formatPrice(item.pricing.glassCost)}</Text>
+                  <Text style={styles.value}>
+                    {formatPrice(item.pricing.glassCost)}
+                    {quantity > 1 && ` (${formatPrice(item.pricing.glassCost / quantity)} each)`}
+                  </Text>
                 </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Labor:</Text>
-                  <Text style={styles.value}>{formatPrice(item.pricing.laborCost)}</Text>
+                  <Text style={styles.value}>
+                    {formatPrice(item.pricing.laborCost)}
+                    {quantity > 1 && ` (${formatPrice(item.pricing.laborCost / quantity)} each)`}
+                  </Text>
                 </View>
               </View>
             </View>
