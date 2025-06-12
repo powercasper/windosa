@@ -175,6 +175,16 @@ const ConfigurationStepper = ({
     setQuoteItems([...quoteItems, newItem]);
   };
 
+  const handleUpdateItemQuantity = (itemId, newQuantity) => {
+    setQuoteItems(prevItems => 
+      prevItems.map(item => 
+        item.id === itemId 
+          ? { ...item, quantity: newQuantity }
+          : item
+      )
+    );
+  };
+
   const handleQuoteSaved = (savedQuote) => {
     // Update the current quote state with the saved quote
     if (savedQuote) {
@@ -259,6 +269,7 @@ const ConfigurationStepper = ({
           onRemoveItem={handleRemoveFromQuote}
           onCopyItem={handleCopyItem}
           onQuoteSaved={handleQuoteSaved}
+          onUpdateItemQuantity={handleUpdateItemQuantity}
           savedQuote={currentQuote}
         />;
       default:

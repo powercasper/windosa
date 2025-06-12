@@ -21,6 +21,7 @@ import {
   Snackbar,
   TextField,
   InputAdornment,
+  Tooltip,
   TableContainer,
   Table,
   TableHead,
@@ -45,6 +46,8 @@ import CalculateIcon from '@mui/icons-material/Calculate';
 import PaidIcon from '@mui/icons-material/Paid';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
@@ -379,6 +382,7 @@ const PricingSummary = ({
   onRemoveItem,
   onQuoteSaved,
   onCopyItem,  // Add new prop
+  onUpdateItemQuantity, // New prop for inline quantity updates
   savedQuote = null
 }) => {
   const [pricing, setPricing] = useState({
@@ -396,6 +400,10 @@ const PricingSummary = ({
   });
   const [showAddSuccess, setShowAddSuccess] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  // State for inline quantity editing
+  const [editingQuantity, setEditingQuantity] = useState(null); // itemId or 'current' for current item
+  const [tempQuantity, setTempQuantity] = useState('');
   
   // Initialize costs from storage or defaults
   const storedCosts = getStoredCosts();
@@ -444,6 +452,124 @@ const PricingSummary = ({
 
   const formatPrice = (value) => {
     return (value || 0).toFixed(2);
+  };
+
+  // Quantity editing functions
+  const handleQuantityEdit = (itemId, currentQuantity) => {
+    setEditingQuantity(itemId);
+    setTempQuantity(String(currentQuantity || 1));
+  };
+
+  const handleQuantityCancel = () => {
+    setEditingQuantity(null);
+    setTempQuantity('');
+  };
+
+  const handleQuantityChange = (value) => {
+    // Only allow positive integers
+    if (value === '' || /^[1-9]\d*$/.test(value)) {
+      setTempQuantity(value);
+    }
+  };
+
+  const handleQuantitySave = (itemId) => {
+    const newQuantity = parseInt(tempQuantity) || 1;
+    
+    if (itemId === 'current') {
+      // For current item, show an alert that they need to add to quote first
+      alert('To change quantity, please add this item to your quote first, then edit the quantity from the quote items below.');
+      setEditingQuantity(null);
+      setTempQuantity('');
+      return;
+    }
+
+    // Update item quantity without navigation
+    if (onUpdateItemQuantity) {
+      onUpdateItemQuantity(itemId, newQuantity);
+    } else {
+      // Fallback: Find the item and update its quantity via onEditItem
+      const itemToUpdate = quoteItems.find(item => item.id === itemId);
+      if (itemToUpdate && onEditItem) {
+        const updatedItem = { ...itemToUpdate, quantity: newQuantity };
+        onEditItem(updatedItem);
+      }
+    }
+    
+    setEditingQuantity(null);
+    setTempQuantity('');
+  };
+
+  const handleQuantityKeyPress = (event, itemId) => {
+    if (event.key === 'Enter') {
+      handleQuantitySave(itemId);
+    } else if (event.key === 'Escape') {
+      handleQuantityCancel();
+    }
+  };
+
+  // Editable Quantity Component
+  const EditableQuantityChip = ({ itemId, quantity, size = "small", sx = {} }) => {
+    const isEditing = editingQuantity === itemId;
+    const isCurrentItem = itemId === 'current';
+    
+    if (isEditing) {
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ...sx }}>
+          <TextField
+            size="small"
+            value={tempQuantity}
+            onChange={(e) => handleQuantityChange(e.target.value)}
+            onKeyPress={(e) => handleQuantityKeyPress(e, itemId)}
+            autoFocus
+            sx={{ 
+              width: '60px',
+              '& .MuiInputBase-input': {
+                textAlign: 'center',
+                fontSize: size === 'small' ? '0.75rem' : '0.875rem'
+              }
+            }}
+            inputProps={{
+              min: 1,
+              max: 999
+            }}
+          />
+          <IconButton 
+            size="small" 
+            onClick={() => handleQuantitySave(itemId)}
+            sx={{ p: 0.25, color: 'success.main' }}
+          >
+            <CheckIcon fontSize="small" />
+          </IconButton>
+          <IconButton 
+            size="small" 
+            onClick={handleQuantityCancel}
+            sx={{ p: 0.25, color: 'error.main' }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      );
+    }
+
+    return (
+      <Tooltip title={isCurrentItem ? "Add to quote first to edit quantity" : "Click to edit quantity"}>
+        <Chip
+          size={size}
+          label={`Qty: ${quantity || 1}`}
+          color="primary"
+          variant="outlined"
+          onClick={() => handleQuantityEdit(itemId, quantity)}
+          sx={{
+            cursor: 'pointer',
+            '&:hover': {
+              backgroundColor: 'primary.light',
+              color: 'white'
+            },
+            ...sx
+          }}
+        />
+      </Tooltip>
+    );
   };
 
   // Calculate total items cost from all items in the quote
@@ -723,23 +849,19 @@ const PricingSummary = ({
               <Typography variant="h6">
                 Current Item
               </Typography>
-              {configuration.quantity && configuration.quantity > 1 && (
-                <Chip 
-                  size="small" 
-                  label={`Qty: ${configuration.quantity}`}
-                  color="primary"
-                  variant="outlined"
-                />
-              )}
+              <EditableQuantityChip
+                itemId="current"
+                quantity={configuration.quantity}
+              />
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant="h6" color="primary">
                   {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
                 </Typography>
-                {configuration.quantity && configuration.quantity > 1 && currentItemPrice && (
+                {currentItemPrice && (configuration.quantity || 1) > 1 && (
                   <Typography variant="caption" color="text.secondary">
-                    {formatCurrency(currentItemPrice.total / configuration.quantity)} each
+                    {formatCurrency(currentItemPrice.total / (configuration.quantity || 1))} each
                   </Typography>
                 )}
               </Box>
@@ -1123,15 +1245,11 @@ const PricingSummary = ({
                       <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <WindowIcon color="primary" />
                         Item {item.itemNumber} - {item.brand} {item.systemModel}
-                        {item.quantity && item.quantity > 1 && (
-                          <Chip 
-                            size="small" 
-                            label={`Qty: ${item.quantity}`}
-                            color="primary"
-                            variant="outlined"
+                          <EditableQuantityChip
+                            itemId={item.id}
+                            quantity={item.quantity}
                             sx={{ ml: 1 }}
                           />
-                        )}
                       </Typography>
                       {item.location && (
                         <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -1144,9 +1262,9 @@ const PricingSummary = ({
                         <Typography variant="subtitle1" color="primary">
                           ${total.toFixed(2)}
                         </Typography>
-                        {item.quantity && item.quantity > 1 && (
+                        {(item.quantity || 1) > 1 && (
                           <Typography variant="caption" color="text.secondary">
-                            ${(total / item.quantity).toFixed(2)} each
+                            ${(total / (item.quantity || 1)).toFixed(2)} each
                           </Typography>
                         )}
                       </Box>
