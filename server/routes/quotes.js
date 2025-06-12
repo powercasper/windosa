@@ -63,14 +63,49 @@ const calculatePricing = (configuration) => {
     const doorHeight = configuration.dimensions.height;
     const doorWidth = configuration.dimensions.width;
     const doorArea = (doorWidth * doorHeight) / 144; // Convert to sq ft
-    const doorUnitCost = unitCostPerSqft[configuration.brand][configuration.systemModel][configuration.openingType];
+    
+    // Safely access door unit cost with fallback
+    let doorUnitCost = 0;
+    try {
+      const brandCosts = unitCostPerSqft[configuration.brand];
+      if (brandCosts && brandCosts[configuration.systemModel] && typeof brandCosts[configuration.systemModel] === 'object') {
+        doorUnitCost = brandCosts[configuration.systemModel][configuration.openingType];
+      }
+    } catch (error) {
+      console.warn('Error accessing door cost for', configuration.brand, configuration.systemModel, configuration.openingType);
+    }
+
+    // Use fallback values if doorUnitCost is not found
+    if (!doorUnitCost) {
+      const fallbackDoorCosts = {
+        'Single Door': 70,
+        'Double Door': 75,
+        'Pivot Door': 85
+      };
+      doorUnitCost = fallbackDoorCosts[configuration.openingType] || 70;
+      console.warn(`Using fallback door cost ${doorUnitCost} for ${configuration.brand} ${configuration.systemModel} ${configuration.openingType}`);
+    }
     
     totalSystemCost += doorArea * doorUnitCost;
     totalGlassCost += doorArea * glassUnitCost;
     totalArea += doorArea;
 
-    // Calculate fixed glass areas (sidelights and transom)
-    const fixedUnitCost = unitCostPerSqft[configuration.brand][configuration.systemModel]['Fixed'];
+    // Calculate fixed glass areas (sidelights and transom) with safe access
+    let fixedUnitCost = 0;
+    try {
+      const brandCosts = unitCostPerSqft[configuration.brand];
+      if (brandCosts && brandCosts[configuration.systemModel] && typeof brandCosts[configuration.systemModel] === 'object') {
+        fixedUnitCost = brandCosts[configuration.systemModel]['Fixed'];
+      }
+    } catch (error) {
+      console.warn('Error accessing fixed cost for', configuration.brand, configuration.systemModel);
+    }
+
+    // Use fallback for fixed panels if not found
+    if (!fixedUnitCost) {
+      fixedUnitCost = 32; // Default fixed panel cost
+      console.warn(`Using fallback fixed cost ${fixedUnitCost} for ${configuration.brand} ${configuration.systemModel}`);
+    }
 
     // Sidelights
     if (configuration.leftSidelight?.enabled) {
@@ -103,16 +138,40 @@ const calculatePricing = (configuration) => {
       laborRates['Hinged Left Open In']; // Use standard hinge rate for regular doors
     totalLaborCost = laborRate * totalArea;
   } else if (configuration.systemType === 'Windows' && configuration.panels) {
-    // Existing window calculation logic
+    // Calculate costs for each panel if it's a window with multiple panels
     configuration.panels.forEach(panel => {
       const panelArea = (panel.width * configuration.dimensions.height) / 144;
       totalArea += panelArea;
 
-      const systemUnitCost = unitCostPerSqft[configuration.brand][configuration.systemModel][panel.operationType];
+      // Safely access system unit cost with fallback values
+      let systemUnitCost = 0;
+      try {
+        const brandCosts = unitCostPerSqft[configuration.brand];
+        if (brandCosts && brandCosts[configuration.systemModel] && typeof brandCosts[configuration.systemModel] === 'object') {
+          systemUnitCost = brandCosts[configuration.systemModel][panel.operationType];
+        }
+      } catch (error) {
+        console.warn('Error accessing system cost for', configuration.brand, configuration.systemModel, panel.operationType);
+      }
+
+      // Use fallback values if systemUnitCost is not found
+      if (!systemUnitCost) {
+        // Default fallback costs per operation type
+        const fallbackCosts = {
+          'Fixed': 25,
+          'Tilt & Turn': 40,
+          'Casement': 32,
+          'Awning': 30,
+          'Tilt Only': 37
+        };
+        systemUnitCost = fallbackCosts[panel.operationType] || 30;
+        console.warn(`Using fallback cost ${systemUnitCost} for ${configuration.brand} ${configuration.systemModel} ${panel.operationType}`);
+      }
+
       totalSystemCost += systemUnitCost * panelArea;
       totalGlassCost += glassUnitCost * panelArea;
       
-      const laborRate = laborRates[panel.operationType];
+      const laborRate = laborRates[panel.operationType] || 5; // Fallback labor rate
       totalLaborCost += laborRate * panelArea;
     });
   } else if (configuration.systemType === 'Sliding Doors') {
@@ -141,23 +200,38 @@ const calculatePricing = (configuration) => {
     console.log('- Height:', height);
     console.log('- Area (sq ft):', area);
     
-    // Get base configuration costs
-    const costs = unitCostPerSqft[configuration.brand]?.[configuration.systemModel];
+    // Safely access sliding door costs with fallback
+    let costs = null;
+    try {
+      const brandCosts = unitCostPerSqft[configuration.brand];
+      if (brandCosts && brandCosts[configuration.systemModel] && typeof brandCosts[configuration.systemModel] === 'object') {
+        costs = brandCosts[configuration.systemModel];
+      }
+    } catch (error) {
+      console.warn('Error accessing sliding door costs for', configuration.brand, configuration.systemModel);
+    }
+    
     console.log('\nCost Configuration:');
     console.log('- Model:', configuration.systemModel);
     console.log('- Available costs:', JSON.stringify(costs, null, 2));
     
-    // Ensure we have valid costs object
+    // Ensure we have valid costs object or use fallback pricing
     if (!costs) {
-      console.error('ERROR: No costs found for', configuration.brand, configuration.systemModel);
-      return {
-        systemCost: 0,
-        glassCost: 0,
-        laborCost: 0,
-        total: 0,
-        area: 0
-      };
-    }
+      console.warn('No costs found for', configuration.brand, configuration.systemModel, '- using fallback pricing');
+      // Use a generic fallback cost for sliding doors
+      const fallbackSystemUnitCost = 32;
+      totalSystemCost = Number(fallbackSystemUnitCost) * Number(area);
+      totalGlassCost = Number(glassUnitCost) * Number(area);
+      
+      // Labor cost calculation with fallback
+      const numPanels = configuration.operationType.length;
+      const fallbackLaborRate = 10;
+      totalLaborCost = Number(fallbackLaborRate) * Number(area);
+      
+      console.log('Using fallback pricing:');
+      console.log('- System cost:', fallbackSystemUnitCost);
+      console.log('- Labor rate:', fallbackLaborRate);
+    } else {
 
     let systemUnitCost = 0;
     
@@ -280,6 +354,7 @@ const calculatePricing = (configuration) => {
     console.log('- Glass cost:', totalGlassCost);
     console.log('- Labor cost:', totalLaborCost);
     console.log('- Total area:', totalArea);
+    }
   }
 
   // Ensure all final values are valid numbers

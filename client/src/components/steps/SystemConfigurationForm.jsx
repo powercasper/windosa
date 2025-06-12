@@ -43,7 +43,7 @@ import {
 
 const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   const [availableModels, setAvailableModels] = useState([]);
-  const [availableOperables, setAvailableOperables] = useState([]);
+  const [availableOperables, setAvailableOperables] = useState(windowOperables);
   const [maxPanels, setMaxPanels] = useState(6);
   const [panelConfigs, setPanelConfigs] = useState([]);
   const [useEqualWidths, setUseEqualWidths] = useState(true);
@@ -555,9 +555,10 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
               >
                 <InputLabel>Model</InputLabel>
                 <Select
-                  value={configuration.systemModel || ''}
+                  value={availableModels.length > 0 ? (configuration.systemModel || '') : ''}
                   onChange={handleChange('systemModel')}
                   label="Model"
+                  disabled={availableModels.length === 0}
                   MenuProps={{
                     PaperProps: {
                       sx: {

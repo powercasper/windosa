@@ -1,6 +1,21 @@
 import React from 'react';
 import { View, Text, StyleSheet } from '@react-pdf/renderer';
 
+// Helper function to determine handle location from swing direction
+const getHandleLocation = (swingDirection) => {
+  if (!swingDirection) return 'right';
+  
+  // For single doors, handle is on the side opposite to the hinges
+  if (swingDirection.includes('Left Hand')) {
+    return 'left';  // Left hand doors have handle on left side
+  } else if (swingDirection.includes('Right Hand')) {
+    return 'right'; // Right hand doors have handle on right side
+  }
+  
+  // For pivot doors, typically handle is on the right
+  return 'right';
+};
+
 const styles = StyleSheet.create({
   container: {
     border: '1pt solid #ddd',
@@ -429,23 +444,23 @@ const ConfigurationPreview = ({ configuration }) => {
                   <Text style={styles.panelLabel}>{configuration.openingType}</Text>
                   <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width)}"</Text>
                   {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-                  {/* Handle based on configuration */}
+                  {/* Handle based on swing direction */}
                   <View style={[
                     styles.handle, 
-                    { [configuration.handleLocation === 'left' ? 'left' : 'right']: 3 }
+                    { [getHandleLocation(configuration.swingDirection)]: 3 }
                   ]} />
                   {/* Hinges on opposite side to handle */}
                   <View style={[
                     styles.hinge, 
-                    { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '15%' }
+                    { [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: 1, top: '15%' }
                   ]} />
                   <View style={[
                     styles.hinge, 
-                    { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '46%' }
+                    { [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: 1, top: '46%' }
                   ]} />
                   <View style={[
                     styles.hinge, 
-                    { [configuration.handleLocation === 'left' ? 'right' : 'left']: 1, top: '77%' }
+                    { [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: 1, top: '77%' }
                   ]} />
                 </View>
               </View>
