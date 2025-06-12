@@ -175,15 +175,32 @@ const ConfigurationStepper = ({
     setQuoteItems([...quoteItems, newItem]);
   };
 
-  const handleQuoteSaved = () => {
+  const handleQuoteSaved = (savedQuote) => {
+    // Update the current quote state with the saved quote
+    if (savedQuote) {
+      setCurrentQuote(savedQuote);
+    }
+    // Keep user on the quote summary page after saving
+    // Do NOT reset the state or navigate away
+    
+    // Only notify parent if needed for other functionality
+    if (onQuoteSaved) {
+      onQuoteSaved(savedQuote);
+    }
+  };
+
+  const handleStartNewQuote = () => {
+    // Reset everything when starting a new quote
+    setCurrentConfiguration(emptyConfiguration);
+    setCurrentQuote(null);
+    setQuoteItems([]);
+    setIsEditingItem(false);
+    setActiveStep(0);
+    
+    // Notify parent to reset any app-level state
     if (onQuoteSaved) {
       onQuoteSaved();
     }
-    setCurrentQuote(null);
-    setQuoteItems([]);
-    setCurrentConfiguration(emptyConfiguration);
-    setIsEditingItem(false);
-    setActiveStep(0);
   };
 
   const getLastCompletedStep = () => {
@@ -237,15 +254,7 @@ const ConfigurationStepper = ({
           configuration={currentConfiguration}
           quoteItems={quoteItems}
           onAddToQuote={handleAddToQuote}
-          onStartNew={() => {
-            setCurrentConfiguration(emptyConfiguration);
-            setCurrentQuote(null);
-            setIsEditingItem(false);
-            setActiveStep(0);
-            if (onQuoteSaved) {
-              onQuoteSaved();
-            }
-          }}
+          onStartNew={handleStartNewQuote}
           onEditItem={handleEditItem}
           onRemoveItem={handleRemoveFromQuote}
           onCopyItem={handleCopyItem}

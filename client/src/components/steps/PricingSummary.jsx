@@ -563,13 +563,13 @@ const PricingSummary = ({
         delivery
       };
       
-      saveQuote(quoteToSave);
+      const savedQuoteResult = saveQuote(quoteToSave);
       setSaveSuccess(true);
       setQuoteDialog(prev => ({ ...prev, open: false }));
       
-      // Notify parent components that the quote was saved
+      // Notify parent components that the quote was saved, passing the saved quote data
       if (onQuoteSaved) {
-        onQuoteSaved(quoteToSave);
+        onQuoteSaved(savedQuoteResult);
       }
     } catch (error) {
       setQuoteDialog(prev => ({

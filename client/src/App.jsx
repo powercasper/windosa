@@ -87,10 +87,16 @@ const App = () => {
     setConfigStepperKey(prev => prev + 1);
   };
 
-  const handleQuoteSaved = () => {
-    // Reset the loaded quote after saving
-    setLoadedQuote(null);
-    setIsEditingQuote(false);
+  const handleQuoteSaved = (savedQuote) => {
+    // If a quote was saved, update the loaded quote state
+    if (savedQuote) {
+      setLoadedQuote(savedQuote);
+      setIsEditingQuote(true);
+    } else {
+      // If no quote data passed (new quote action), reset everything
+      setLoadedQuote(null);
+      setIsEditingQuote(false);
+    }
   };
 
   return (
