@@ -18,6 +18,7 @@ import {
   InputAdornment,
   Switch,
   FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -1591,125 +1592,365 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                   <Stack spacing={2}>
                     {/* Left Sidelight */}
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <FormControl sx={{ minWidth: 120, flex: 1 }}>
-                          <InputLabel>Left Sidelight</InputLabel>
-                          <Select
-                            value={configuration.leftSidelight?.enabled || false}
-                            onChange={(e) => onUpdate({
-                              leftSidelight: {
-                                ...configuration.leftSidelight,
-                                enabled: e.target.value,
-                                width: e.target.value ? (configuration.leftSidelight?.width || 12) : 0
-                              }
-                            })}
-                            label="Left Sidelight"
-                          >
-                            <MenuItem value={false}>None</MenuItem>
-                            <MenuItem value={true}>Enabled</MenuItem>
-                          </Select>
-                        </FormControl>
+                      <Stack spacing={2}>
+                        {/* Main sidelight configuration */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <FormControl sx={{ minWidth: 120, flex: 1 }}>
+                            <InputLabel>Left Sidelight</InputLabel>
+                            <Select
+                              value={configuration.leftSidelight?.enabled || false}
+                              onChange={(e) => onUpdate({
+                                leftSidelight: {
+                                  ...configuration.leftSidelight,
+                                  enabled: e.target.value,
+                                  width: e.target.value ? (configuration.leftSidelight?.width || 12) : 0
+                                }
+                              })}
+                              label="Left Sidelight"
+                            >
+                              <MenuItem value={false}>None</MenuItem>
+                              <MenuItem value={true}>Enabled</MenuItem>
+                            </Select>
+                          </FormControl>
+                          {configuration.leftSidelight?.enabled && (
+                            <TextField
+                              label="Width"
+                              type="number"
+                              value={configuration.leftSidelight?.width || 12}
+                              onChange={(e) => onUpdate({
+                                leftSidelight: {
+                                  ...configuration.leftSidelight,
+                                  width: parseFloat(e.target.value) || 0
+                                }
+                              })}
+                              InputProps={{ 
+                                endAdornment: <InputAdornment position="end">in</InputAdornment>,
+                                inputProps: { min: 0, step: 0.1 }
+                              }}
+                              sx={{ width: 120 }}
+                            />
+                          )}
+                        </Box>
+
+                        {/* Grid configuration for left sidelight */}
                         {configuration.leftSidelight?.enabled && (
-                          <TextField
-                            label="Width"
-                            type="number"
-                            value={configuration.leftSidelight?.width || 12}
-                            onChange={(e) => onUpdate({
-                              leftSidelight: {
-                                ...configuration.leftSidelight,
-                                width: parseFloat(e.target.value) || 0
-                              }
-                            })}
-                            InputProps={{ 
-                              endAdornment: <InputAdornment position="end">in</InputAdornment>,
-                              inputProps: { min: 0, step: 0.1 }
-                            }}
-                            sx={{ width: 120 }}
-                          />
+                          <>
+                            <Divider />
+                            <Box>
+                              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                Grid Configuration (Optional)
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={configuration.leftSidelight?.grid?.enabled || false}
+                                      onChange={(e) => onUpdate({
+                                        leftSidelight: {
+                                          ...configuration.leftSidelight,
+                                          grid: {
+                                            ...configuration.leftSidelight?.grid,
+                                            enabled: e.target.checked,
+                                            horizontal: configuration.leftSidelight?.grid?.horizontal || 2,
+                                            vertical: configuration.leftSidelight?.grid?.vertical || 3
+                                          }
+                                        }
+                                      })}
+                                      size="small"
+                                    />
+                                  }
+                                  label="Enable Grid"
+                                />
+                                
+                                {configuration.leftSidelight?.grid?.enabled && (
+                                  <>
+                                    <TextField
+                                      label="Horizontal"
+                                      type="number"
+                                      size="small"
+                                      value={configuration.leftSidelight?.grid?.horizontal || 2}
+                                      onChange={(e) => onUpdate({
+                                        leftSidelight: {
+                                          ...configuration.leftSidelight,
+                                          grid: {
+                                            ...configuration.leftSidelight?.grid,
+                                            horizontal: parseInt(e.target.value) || 2
+                                          }
+                                        }
+                                      })}
+                                      InputProps={{ 
+                                        inputProps: { min: 1, max: 10 }
+                                      }}
+                                      sx={{ width: 100 }}
+                                    />
+                                    <TextField
+                                      label="Vertical"
+                                      type="number"
+                                      size="small"
+                                      value={configuration.leftSidelight?.grid?.vertical || 3}
+                                      onChange={(e) => onUpdate({
+                                        leftSidelight: {
+                                          ...configuration.leftSidelight,
+                                          grid: {
+                                            ...configuration.leftSidelight?.grid,
+                                            vertical: parseInt(e.target.value) || 3
+                                          }
+                                        }
+                                      })}
+                                      InputProps={{ 
+                                        inputProps: { min: 1, max: 10 }
+                                      }}
+                                      sx={{ width: 100 }}
+                                    />
+                                  </>
+                                )}
+                              </Box>
+                            </Box>
+                          </>
                         )}
-                      </Box>
+                      </Stack>
                     </Paper>
 
                     {/* Right Sidelight */}
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <FormControl sx={{ minWidth: 120, flex: 1 }}>
-                          <InputLabel>Right Sidelight</InputLabel>
-                          <Select
-                            value={configuration.rightSidelight?.enabled || false}
-                            onChange={(e) => onUpdate({
-                              rightSidelight: {
-                                ...configuration.rightSidelight,
-                                enabled: e.target.value,
-                                width: e.target.value ? (configuration.rightSidelight?.width || 12) : 0
-                              }
-                            })}
-                            label="Right Sidelight"
-                          >
-                            <MenuItem value={false}>None</MenuItem>
-                            <MenuItem value={true}>Enabled</MenuItem>
-                          </Select>
-                        </FormControl>
+                      <Stack spacing={2}>
+                        {/* Main sidelight configuration */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <FormControl sx={{ minWidth: 120, flex: 1 }}>
+                            <InputLabel>Right Sidelight</InputLabel>
+                            <Select
+                              value={configuration.rightSidelight?.enabled || false}
+                              onChange={(e) => onUpdate({
+                                rightSidelight: {
+                                  ...configuration.rightSidelight,
+                                  enabled: e.target.value,
+                                  width: e.target.value ? (configuration.rightSidelight?.width || 12) : 0
+                                }
+                              })}
+                              label="Right Sidelight"
+                            >
+                              <MenuItem value={false}>None</MenuItem>
+                              <MenuItem value={true}>Enabled</MenuItem>
+                            </Select>
+                          </FormControl>
+                          {configuration.rightSidelight?.enabled && (
+                            <TextField
+                              label="Width"
+                              type="number"
+                              value={configuration.rightSidelight?.width || 12}
+                              onChange={(e) => onUpdate({
+                                rightSidelight: {
+                                  ...configuration.rightSidelight,
+                                  width: parseFloat(e.target.value) || 0
+                                }
+                              })}
+                              InputProps={{ 
+                                endAdornment: <InputAdornment position="end">in</InputAdornment>,
+                                inputProps: { min: 0, step: 0.1 }
+                              }}
+                              sx={{ width: 120 }}
+                            />
+                          )}
+                        </Box>
+
+                        {/* Grid configuration for right sidelight */}
                         {configuration.rightSidelight?.enabled && (
-                          <TextField
-                            label="Width"
-                            type="number"
-                            value={configuration.rightSidelight?.width || 12}
-                            onChange={(e) => onUpdate({
-                              rightSidelight: {
-                                ...configuration.rightSidelight,
-                                width: parseFloat(e.target.value) || 0
-                              }
-                            })}
-                            InputProps={{ 
-                              endAdornment: <InputAdornment position="end">in</InputAdornment>,
-                              inputProps: { min: 0, step: 0.1 }
-                            }}
-                            sx={{ width: 120 }}
-                          />
+                          <>
+                            <Divider />
+                            <Box>
+                              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                Grid Configuration (Optional)
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={configuration.rightSidelight?.grid?.enabled || false}
+                                      onChange={(e) => onUpdate({
+                                        rightSidelight: {
+                                          ...configuration.rightSidelight,
+                                          grid: {
+                                            ...configuration.rightSidelight?.grid,
+                                            enabled: e.target.checked,
+                                            horizontal: configuration.rightSidelight?.grid?.horizontal || 2,
+                                            vertical: configuration.rightSidelight?.grid?.vertical || 3
+                                          }
+                                        }
+                                      })}
+                                      size="small"
+                                    />
+                                  }
+                                  label="Enable Grid"
+                                />
+                                
+                                {configuration.rightSidelight?.grid?.enabled && (
+                                  <>
+                                    <TextField
+                                      label="Horizontal"
+                                      type="number"
+                                      size="small"
+                                      value={configuration.rightSidelight?.grid?.horizontal || 2}
+                                      onChange={(e) => onUpdate({
+                                        rightSidelight: {
+                                          ...configuration.rightSidelight,
+                                          grid: {
+                                            ...configuration.rightSidelight?.grid,
+                                            horizontal: parseInt(e.target.value) || 2
+                                          }
+                                        }
+                                      })}
+                                      InputProps={{ 
+                                        inputProps: { min: 1, max: 10 }
+                                      }}
+                                      sx={{ width: 100 }}
+                                    />
+                                    <TextField
+                                      label="Vertical"
+                                      type="number"
+                                      size="small"
+                                      value={configuration.rightSidelight?.grid?.vertical || 3}
+                                      onChange={(e) => onUpdate({
+                                        rightSidelight: {
+                                          ...configuration.rightSidelight,
+                                          grid: {
+                                            ...configuration.rightSidelight?.grid,
+                                            vertical: parseInt(e.target.value) || 3
+                                          }
+                                        }
+                                      })}
+                                      InputProps={{ 
+                                        inputProps: { min: 1, max: 10 }
+                                      }}
+                                      sx={{ width: 100 }}
+                                    />
+                                  </>
+                                )}
+                              </Box>
+                            </Box>
+                          </>
                         )}
-                      </Box>
+                      </Stack>
                     </Paper>
 
                     {/* Top Sidelight (Transom) */}
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <FormControl sx={{ minWidth: 120, flex: 1 }}>
-                          <InputLabel>Top Sidelight</InputLabel>
-                          <Select
-                            value={configuration.transom?.enabled || false}
-                            onChange={(e) => onUpdate({
-                              transom: {
-                                ...configuration.transom,
-                                enabled: e.target.value,
-                                height: e.target.value ? (configuration.transom?.height || 12) : 0
-                              }
-                            })}
-                            label="Top Sidelight"
-                          >
-                            <MenuItem value={false}>None</MenuItem>
-                            <MenuItem value={true}>Enabled</MenuItem>
-                          </Select>
-                        </FormControl>
+                      <Stack spacing={2}>
+                        {/* Main transom configuration */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <FormControl sx={{ minWidth: 120, flex: 1 }}>
+                            <InputLabel>Top Sidelight</InputLabel>
+                            <Select
+                              value={configuration.transom?.enabled || false}
+                              onChange={(e) => onUpdate({
+                                transom: {
+                                  ...configuration.transom,
+                                  enabled: e.target.value,
+                                  height: e.target.value ? (configuration.transom?.height || 12) : 0
+                                }
+                              })}
+                              label="Top Sidelight"
+                            >
+                              <MenuItem value={false}>None</MenuItem>
+                              <MenuItem value={true}>Enabled</MenuItem>
+                            </Select>
+                          </FormControl>
+                          {configuration.transom?.enabled && (
+                            <TextField
+                              label="Height"
+                              type="number"
+                              value={configuration.transom?.height || 12}
+                              onChange={(e) => onUpdate({
+                                transom: {
+                                  ...configuration.transom,
+                                  height: parseFloat(e.target.value) || 0
+                                }
+                              })}
+                              InputProps={{ 
+                                endAdornment: <InputAdornment position="end">in</InputAdornment>,
+                                inputProps: { min: 0, step: 0.1 }
+                              }}
+                              sx={{ width: 120 }}
+                            />
+                          )}
+                        </Box>
+
+                        {/* Grid configuration for transom */}
                         {configuration.transom?.enabled && (
-                          <TextField
-                            label="Height"
-                            type="number"
-                            value={configuration.transom?.height || 12}
-                            onChange={(e) => onUpdate({
-                              transom: {
-                                ...configuration.transom,
-                                height: parseFloat(e.target.value) || 0
-                              }
-                            })}
-                            InputProps={{ 
-                              endAdornment: <InputAdornment position="end">in</InputAdornment>,
-                              inputProps: { min: 0, step: 0.1 }
-                            }}
-                            sx={{ width: 120 }}
-                          />
+                          <>
+                            <Divider />
+                            <Box>
+                              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                Grid Configuration (Optional)
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={configuration.transom?.grid?.enabled || false}
+                                      onChange={(e) => onUpdate({
+                                        transom: {
+                                          ...configuration.transom,
+                                          grid: {
+                                            ...configuration.transom?.grid,
+                                            enabled: e.target.checked,
+                                            horizontal: configuration.transom?.grid?.horizontal || 2,
+                                            vertical: configuration.transom?.grid?.vertical || 3
+                                          }
+                                        }
+                                      })}
+                                      size="small"
+                                    />
+                                  }
+                                  label="Enable Grid"
+                                />
+                                
+                                {configuration.transom?.grid?.enabled && (
+                                  <>
+                                    <TextField
+                                      label="Horizontal"
+                                      type="number"
+                                      size="small"
+                                      value={configuration.transom?.grid?.horizontal || 2}
+                                      onChange={(e) => onUpdate({
+                                        transom: {
+                                          ...configuration.transom,
+                                          grid: {
+                                            ...configuration.transom?.grid,
+                                            horizontal: parseInt(e.target.value) || 2
+                                          }
+                                        }
+                                      })}
+                                      InputProps={{ 
+                                        inputProps: { min: 1, max: 10 }
+                                      }}
+                                      sx={{ width: 100 }}
+                                    />
+                                    <TextField
+                                      label="Vertical"
+                                      type="number"
+                                      size="small"
+                                      value={configuration.transom?.grid?.vertical || 3}
+                                      onChange={(e) => onUpdate({
+                                        transom: {
+                                          ...configuration.transom,
+                                          grid: {
+                                            ...configuration.transom?.grid,
+                                            vertical: parseInt(e.target.value) || 3
+                                          }
+                                        }
+                                      })}
+                                      InputProps={{ 
+                                        inputProps: { min: 1, max: 10 }
+                                      }}
+                                      sx={{ width: 100 }}
+                                    />
+                                  </>
+                                )}
+                              </Box>
+                            </Box>
+                          </>
                         )}
-                      </Box>
+                      </Stack>
                     </Paper>
                   </Stack>
                 </Paper>

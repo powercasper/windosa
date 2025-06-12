@@ -223,6 +223,12 @@ const ConfigurationPreview = ({ configuration }) => {
     return <View style={styles.gridLines}>{lines}</View>;
   };
 
+  // Render grid for sidelights with their own grid configuration
+  const renderSidelightGrid = (sidelightConfig) => {
+    if (!sidelightConfig?.grid?.enabled) return null;
+    return renderGridLines(sidelightConfig.grid.horizontal, sidelightConfig.grid.vertical);
+  };
+
   const renderPanels = () => {
     if (configuration.systemType === 'Windows') {
       return (
@@ -386,6 +392,7 @@ const ConfigurationPreview = ({ configuration }) => {
         {/* Transom Section */}
         {configuration.transom?.enabled && (
           <View style={[styles.transom, { height: (transomHeight / totalHeight) * 100 + '%' }]}>
+            {renderSidelightGrid(configuration.transom)}
             <Text style={styles.panelLabel}>Transom ({configuration.transom.height}")</Text>
           </View>
         )}
@@ -397,6 +404,7 @@ const ConfigurationPreview = ({ configuration }) => {
           {/* Left Sidelight */}
           {configuration.leftSidelight?.enabled && (
             <View style={[styles.sidelight, { width: leftSidelightPercent + '%' }]}>
+              {renderSidelightGrid(configuration.leftSidelight)}
               <Text style={styles.panelLabel}>Left</Text>
               <Text style={styles.panelLabel}>({configuration.leftSidelight.width}")</Text>
             </View>
@@ -470,6 +478,7 @@ const ConfigurationPreview = ({ configuration }) => {
           {/* Right Sidelight */}
           {configuration.rightSidelight?.enabled && (
             <View style={[styles.sidelight, { width: rightSidelightPercent + '%' }]}>
+              {renderSidelightGrid(configuration.rightSidelight)}
               <Text style={styles.panelLabel}>Right</Text>
               <Text style={styles.panelLabel}>({configuration.rightSidelight.width}")</Text>
             </View>

@@ -237,6 +237,118 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
     );
   };
 
+  // Render grid for sidelights with their own grid configuration
+  const renderSidelightGrid = (sidelightConfig) => {
+    if (!sidelightConfig?.grid?.enabled) return null;
+
+    const verticalLines = [];
+    const horizontalLines = [];
+
+    // Vertical grid lines
+    for (let i = 1; i < sidelightConfig.grid.horizontal; i++) {
+      verticalLines.push(
+        <Box
+          key={`v-${i}`}
+          sx={{
+            ...styles.gridLine,
+            left: `${(i * 100) / sidelightConfig.grid.horizontal}%`,
+            top: 0,
+            bottom: 0,
+            width: '1px',
+          }}
+        />
+      );
+    }
+
+    // Horizontal grid lines
+    for (let i = 1; i < sidelightConfig.grid.vertical; i++) {
+      horizontalLines.push(
+        <Box
+          key={`h-${i}`}
+          sx={{
+            ...styles.gridLine,
+            top: `${(i * 100) / sidelightConfig.grid.vertical}%`,
+            left: 0,
+            right: 0,
+            height: '1px',
+          }}
+        />
+      );
+    }
+
+    return (
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          pointerEvents: 'none',
+        }}
+      >
+        {verticalLines}
+        {horizontalLines}
+      </Box>
+    );
+  };
+
+  // Render grid for transom with its own grid configuration
+  const renderTransomGrid = (transomConfig) => {
+    if (!transomConfig?.grid?.enabled) return null;
+
+    const verticalLines = [];
+    const horizontalLines = [];
+
+    // Vertical grid lines
+    for (let i = 1; i < transomConfig.grid.horizontal; i++) {
+      verticalLines.push(
+        <Box
+          key={`v-${i}`}
+          sx={{
+            ...styles.gridLine,
+            left: `${(i * 100) / transomConfig.grid.horizontal}%`,
+            top: 0,
+            bottom: 0,
+            width: '1px',
+          }}
+        />
+      );
+    }
+
+    // Horizontal grid lines
+    for (let i = 1; i < transomConfig.grid.vertical; i++) {
+      horizontalLines.push(
+        <Box
+          key={`h-${i}`}
+          sx={{
+            ...styles.gridLine,
+            top: `${(i * 100) / transomConfig.grid.vertical}%`,
+            left: 0,
+            right: 0,
+            height: '1px',
+          }}
+        />
+      );
+    }
+
+    return (
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          pointerEvents: 'none',
+        }}
+      >
+        {verticalLines}
+        {horizontalLines}
+      </Box>
+    );
+  };
+
   const renderPanels = () => {
     if (configuration.systemType === 'Windows' && configuration.panels) {
       return (
@@ -392,8 +504,10 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                 width: `${(configuration.leftSidelight.width / ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
                   configuration.dimensions.width + 
                   (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0))) * 100}%`,
+                position: 'relative',
               }}
             >
+              {renderSidelightGrid(configuration.leftSidelight)}
               <Typography variant="caption" sx={styles.caption}>
                 Left ({configuration.leftSidelight.width}")
               </Typography>
@@ -515,8 +629,10 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                 width: `${(configuration.rightSidelight.width / ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
                   configuration.dimensions.width + 
                   (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0))) * 100}%`,
+                position: 'relative',
               }}
             >
+              {renderSidelightGrid(configuration.rightSidelight)}
               <Typography variant="caption" sx={styles.caption}>
                 Right ({configuration.rightSidelight.width}")
               </Typography>
@@ -533,7 +649,8 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
     <Box sx={styles.container}>
       {configuration.transom?.enabled && (
         <Box sx={styles.transom}>
-          <Box sx={styles.transomPanel}>
+          <Box sx={{ ...styles.transomPanel, position: 'relative' }}>
+            {renderTransomGrid(configuration.transom)}
             <Typography variant="caption" sx={styles.caption}>
               Transom ({configuration.transom.height}")
             </Typography>
