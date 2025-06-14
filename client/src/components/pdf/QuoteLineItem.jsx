@@ -205,6 +205,37 @@ const QuoteLineItem = ({ item }) => {
                     </View>
                   </>
                 )}
+                {item.systemType === 'Sliding Doors' && (
+                  <>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Configuration:</Text>
+                      <Text style={styles.value}>{item.operationType}</Text>
+                    </View>
+                    {item.panels && item.panels.map((panel, idx) => (
+                      <View key={idx} style={styles.row}>
+                        <Text style={styles.label}>Panel {idx + 1}:</Text>
+                        <Text style={styles.value}>
+                          {panel.type === 'Fixed' ? 'Fixed' : 
+                           panel.type === 'Sliding' ? `Sliding (${panel.direction === 'left' ? '←' : '→'})` : 
+                           panel.type}
+                        </Text>
+                      </View>
+                    ))}
+                    {item.operationType && !item.panels && (
+                      // Fallback: decode operation type if panels array is not available
+                      item.operationType.split('').map((operation, idx) => (
+                        <View key={idx} style={styles.row}>
+                          <Text style={styles.label}>Panel {idx + 1}:</Text>
+                          <Text style={styles.value}>
+                            {operation === 'O' ? 'Fixed' : 
+                             operation === 'X' ? 'Sliding' : 
+                             operation}
+                          </Text>
+                        </View>
+                      ))
+                    )}
+                  </>
+                )}
               </View>
             </View>
 
