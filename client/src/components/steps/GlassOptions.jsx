@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Grid,
   Card,
@@ -11,8 +11,18 @@ import {
   Chip,
   Divider,
   Tooltip,
-  Stack
+  Stack,
+  Button,
+  Collapse,
+  Alert
 } from '@mui/material';
+import {
+  CompareArrows as CompareIcon,
+  ExpandMore as ExpandIcon,
+  ExpandLess as CollapseIcon,
+  TrendingUp as SavingsIcon,
+  Science as AdvancedIcon
+} from '@mui/icons-material';
 import { 
   glassDatabase, 
   legacyGlassOptions, 
@@ -20,6 +30,9 @@ import {
   getGlassByType,
   performanceLevels 
 } from '../../utils/glassDatabase';
+import GlassComparison from '../glass/GlassComparison';
+import EnergySavingsSummary from '../glass/EnergySavingsSummary';
+import AdvancedGlassTools from '../glass/AdvancedGlassTools';
 
 // Performance indicator component
 const PerformanceIndicator = ({ label, value, level, unit = '', icon }) => {
@@ -246,6 +259,11 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
   // Get all glass options (enhanced + legacy for backward compatibility)
   const allGlassOptions = getAllGlassOptions();
   
+  // State for comparison and energy savings
+  const [showComparison, setShowComparison] = useState(false);
+  const [showEnergySavings, setShowEnergySavings] = useState(false);
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
+  
   const handleGlassSelect = (glassType) => {
     // Get the full glass object for storing detailed information
     const selectedGlass = getGlassByType(glassType);
@@ -256,6 +274,16 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
       glassDetails: selectedGlass // Store full glass details for PDF generation
     });
     onNext();
+  };
+
+  const handleCompareGlass = (glassType) => {
+    // Select glass but don't proceed to next step
+    const selectedGlass = getGlassByType(glassType);
+    onUpdate({ 
+      glassType,
+      glassDetails: selectedGlass
+    });
+    // Don't call onNext() - stay on this step for comparison
   };
 
   if (!configuration.systemModel) {
@@ -312,6 +340,51 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
         })}
       </Grid>
 
+      {/* Comparison and Energy Savings Tools */}
+      <Box sx={{ mt: 3 }}>
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<CompareIcon />}
+            onClick={() => setShowComparison(true)}
+            sx={{ borderRadius: 2 }}
+          >
+            Compare Glass Options
+          </Button>
+          
+          {configuration.glassType && (
+            <Button
+              variant={showEnergySavings ? "contained" : "outlined"}
+              startIcon={<SavingsIcon />}
+              onClick={() => setShowEnergySavings(!showEnergySavings)}
+              sx={{ borderRadius: 2 }}
+              color="success"
+            >
+              {showEnergySavings ? 'Hide' : 'Show'} Energy Savings
+            </Button>
+          )}
+          
+          <Button
+            variant="outlined"
+            startIcon={<AdvancedIcon />}
+            onClick={() => setShowAdvancedTools(true)}
+            sx={{ borderRadius: 2 }}
+            color="info"
+          >
+            Advanced Tools
+          </Button>
+        </Stack>
+
+        {/* Energy Savings Summary */}
+        <Collapse in={showEnergySavings && configuration.glassType}>
+          <EnergySavingsSummary
+            selectedGlass={configuration.glassDetails}
+            glassArea={glassArea}
+            climateZone="Mixed" // Could be enhanced to detect user's climate zone
+          />
+        </Collapse>
+      </Box>
+
       {configuration.glassType && (
         <Paper sx={{ mt: 3, p: 3, bgcolor: 'success.light', color: 'success.contrastText' }}>
           <Stack direction="row" spacing={3} alignItems="center">
@@ -348,6 +421,25 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
           </Stack>
         </Paper>
       )}
+
+      {/* Glass Comparison Dialog */}
+      <GlassComparison
+        open={showComparison}
+        onClose={() => setShowComparison(false)}
+        selectedGlass={configuration.glassDetails}
+        allGlassOptions={allGlassOptions}
+        glassArea={glassArea}
+        onSelectGlass={handleCompareGlass}
+      />
+
+      {/* Advanced Glass Tools Dialog */}
+      <AdvancedGlassTools
+        open={showAdvancedTools}
+        onClose={() => setShowAdvancedTools(false)}
+        selectedGlass={configuration.glassDetails}
+        allGlassOptions={allGlassOptions}
+        glassArea={glassArea}
+      />
     </Box>
   );
 };

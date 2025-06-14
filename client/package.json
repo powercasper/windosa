@@ -13,6 +13,7 @@
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.6.0",
     "formik": "^2.4.6",
+    "pdf-lib": "^1.17.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-redux": "^9.2.0",
