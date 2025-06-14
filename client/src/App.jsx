@@ -95,8 +95,8 @@ const App = () => {
       setIsEditingQuote(true);
     } else {
       // If no quote data passed (new quote action), reset everything
-      setLoadedQuote(null);
-      setIsEditingQuote(false);
+    setLoadedQuote(null);
+    setIsEditingQuote(false);
     }
   };
 

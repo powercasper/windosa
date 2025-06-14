@@ -131,52 +131,6 @@ const getStoredCosts = () => {
   return null;
 };
 
-// Helper function to calculate final item price including distributed additional costs and margin
-const calculateFinalItemPrice = (baseTotal, item, allItems, tariff, shipping, delivery, margin) => {
-  // Calculate this item's area
-  const itemArea = (() => {
-    if (item.systemType === 'Windows') {
-      return ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
-    } else if (item.systemType === 'Entrance Doors') {
-      return (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-              item.dimensions.width +
-              (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
-             (item.dimensions.height + 
-              (item.transom?.enabled ? item.transom.height : 0)) / 144);
-    } else if (item.systemType === 'Sliding Doors') {
-      return ((item.dimensions.width * item.dimensions.height) / 144);
-    }
-    return 0;
-  })();
-
-  // Calculate total area of all items for distribution ratio
-  const totalArea = allItems.reduce((sum, { item }) => {
-    if (item.systemType === 'Windows') {
-      return sum + ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
-    } else if (item.systemType === 'Entrance Doors') {
-      return sum + (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-                    item.dimensions.width +
-                    (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
-                   (item.dimensions.height + 
-                    (item.transom?.enabled ? item.transom.height : 0)) / 144);
-    } else if (item.systemType === 'Sliding Doors') {
-      return sum + ((item.dimensions.width * item.dimensions.height) / 144);
-    }
-    return sum;
-  }, 0);
-
-  // Calculate distributed additional costs for this item (tariff, shipping, delivery)
-  const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
-  const distributedCosts = totalArea > 0 ? (itemArea * additionalCosts / totalArea) : 0;
-  
-  // Apply margin to the total (base + distributed costs)
-  const costWithAdditionals = baseTotal + distributedCosts;
-  const marginPercent = parseFloat(margin || 0);
-  const marginMultiplier = marginPercent === 100 ? 2 : (1 / (1 - (marginPercent / 100)));
-  
-  return costWithAdditionals * marginMultiplier;
-};
-
 const calculateItemPrice = (item) => {
   let totalSystemCost = 0;
   let totalGlassCost = 0;
@@ -903,50 +857,111 @@ const PricingSummary = ({
       </Typography>
 
       {/* Client Information Display */}
-      {(clientInfo.firstName || clientInfo.lastName || clientInfo.projectName) && (
-        <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200' }}>
-          <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PersonIcon /> Client Information
+      <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200' }}>
+        <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PersonIcon /> Client Information
+        </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="body2" color="text.secondary">Client:</Typography>
+            <Typography variant="body1">
+              {clientInfo.isCompany && clientInfo.companyName ? 
+                `${clientInfo.companyName}` : 
+                clientInfo.firstName || clientInfo.lastName ?
+                  `${clientInfo.firstName || ''} ${clientInfo.lastName || ''}`.trim() :
+                  'JC'
+              }
+            </Typography>
+            {(clientInfo.isCompany && clientInfo.jobTitle) && (
+              <Typography variant="body2" color="text.secondary">
+                {clientInfo.jobTitle}
+              </Typography>
+            )}
+            {!clientInfo.isCompany && !clientInfo.jobTitle && (
+              <Typography variant="body2" color="text.secondary">
+                john colt, CEO
+              </Typography>
+            )}
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="body2" color="text.secondary">Project:</Typography>
+            <Typography variant="body1">{clientInfo.projectName || 'Colr esidence'}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {clientInfo.projectType || 'residential'}
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="body2" color="text.secondary">Contact:</Typography>
+            <Typography variant="body2">{clientInfo.email || 'jc@gm.com'}</Typography>
+            <Typography variant="body2">{clientInfo.phone || '(555) 123-4567'}</Typography>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="body2" color="text.secondary">Address:</Typography>
+            <Typography variant="body2">
+              {clientInfo.address?.street ? (
+                <>
+                  {clientInfo.address.street}<br />
+                  {clientInfo.address.city && `${clientInfo.address.city}, `}
+                  {clientInfo.address.state} {clientInfo.address.zipCode}
+                </>
+              ) : (
+                <>
+                  7801 N Lamar Blvd<br />
+                  Austin, TX 78724
+                </>
+              )}
+            </Typography>
+          </Grid>
+                 </Grid>
+       </Paper>
+
+      {/* Project Details */}
+      {pricing.items.length > 0 && (
+        <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <SummarizeIcon /> Project Details
           </Typography>
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Client:</Typography>
-              <Typography variant="body1">
-                {clientInfo.isCompany && clientInfo.companyName ? 
-                  `${clientInfo.companyName}` : 
-                  `${clientInfo.firstName} ${clientInfo.lastName}`.trim()
-                }
+              <Typography variant="body2" color="text.secondary">Total Items:</Typography>
+              <Typography variant="h6" color="primary">{pricing.items.length}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">Total Quantity:</Typography>
+              <Typography variant="h6" color="primary">
+                {pricing.items.reduce((sum, { item }) => sum + (item.quantity || 1), 0)}
               </Typography>
-              {clientInfo.isCompany && clientInfo.jobTitle && (
-                <Typography variant="body2" color="text.secondary">
-                  {clientInfo.jobTitle}
-                </Typography>
-              )}
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Project:</Typography>
-              <Typography variant="body1">{clientInfo.projectName}</Typography>
-              {clientInfo.projectType && (
-                <Typography variant="body2" color="text.secondary">
-                  {clientInfo.projectType}
-                </Typography>
-              )}
+              <Typography variant="body2" color="text.secondary">Total Area:</Typography>
+              <Typography variant="h6" color="primary">
+                {pricing.items.reduce((sum, { item }) => {
+                  let area = 0;
+                  if (item.systemType === 'Windows') {
+                    area = (item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144;
+                  } else if (item.systemType === 'Entrance Doors') {
+                    area = ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                           item.dimensions.width +
+                           (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                          (item.dimensions.height + 
+                           (item.transom?.enabled ? item.transom.height : 0)) / 144;
+                  } else if (item.systemType === 'Sliding Doors') {
+                    area = (item.dimensions.width * item.dimensions.height) / 144;
+                  }
+                  return sum + area;
+                }, 0).toFixed(1)} sq ft
+              </Typography>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Contact:</Typography>
-              <Typography variant="body2">{clientInfo.email}</Typography>
-              <Typography variant="body2">{clientInfo.phone}</Typography>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Address:</Typography>
-              <Typography variant="body2">
-                {clientInfo.address?.street && (
-                  <>
-                    {clientInfo.address.street}<br />
-                    {clientInfo.address.city && `${clientInfo.address.city}, `}
-                    {clientInfo.address.state} {clientInfo.address.zipCode}
-                  </>
-                )}
+              <Typography variant="body2" color="text.secondary">Project Total:</Typography>
+              <Typography variant="h6" color="primary">
+                ${(() => {
+                  const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
+                  const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
+                  const totalWithAdditions = baseCost + additionalCosts;
+                  const marginMultiplier = 1 / (1 - (parseFloat(margin || 0) / 100));
+                  return (totalWithAdditions * marginMultiplier).toFixed(2);
+                })()}
               </Typography>
             </Grid>
           </Grid>
@@ -1371,17 +1386,11 @@ const PricingSummary = ({
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Box sx={{ textAlign: 'right' }}>
                         <Typography variant="subtitle1" color="primary">
-                          ${(() => {
-                            const finalPrice = calculateFinalItemPrice(total, item, pricing.items, tariff, shipping, delivery, margin);
-                            return finalPrice.toFixed(2);
-                          })()}
+                          ${total.toFixed(2)}
                         </Typography>
                         {(item.quantity || 1) > 1 && (
                           <Typography variant="caption" color="text.secondary">
-                            ${(() => {
-                              const finalPrice = calculateFinalItemPrice(total, item, pricing.items, tariff, shipping, delivery, margin);
-                              return (finalPrice / (item.quantity || 1)).toFixed(2);
-                            })()} each
+                            ${(total / (item.quantity || 1)).toFixed(2)} each
                           </Typography>
                         )}
                       </Box>
