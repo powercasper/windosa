@@ -4,8 +4,7 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node index.js",
-    "test": "jest --detectOpenHandles --forceExit"
+    "start": "node index.js"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.3.0",
@@ -14,9 +13,5 @@
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.1",
     "uuid": "^11.1.0"
-  },
-  "devDependencies": {
-    "jest": "^29.7.0",
-    "supertest": "^7.1.1"
   }
 }

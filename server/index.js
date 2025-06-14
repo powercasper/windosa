@@ -7,6 +7,7 @@ const quotesRouter = require('./routes/quotes');
 const pricingRoutes = require('./routes/pricing');
 const pdfRoutes = require('./routes/pdfGeneration');
 const glassRoutes = require('./routes/glass');
+const recommendationRoutes = require('./routes/recommendations');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -26,6 +27,7 @@ app.use('/api', quotesRouter);
 app.use('/api', pricingRoutes);
 app.use('/api/pdf', pdfRoutes);
 app.use('/api/glass', glassRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 // Serve glass specification PDFs in development
 if (process.env.NODE_ENV !== 'production') {

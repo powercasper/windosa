@@ -51,20 +51,22 @@ const doorOperables = {
 };
 
 const laborRates = {
-  "Fixed": 4,
-  "Tilt & Turn": 5,
-  "Casement": 5,
-  "Awning": 5,
-  "Tilt Only": 5,
+  "Fixed": 3,
+  "Tilt & Turn": 3.7,
+  "Casement": 3.7,
+  "Awning": 3.7,
+  "Tilt Only": 3.7,
   "Hinged Left Open In": 20,
   "Hinged Right Open Out": 20,
   "Hinged Right Open In": 20,
   "Hinged Left Open Out": 20,
-  "Pivot": 25,
-  "Sliding →": 10,
-  "Sliding ←": 10,
-  "Sliding Fixed": 10,
-  "Folding": 10
+  "Door Hinged Glass": 21.75,
+  "Door Hinged Panel": 21.75,
+  "Pivot": 29.00,
+  "Sliding →": 8.70,
+  "Sliding ←": 8.70,
+  "Sliding Fixed": 8.70,
+  "Folding": 8.70
 };
 
 const unitCostPerSqft = {

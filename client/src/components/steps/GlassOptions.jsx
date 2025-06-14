@@ -32,6 +32,7 @@ import {
 import GlassComparison from '../glass/GlassComparison';
 import EnergySavingsSummary from '../glass/EnergySavingsSummary';
 import AdvancedGlassTools from '../glass/AdvancedGlassTools';
+import GlassRecommendationWizard from '../glass/GlassRecommendationWizard';
 import glassService from '../../services/glassService';
 
 // Performance indicator component
@@ -295,6 +296,7 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
   const [showComparison, setShowComparison] = useState(false);
   const [showEnergySavings, setShowEnergySavings] = useState(false);
   const [showAdvancedTools, setShowAdvancedTools] = useState(false);
+  const [showRecommendationWizard, setShowRecommendationWizard] = useState(false);
   
   // Load glass options from server
   const loadGlassOptions = async () => {
@@ -473,7 +475,17 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
       {/* Comparison and Energy Savings Tools */}
       {!loading && glassOptions.length > 0 && (
         <Box sx={{ mt: 3 }}>
-          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
+            <Button
+              variant="contained"
+              startIcon={<RefreshIcon />}
+              onClick={() => setShowRecommendationWizard(true)}
+              sx={{ borderRadius: 2 }}
+              color="primary"
+            >
+              🤖 AI Glass Wizard
+            </Button>
+            
             <Button
               variant="outlined"
               startIcon={<CompareIcon />}
@@ -572,6 +584,14 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
         selectedGlass={configuration.glassDetails}
         allGlassOptions={glassOptions}
         glassArea={glassArea}
+      />
+
+      {/* AI Glass Recommendation Wizard */}
+      <GlassRecommendationWizard
+        open={showRecommendationWizard}
+        onClose={() => setShowRecommendationWizard(false)}
+        onSelectGlass={handleGlassSelect}
+        systemType={configuration.systemType}
       />
     </Box>
   );

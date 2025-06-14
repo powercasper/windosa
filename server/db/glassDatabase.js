@@ -7,7 +7,7 @@ const glassDatabase = {
     productCode: 'SKN 184',
     type: 'SKN 184 High Performance',
     category: 'High Performance Glazing',
-    price: 22.50,
+    price: 12.00,
     specifications: {
       construction: '6mm + 16mm Argon + 6mm',
       lightTransmittance: 68,
@@ -39,7 +39,7 @@ const glassDatabase = {
     productCode: 'SKN 154',
     type: 'SKN 154 Balanced Performance',
     category: 'Balanced Performance Glazing',
-    price: 20.75,
+    price: 12.00,
     specifications: {
       construction: '6mm + 16mm Argon + 6mm',
       lightTransmittance: 44,
@@ -71,7 +71,7 @@ const glassDatabase = {
     productCode: '70/33',
     type: 'XTREME 70/33 Maximum Light',
     category: 'Maximum Light Glazing',
-    price: 23.00,
+    price: 12.00,
     specifications: {
       construction: '6mm + 16mm Argon + 6mm',
       lightTransmittance: 67,
@@ -103,7 +103,7 @@ const glassDatabase = {
     productCode: '61-29',
     type: 'XTREME 61-29 Balanced',
     category: 'Balanced Performance Glazing',
-    price: 21.50,
+    price: 12.00,
     specifications: {
       construction: '6mm + 16mm Argon + 6mm',
       lightTransmittance: 58,
@@ -135,7 +135,7 @@ const glassDatabase = {
     productCode: '50-22',
     type: 'XTREME 50-22 Solar Control',
     category: 'Solar Control Glazing',
-    price: 24.25,
+    price: 12.00,
     specifications: {
       construction: '6mm + 16mm Argon + 6mm',
       lightTransmittance: 44,
@@ -170,7 +170,7 @@ const standardGlassOptions = {
     productCode: 'Standard Double Pane',
     type: 'Double Pane',
     category: 'Standard Glazing',
-    price: 12.50,
+    price: 12.00,
     specifications: {
       construction: '6mm + 12mm Air + 6mm',
       lightTransmittance: 82,
@@ -200,7 +200,7 @@ const standardGlassOptions = {
     productCode: 'Standard Triple Pane',
     type: 'Triple Pane',
     category: 'Enhanced Glazing',
-    price: 18.75,
+    price: 18.00,
     specifications: {
       construction: '4mm + 12mm Air + 4mm + 12mm Air + 4mm',
       lightTransmittance: 74,
