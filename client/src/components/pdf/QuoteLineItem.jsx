@@ -205,6 +205,37 @@ const QuoteLineItem = ({ item }) => {
                     </View>
                   </>
                 )}
+                {item.systemType === 'Sliding Doors' && (
+                  <>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Configuration:</Text>
+                      <Text style={styles.value}>{item.operationType}</Text>
+                    </View>
+                    {item.panels && item.panels.map((panel, idx) => (
+                      <View key={idx} style={styles.row}>
+                        <Text style={styles.label}>Panel {idx + 1}:</Text>
+                        <Text style={styles.value}>
+                          {panel.type === 'Fixed' ? 'Fixed' : 
+                           panel.type === 'Sliding' ? `Sliding (${panel.direction === 'left' ? '←' : '→'})` : 
+                           panel.type}
+                        </Text>
+                      </View>
+                    ))}
+                    {item.operationType && !item.panels && (
+                      // Fallback: decode operation type if panels array is not available
+                      item.operationType.split('').map((operation, idx) => (
+                        <View key={idx} style={styles.row}>
+                          <Text style={styles.label}>Panel {idx + 1}:</Text>
+                          <Text style={styles.value}>
+                            {operation === 'O' ? 'Fixed' : 
+                             operation === 'X' ? 'Sliding' : 
+                             operation}
+                          </Text>
+                        </View>
+                      ))
+                    )}
+                  </>
+                )}
               </View>
             </View>
 
@@ -243,6 +274,95 @@ const QuoteLineItem = ({ item }) => {
                 </View>
               </View>
 
+              {/* Glass Specifications */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Glass Specifications</Text>
+                <View style={styles.row}>
+                  <Text style={styles.label}>Type:</Text>
+                  <Text style={styles.value}>{item.glassType || 'Standard'}</Text>
+                </View>
+                
+                {/* Enhanced glass specifications if available */}
+                {item.glassDetails?.specifications ? (
+                  <>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Product:</Text>
+                      <Text style={styles.value}>{item.glassDetails.productCode || item.glassDetails.type}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Construction:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.construction}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Light Trans.:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.lightTransmittance}% (Bright, natural lighting)</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Solar Factor:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.solarHeatGainCoefficient} (Energy efficient solar control)</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Thermal U:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.thermalTransmission} (Superior insulation)</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Acoustic:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.acousticRating} (Excellent sound reduction)</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Gas Fill:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.gasFill}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Spacer:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.spacer}</Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    {/* Basic glass info for legacy items */}
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Description:</Text>
+                      <Text style={styles.value}>
+                        {item.glassDetails?.description || 'Standard insulated glass unit'}
+                      </Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Specs:</Text>
+                      <Text style={styles.value}>
+                        {item.glassDetails?.specs || 'Standard IGU specifications'}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </View>
+
+              {/* Glass Performance Highlights */}
+              {item.glassDetails?.specifications && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Performance Highlights</Text>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Energy Rating:</Text>
+                    <Text style={styles.value}>{item.glassDetails.specifications.energyRating || 'A+'}</Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Category:</Text>
+                    <Text style={styles.value}>{item.glassDetails.category}</Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Applications:</Text>
+                    <Text style={styles.value}>{item.glassDetails.specifications.applications?.join(', ') || 'Residential, Commercial'}</Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Climate Zones:</Text>
+                    <Text style={styles.value}>{item.glassDetails.specifications.climateZones?.join(', ') || 'All Climates'}</Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Benefits:</Text>
+                    <Text style={styles.value}>Enhanced comfort, energy savings, superior performance</Text>
+                  </View>
+                </View>
+              )}
 
             </View>
           </View>

@@ -49,11 +49,14 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import PersonIcon from '@mui/icons-material/Person';
+import WbSunny from '@mui/icons-material/WbSunny';
+import CheckCircle from '@mui/icons-material/CheckCircle';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
-import { generateQuotePDF } from '../../utils/pdfGenerator';
+import { generateEnhancedQuotePDF } from '../../utils/enhancedPdfGenerator';
+import { getGlassByType } from '../../utils/glassDatabase';
 
 const STORAGE_KEY = 'orderAdditionalCosts';
 
@@ -140,14 +143,28 @@ const calculateItemPrice = (item) => {
   // Get quantity (default to 1 if not specified)
   const quantity = item.quantity || 1;
 
-  // Glass rates remain the same per sq ft regardless of operation type
-  const glassRates = {
-    'Double Pane': 12.5,
-    'Triple Pane': 18.75,
-    'Security Glass': 22,
-    'Acoustic Glass': 25
-  };
-  const glassUnitCost = glassRates[item.glassType] || glassRates['Double Pane'];
+  // Get glass pricing from enhanced database or fallback to legacy rates
+  let glassUnitCost = 12.5; // Default fallback
+  
+  if (item.glassDetails?.price) {
+    // Use enhanced glass database pricing
+    glassUnitCost = item.glassDetails.price;
+  } else {
+    // Fallback to legacy glass rates for backward compatibility
+    const legacyGlassRates = {
+      'Double Pane': 12.5,
+      'Triple Pane': 18.75,
+      'Security Glass': 22,
+      'Acoustic Glass': 25,
+      // Enhanced glass types with fallback pricing
+      'SKN 184 High Performance': 22.50,
+      'SKN 154 Balanced Performance': 20.75,
+      'XTREME 50-22 Solar Control': 24.25,
+      'XTREME 61-29 Balanced': 21.50,
+      'XTREME 70/33 Maximum Light': 23.00
+    };
+    glassUnitCost = legacyGlassRates[item.glassType] || legacyGlassRates['Double Pane'];
+  }
 
   if (item.systemType === 'Entrance Doors') {
     // Calculate door panel area and cost
@@ -794,7 +811,7 @@ const PricingSummary = ({
         };
       });
 
-      await generateQuotePDF({
+      await generateEnhancedQuotePDF({
         ...quoteDialog.quote,
         items: itemsWithPricing,
         totalAmount: pricing.grandTotal,
@@ -1764,6 +1781,132 @@ const PricingSummary = ({
                                 </Grid>
                               </Paper>
 
+                              {/* Enhanced Glass Performance Card */}
+                              {item.glassDetails?.specifications && (
+                                <Paper 
+                                  variant="outlined" 
+                                  sx={{ 
+                                    p: 2,
+                                    bgcolor: 'linear-gradient(135deg, #e8f5e8 0%, #f3e5f5 100%)',
+                                    border: '1px solid',
+                                    borderColor: 'success.light',
+                                    mb: 2
+                                  }}
+                                >
+                                  <Typography variant="subtitle2" color="success.dark" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <WbSunny sx={{ fontSize: 16 }} />
+                                    Glass Performance - {item.glassDetails.productCode || item.glassType}
+                                  </Typography>
+                                  
+                                  <Grid container spacing={2}>
+                                    {/* Performance Metrics */}
+                                    <Grid item xs={12} sm={6}>
+                                      <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>Performance Specifications</Typography>
+                                      <Stack spacing={0.5}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                          <Typography variant="body2" color="text.secondary">Light Transmission:</Typography>
+                                          <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main' }}>
+                                            {item.glassDetails.specifications.lightTransmittance}% 
+                                            <Typography component="span" variant="caption" color="text.secondary"> (Bright lighting)</Typography>
+                                          </Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                          <Typography variant="body2" color="text.secondary">Solar Control:</Typography>
+                                          <Typography variant="body2" sx={{ fontWeight: 500, color: 'info.main' }}>
+                                            {item.glassDetails.specifications.solarHeatGainCoefficient}
+                                            <Typography component="span" variant="caption" color="text.secondary"> (Energy efficient)</Typography>
+                                          </Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                          <Typography variant="body2" color="text.secondary">Insulation:</Typography>
+                                          <Typography variant="body2" sx={{ fontWeight: 500, color: 'primary.main' }}>
+                                            U-{item.glassDetails.specifications.thermalTransmission}
+                                            <Typography component="span" variant="caption" color="text.secondary"> (Superior)</Typography>
+                                          </Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                          <Typography variant="body2" color="text.secondary">Sound Reduction:</Typography>
+                                          <Typography variant="body2" sx={{ fontWeight: 500, color: 'secondary.main' }}>
+                                            {item.glassDetails.specifications.acousticValue}dB
+                                            <Typography component="span" variant="caption" color="text.secondary"> (Excellent)</Typography>
+                                          </Typography>
+                                        </Box>
+                                      </Stack>
+                                    </Grid>
+                                    
+                                    {/* Glass Benefits */}
+                                    <Grid item xs={12} sm={6}>
+                                      <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>Key Benefits</Typography>
+                                      <Stack spacing={0.5}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                          <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                                          <Typography variant="body2">
+                                            {item.glassDetails.category} - {item.glassDetails.specifications.energyRating || 'A+'} rated
+                                          </Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                          <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                                          <Typography variant="body2">
+                                            Enhanced thermal comfort and energy savings
+                                          </Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                          <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                                          <Typography variant="body2">
+                                            {item.glassDetails.specifications.construction} construction
+                                          </Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                          <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                                          <Typography variant="body2">
+                                            Suitable for {item.glassDetails.specifications.climateZones?.join(', ') || 'all'} climates
+                                          </Typography>
+                                        </Box>
+                                      </Stack>
+                                    </Grid>
+                                  </Grid>
+
+                                  {/* Construction Details */}
+                                  <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                      Professional Grade: {item.glassDetails.specifications.construction} with {item.glassDetails.specifications.gasFill} | 
+                                      {item.glassDetails.specifications.spacer} spacer | 
+                                      Price: ${item.glassDetails.price.toFixed(2)}/sq ft
+                                    </Typography>
+                                  </Box>
+                                </Paper>
+                              )}
+
+                              {/* Standard Glass Info for Legacy Items */}
+                              {item.glassType && !item.glassDetails?.specifications && (
+                                <Paper 
+                                  variant="outlined" 
+                                  sx={{ 
+                                    p: 2,
+                                    bgcolor: 'background.default',
+                                    mb: 2
+                                  }}
+                                >
+                                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Glass Specifications
+                                  </Typography>
+                                  <Stack direction="row" spacing={3}>
+                                    <Box>
+                                      <Typography variant="body2" color="text.secondary">Type:</Typography>
+                                      <Typography variant="body2">{item.glassType}</Typography>
+                                    </Box>
+                                    <Box>
+                                      <Typography variant="body2" color="text.secondary">Description:</Typography>
+                                      <Typography variant="body2">{item.glassDetails?.description || 'Standard insulated glass'}</Typography>
+                                    </Box>
+                                    <Box>
+                                      <Typography variant="body2" color="text.secondary">Specifications:</Typography>
+                                      <Typography variant="body2">{item.glassDetails?.specs || 'Standard IGU'}</Typography>
+                                    </Box>
+                                  </Stack>
+                                </Paper>
+                              )}
+
                               {/* Notes if any */}
                               {item.notes && (
                                 <Paper 
@@ -1787,6 +1930,116 @@ const PricingSummary = ({
           </List>
 
           <Divider sx={{ my: 3 }} />
+
+          {/* Glass Performance Summary */}
+          {(() => {
+            const enhancedGlassItems = pricing.items.filter(item => item.glassDetails?.specifications);
+            const standardGlassItems = pricing.items.filter(item => !item.glassDetails?.specifications);
+            const totalGlassArea = pricing.items.reduce((sum, item) => sum + (item.pricing?.area || 0), 0);
+            
+            if (enhancedGlassItems.length > 0) {
+              return (
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 3,
+                    mb: 3,
+                    background: 'linear-gradient(135deg, #e8f5e8 0%, #f3e5f5 100%)',
+                    border: '1px solid',
+                    borderColor: 'success.light'
+                  }}
+                >
+                  <Typography variant="h6" color="success.dark" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <WbSunny />
+                    Glass Performance Investment Summary
+                  </Typography>
+                  
+                  <Grid container spacing={3}>
+                    {/* Performance Stats */}
+                    <Grid item xs={12} md={8}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6} sm={3}>
+                          <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'rgba(255,255,255,0.8)', borderRadius: 1 }}>
+                            <Typography variant="h5" color="success.main">
+                              {enhancedGlassItems.length}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Premium Glass Items
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6} sm={3}>
+                          <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'rgba(255,255,255,0.8)', borderRadius: 1 }}>
+                            <Typography variant="h5" color="primary.main">
+                              {totalGlassArea.toFixed(0)}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Total sq ft
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6} sm={3}>
+                          <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'rgba(255,255,255,0.8)', borderRadius: 1 }}>
+                            <Typography variant="h5" color="info.main">
+                              A+
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Energy Rating
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6} sm={3}>
+                          <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'rgba(255,255,255,0.8)', borderRadius: 1 }}>
+                            <Typography variant="h5" color="secondary.main">
+                              ${pricing.totalGlassCost.toFixed(0)}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Glass Investment
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Grid>
+                    
+                    {/* Key Benefits */}
+                    <Grid item xs={12} md={4}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Your Glass Performance Benefits</Typography>
+                      <Stack spacing={0.5}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                          <Typography variant="body2">Enhanced energy efficiency</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                          <Typography variant="body2">Superior thermal comfort</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                          <Typography variant="body2">Excellent sound reduction</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                          <Typography variant="body2">Long-term energy savings</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                          <Typography variant="body2">Professional-grade performance</Typography>
+                        </Box>
+                      </Stack>
+                    </Grid>
+                  </Grid>
+                  
+                  <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      Professional-grade glass specifications with advanced thermal and acoustic performance. 
+                      Your investment in premium glass will provide enhanced comfort, energy efficiency, and long-term value.
+                    </Typography>
+                  </Box>
+                </Paper>
+              );
+            }
+            return null;
+          })()}
 
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>

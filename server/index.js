@@ -23,6 +23,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api', quotesRouter);
 app.use('/api', pricingRoutes);
 
+// Serve glass specification PDFs in development
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/glass-specs', express.static(path.join(__dirname, '../client/public')));
+}
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy' });

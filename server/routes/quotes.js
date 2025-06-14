@@ -46,12 +46,18 @@ const calculatePricing = (configuration) => {
   let totalLaborCost = 0;
   let totalArea = 0;
 
-  // Glass rates
+  // Glass rates (enhanced with Phase 1 glass options)
   const glassRates = {
     'Double Pane': 12.5,
     'Triple Pane': 18.75,
     'Security Glass': 22,
-    'Acoustic Glass': 25
+    'Acoustic Glass': 25,
+    // Enhanced glass options from Phase 1
+    'SKN 184 High Performance': 22.50,
+    'SKN 154 Balanced Performance': 20.75,
+    'XTREME 50-22 Solar Control': 24.25,
+    'XTREME 61-29 Balanced': 21.50,
+    'XTREME 70/33 Maximum Light': 23.00
   };
   const glassUnitCost = glassRates[configuration.glassType] || glassRates['Double Pane'];
   console.log('\nGlass Calculation:');
