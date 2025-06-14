@@ -32,20 +32,15 @@ if (typeof window !== 'undefined' && typeof window.Buffer === 'undefined') {
 // Helper function to fetch PDF data
 const fetchPdfData = async (pdfPath) => {
   try {
-    console.log(`Attempting to fetch PDF from: ${pdfPath}`);
     const response = await fetch(pdfPath);
-    console.log(`Fetch response status: ${response.status}, ok: ${response.ok}`);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
     }
     
-    const arrayBuffer = await response.arrayBuffer();
-    console.log(`Successfully loaded PDF, size: ${arrayBuffer.byteLength} bytes`);
-    
-    return arrayBuffer;
+    return await response.arrayBuffer();
   } catch (error) {
-    console.error(`Could not fetch glass spec PDF: ${pdfPath}`, error);
+    console.warn(`Could not fetch glass spec PDF: ${pdfPath}`, error);
     return null;
   }
 };
@@ -54,49 +49,28 @@ const fetchPdfData = async (pdfPath) => {
 const extractGlassProducts = (quote) => {
   const glassProducts = new Set();
   
-  console.log('=== DEBUGGING QUOTE STRUCTURE ===');
-  console.log('Full quote object:', JSON.stringify(quote, null, 2));
-  
   if (quote.items) {
-    console.log(`Processing ${quote.items.length} items...`);
-    
-    quote.items.forEach((item, index) => {
-      console.log(`\n--- Item ${index + 1} ---`);
-      console.log('Full item:', JSON.stringify(item, null, 2));
-      
+    quote.items.forEach((item) => {
       const config = item.configuration || item;
-      console.log('Configuration object:', JSON.stringify(config, null, 2));
       
       // Check for enhanced glass details
       if (config.glassDetails?.productCode) {
-        console.log(`Found productCode: ${config.glassDetails.productCode}`);
         glassProducts.add(config.glassDetails.productCode);
       }
       // Check for glass type
       else if (config.glassType) {
-        console.log(`Found glassType: ${config.glassType}`);
         glassProducts.add(config.glassType);
       }
       // Check for glass selection in various formats
       else if (config.glassSelection) {
-        console.log(`Found glassSelection: ${config.glassSelection}`);
         glassProducts.add(config.glassSelection);
       }
       // Check for glass details type
       else if (config.glassDetails?.type) {
-        console.log(`Found glassDetails.type: ${config.glassDetails.type}`);
         glassProducts.add(config.glassDetails.type);
       }
-      else {
-        console.log('No glass information found in this item');
-      }
     });
-  } else {
-    console.log('No items found in quote');
   }
-  
-  console.log('Final glass products detected:', Array.from(glassProducts));
-  console.log('=== END DEBUGGING ===');
   
   return Array.from(glassProducts);
 };
@@ -106,13 +80,9 @@ const getGlassSpecPdfs = async (quote) => {
   const glassProducts = extractGlassProducts(quote);
   const specPdfs = [];
   
-  console.log('Glass products found in quote:', glassProducts);
-  
   for (const product of glassProducts) {
-    // Try to find a matching spec PDF
     const specPath = GLASS_SPEC_MAPPING[product];
     if (specPath) {
-      console.log(`Found spec PDF for ${product}:`, specPath);
       const pdfData = await fetchPdfData(specPath);
       if (pdfData) {
         specPdfs.push({
@@ -121,8 +91,6 @@ const getGlassSpecPdfs = async (quote) => {
           filename: `${product}_Specification.pdf`
         });
       }
-    } else {
-      console.log(`No spec PDF found for glass product: ${product}`);
     }
   }
   
@@ -132,8 +100,6 @@ const getGlassSpecPdfs = async (quote) => {
 // Enhanced PDF generator with glass specifications
 export const generateEnhancedQuotePDF = async (quote) => {
   try {
-    console.log('Generating enhanced quote PDF with glass specifications...');
-    
     // Step 1: Generate the main quote PDF
     const doc = <QuoteDocument quote={quote} />;
     const asPdf = pdf();
@@ -146,7 +112,6 @@ export const generateEnhancedQuotePDF = async (quote) => {
     
     // Step 3: If no glass specs found, just return the quote PDF
     if (glassSpecPdfs.length === 0) {
-      console.log('No glass specifications found, returning quote PDF only');
       const url = URL.createObjectURL(quoteBlob);
       const link = document.createElement('a');
       link.href = url;
@@ -160,7 +125,6 @@ export const generateEnhancedQuotePDF = async (quote) => {
     }
     
     // Step 4: Merge quote PDF with glass specification PDFs
-    console.log(`Merging quote with ${glassSpecPdfs.length} glass specification PDFs...`);
     
     const mergedPdf = await PDFDocument.create();
     
@@ -204,7 +168,6 @@ export const generateEnhancedQuotePDF = async (quote) => {
     // Add glass specification PDFs
     for (const spec of glassSpecPdfs) {
       try {
-        console.log(`Adding spec PDF for ${spec.product}...`);
         const specPdf = await PDFDocument.load(spec.data);
         const specPages = await mergedPdf.copyPages(specPdf, specPdf.getPageIndices());
         specPages.forEach((page) => mergedPdf.addPage(page));
@@ -232,13 +195,10 @@ export const generateEnhancedQuotePDF = async (quote) => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
-    console.log(`Successfully generated enhanced PDF with ${glassCount} glass specifications!`);
-    
   } catch (error) {
     console.error('Error generating enhanced PDF:', error);
     
     // Fallback to basic PDF generation
-    console.log('Falling back to basic PDF generation...');
     try {
       const doc = <QuoteDocument quote={quote} />;
       const asPdf = pdf();
