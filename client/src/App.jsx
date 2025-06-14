@@ -18,6 +18,7 @@ import ConfigurationStepper from './components/ConfigurationStepper';
 import { getMetadata } from './api/config';
 import SavedQuotes from './components/SavedQuotes';
 import AddIcon from '@mui/icons-material/Add';
+import { COMPANY_INFO } from './assets/logo';
 
 const theme = createTheme({
   palette: {
@@ -106,7 +107,7 @@ const App = () => {
         <AppBar position="static" elevation={0}>
           <Toolbar>
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              Window & Door Pricing System
+              {COMPANY_INFO.name} - {COMPANY_INFO.specialty}
             </Typography>
             <Button 
               color="inherit" 

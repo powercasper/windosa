@@ -595,13 +595,13 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
               {configuration.swingDirection && (
                 <>
                   {/* Handle based on swing direction */}
-                  <Box
-                    sx={{
-                      ...styles.handle,
+                <Box
+                  sx={{
+                    ...styles.handle,
                       [getHandleLocation(configuration.swingDirection)]: '2px',
-                    }}
-                  />
-                  {/* Hinges on opposite side to handle */}
+                  }}
+                />
+              {/* Hinges on opposite side to handle */}
                   <Box sx={{
                     ...styles.hinge,
                     [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: '1px',

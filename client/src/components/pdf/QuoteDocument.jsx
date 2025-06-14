@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import logo from '../../assets/logo_windo.png';
+import { COMPANY_INFO } from '../../assets/logo';
 import QuoteLineItem from './QuoteLineItem';
 
 const styles = StyleSheet.create({
@@ -174,26 +175,78 @@ const QuoteDocument = ({ quote }) => {
             </View>
           </View>
           <View style={styles.companyInfo}>
-            <Text style={styles.companyName}>WINDO</Text>
-            <Text style={styles.companyDetail}>1010 Lake St, Suite 200</Text>
-            <Text style={styles.companyDetail}>Oak Park, IL 60301</Text>
-            <Text style={styles.companyDetail}>Phone: (872) 281-5683</Text>
-            <Text style={styles.companyDetail}>Email: info@windosa.com</Text>
-            <Text style={styles.companyDetail}>www.windosa.com</Text>
+            <Text style={styles.companyName}>{COMPANY_INFO.name}</Text>
+            <Text style={styles.companyDetail}>{COMPANY_INFO.specialty}</Text>
+            <Text style={styles.companyDetail}>{COMPANY_INFO.address}</Text>
+            <Text style={styles.companyDetail}>Phone: {COMPANY_INFO.phone}</Text>
+            <Text style={styles.companyDetail}>Email: {COMPANY_INFO.email}</Text>
+            <Text style={styles.companyDetail}>{COMPANY_INFO.website}</Text>
           </View>
         </View>
 
         <View style={styles.projectInfo}>
           <View style={styles.projectSection}>
-            <Text style={styles.projectTitle}>Project Details</Text>
-            <View style={styles.projectDetail}>
-              <Text style={styles.projectLabel}>Project Name:</Text>
-              <Text style={styles.projectValue}>{quote.projectName || 'Untitled Project'}</Text>
-            </View>
-            {quote.customerName && (
+            <Text style={styles.projectTitle}>Client Information</Text>
+            {quote.clientInfo && (
+              <>
+                <View style={styles.projectDetail}>
+                  <Text style={styles.projectLabel}>Client:</Text>
+                  <Text style={styles.projectValue}>
+                    {quote.clientInfo.isCompany && quote.clientInfo.companyName ? 
+                      quote.clientInfo.companyName : 
+                      `${quote.clientInfo.firstName} ${quote.clientInfo.lastName}`.trim()
+                    }
+                  </Text>
+                </View>
+                {quote.clientInfo.isCompany && quote.clientInfo.jobTitle && (
+                  <View style={styles.projectDetail}>
+                    <Text style={styles.projectLabel}>Contact:</Text>
+                    <Text style={styles.projectValue}>
+                      {`${quote.clientInfo.firstName} ${quote.clientInfo.lastName}`.trim()}, {quote.clientInfo.jobTitle}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.projectDetail}>
+                  <Text style={styles.projectLabel}>Email:</Text>
+                  <Text style={styles.projectValue}>{quote.clientInfo.email}</Text>
+                </View>
+                <View style={styles.projectDetail}>
+                  <Text style={styles.projectLabel}>Phone:</Text>
+                  <Text style={styles.projectValue}>{quote.clientInfo.phone}</Text>
+                </View>
+                {quote.clientInfo.address?.street && (
+                  <View style={styles.projectDetail}>
+                    <Text style={styles.projectLabel}>Address:</Text>
+                    <Text style={styles.projectValue}>
+                      {quote.clientInfo.address.street}
+                      {quote.clientInfo.address.city && `, ${quote.clientInfo.address.city}`}
+                      {quote.clientInfo.address.state && `, ${quote.clientInfo.address.state}`}
+                      {quote.clientInfo.address.zipCode && ` ${quote.clientInfo.address.zipCode}`}
+                    </Text>
+                  </View>
+                )}
+              </>
+            )}
+            {/* Fallback for legacy quotes */}
+            {!quote.clientInfo && quote.customerName && (
               <View style={styles.projectDetail}>
                 <Text style={styles.projectLabel}>Customer:</Text>
                 <Text style={styles.projectValue}>{quote.customerName}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.projectSection}>
+            <Text style={styles.projectTitle}>Project Details</Text>
+            <View style={styles.projectDetail}>
+              <Text style={styles.projectLabel}>Project Name:</Text>
+              <Text style={styles.projectValue}>
+                {quote.clientInfo?.projectName || quote.projectName || 'Untitled Project'}
+              </Text>
+            </View>
+            {quote.clientInfo?.projectType && (
+              <View style={styles.projectDetail}>
+                <Text style={styles.projectLabel}>Project Type:</Text>
+                <Text style={styles.projectValue}>{quote.clientInfo.projectType}</Text>
               </View>
             )}
             <View style={styles.projectDetail}>
@@ -216,29 +269,45 @@ const QuoteDocument = ({ quote }) => {
           <View style={styles.projectSection}>
             <Text style={styles.projectTitle}>Order Summary</Text>
             <View style={styles.projectDetail}>
-              <Text style={styles.projectLabel}>Total Amount:</Text>
-              <Text style={styles.projectValue}>${quote.totalAmount.toFixed(2)}</Text>
+              <Text style={styles.projectLabel}>Quote #:</Text>
+              <Text style={styles.projectValue}>{quote.quoteNumber}</Text>
             </View>
-            {quote.additionalCosts && (
-              <>
-                <View style={styles.projectDetail}>
-                  <Text style={styles.projectLabel}>Tariff:</Text>
-                  <Text style={styles.projectValue}>${quote.additionalCosts.tariff.toFixed(2)}</Text>
-                </View>
-                <View style={styles.projectDetail}>
-                  <Text style={styles.projectLabel}>Shipping:</Text>
-                  <Text style={styles.projectValue}>${quote.additionalCosts.shipping.toFixed(2)}</Text>
-                </View>
-                <View style={styles.projectDetail}>
-                  <Text style={styles.projectLabel}>Delivery:</Text>
-                  <Text style={styles.projectValue}>${quote.additionalCosts.delivery.toFixed(2)}</Text>
-                </View>
-                <View style={styles.projectDetail}>
-                  <Text style={styles.projectLabel}>Margin:</Text>
-                  <Text style={styles.projectValue}>{quote.additionalCosts.margin.toFixed(1)}%</Text>
-                </View>
-              </>
-            )}
+            <View style={styles.projectDetail}>
+              <Text style={styles.projectLabel}>Quote Date:</Text>
+              <Text style={styles.projectValue}>{new Date().toLocaleDateString()}</Text>
+            </View>
+            <View style={styles.projectDetail}>
+              <Text style={styles.projectLabel}>Valid Until:</Text>
+              <Text style={styles.projectValue}>
+                {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+              </Text>
+            </View>
+            <View style={styles.projectDetail}>
+              <Text style={styles.projectLabel} />
+              <Text style={styles.projectValue} />
+            </View>
+            <View style={styles.projectDetail}>
+              <Text style={styles.projectLabel}>Total Amount:</Text>
+              <Text style={styles.projectValue}>
+                ${(() => {
+                  const baseCosts = (quote.pricing?.totalSystemCost || 0) + (quote.pricing?.totalGlassCost || 0) + (quote.pricing?.totalLaborCost || 0);
+                  const additionalCosts = (quote.additionalCosts?.tariff || 0) + (quote.additionalCosts?.shipping || 0);
+                  const marginAmount = baseCosts > 0 ? baseCosts * ((quote.additionalCosts?.margin || 0) / 100) : 0;
+                  const totalAmount = baseCosts + additionalCosts + marginAmount;
+                  return totalAmount.toFixed(2);
+                })()}
+              </Text>
+            </View>
+            <View style={styles.projectDetail}>
+              <Text style={styles.projectLabel}>Delivery:</Text>
+              <Text style={styles.projectValue}>${(quote.additionalCosts?.delivery || 0).toFixed(2)}</Text>
+            </View>
+            <View style={styles.projectDetail}>
+              <Text style={styles.projectLabel}>GRAND TOTAL:</Text>
+              <Text style={[styles.projectValue, { fontSize: 12, fontWeight: 'bold', color: '#1976d2' }]}>
+                ${(quote.totalAmount || 0).toFixed(2)}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -250,37 +319,59 @@ const QuoteDocument = ({ quote }) => {
               <View style={styles.summaryColumn}>
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>System Costs:</Text>
-                  <Text style={styles.summaryValue}>${quote.pricing.totalSystemCost.toFixed(2)}</Text>
+                  <Text style={styles.summaryValue}>${(quote.pricing.totalSystemCost || 0).toFixed(2)}</Text>
                 </View>
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Glass Costs:</Text>
-                  <Text style={styles.summaryValue}>${quote.pricing.totalGlassCost.toFixed(2)}</Text>
+                  <Text style={styles.summaryValue}>${(quote.pricing.totalGlassCost || 0).toFixed(2)}</Text>
                 </View>
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Labor Costs:</Text>
-                  <Text style={styles.summaryValue}>${quote.pricing.totalLaborCost.toFixed(2)}</Text>
+                  <Text style={styles.summaryValue}>${(quote.pricing.totalLaborCost || 0).toFixed(2)}</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Base Subtotal:</Text>
+                  <Text style={styles.summaryValue}>
+                    ${((quote.pricing.totalSystemCost || 0) + (quote.pricing.totalGlassCost || 0) + (quote.pricing.totalLaborCost || 0)).toFixed(2)}
+                  </Text>
                 </View>
               </View>
               <View style={styles.summaryColumn}>
-                {quote.additionalCosts && (
+                {quote.additionalCosts ? (
                   <>
                     <View style={styles.summaryItem}>
-                      <Text style={styles.summaryLabel}>Additional Costs:</Text>
-                      <Text style={styles.summaryValue}>
-                        ${(quote.additionalCosts.tariff + quote.additionalCosts.shipping + quote.additionalCosts.delivery).toFixed(2)}
-                      </Text>
+                      <Text style={styles.summaryLabel}>Tariff:</Text>
+                      <Text style={styles.summaryValue}>${(quote.additionalCosts.tariff || 0).toFixed(2)}</Text>
                     </View>
                     <View style={styles.summaryItem}>
-                      <Text style={styles.summaryLabel}>Subtotal:</Text>
+                      <Text style={styles.summaryLabel}>Shipping:</Text>
+                      <Text style={styles.summaryValue}>${(quote.additionalCosts.shipping || 0).toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.summaryItem}>
+                      <Text style={styles.summaryLabel}>Delivery:</Text>
+                      <Text style={styles.summaryValue}>${(quote.additionalCosts.delivery || 0).toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.summaryItem}>
+                      <Text style={styles.summaryLabel}>Profit Margin ({(quote.additionalCosts.margin || 0).toFixed(1)}%):</Text>
                       <Text style={styles.summaryValue}>
-                        ${(quote.pricing.grandTotal + quote.additionalCosts.tariff + quote.additionalCosts.shipping + quote.additionalCosts.delivery).toFixed(2)}
+                        ${(() => {
+                          const baseCosts = (quote.pricing.totalSystemCost || 0) + (quote.pricing.totalGlassCost || 0) + (quote.pricing.totalLaborCost || 0);
+                          const additionalCosts = (quote.additionalCosts.tariff || 0) + (quote.additionalCosts.shipping || 0) + (quote.additionalCosts.delivery || 0);
+                          const marginAmount = Math.max(0, (quote.totalAmount || 0) - baseCosts - additionalCosts);
+                          return marginAmount.toFixed(2);
+                        })()}
                       </Text>
                     </View>
                   </>
+                ) : (
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryLabel}>No additional costs</Text>
+                    <Text style={styles.summaryValue}>$0.00</Text>
+                  </View>
                 )}
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabel}>Grand Total:</Text>
-                  <Text style={styles.totalValue}>${quote.totalAmount.toFixed(2)}</Text>
+                  <Text style={styles.totalValue}>${(quote.totalAmount || 0).toFixed(2)}</Text>
                 </View>
               </View>
             </View>

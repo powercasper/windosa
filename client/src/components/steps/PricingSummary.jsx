@@ -48,6 +48,7 @@ import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import PersonIcon from '@mui/icons-material/Person';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
@@ -128,6 +129,52 @@ const getStoredCosts = () => {
     console.error('Error reading stored costs:', error);
   }
   return null;
+};
+
+// Helper function to calculate final item price including distributed additional costs and margin
+const calculateFinalItemPrice = (baseTotal, item, allItems, tariff, shipping, delivery, margin) => {
+  // Calculate this item's area
+  const itemArea = (() => {
+    if (item.systemType === 'Windows') {
+      return ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
+    } else if (item.systemType === 'Entrance Doors') {
+      return (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+              item.dimensions.width +
+              (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+             (item.dimensions.height + 
+              (item.transom?.enabled ? item.transom.height : 0)) / 144);
+    } else if (item.systemType === 'Sliding Doors') {
+      return ((item.dimensions.width * item.dimensions.height) / 144);
+    }
+    return 0;
+  })();
+
+  // Calculate total area of all items for distribution ratio
+  const totalArea = allItems.reduce((sum, { item }) => {
+    if (item.systemType === 'Windows') {
+      return sum + ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
+    } else if (item.systemType === 'Entrance Doors') {
+      return sum + (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                    item.dimensions.width +
+                    (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                   (item.dimensions.height + 
+                    (item.transom?.enabled ? item.transom.height : 0)) / 144);
+    } else if (item.systemType === 'Sliding Doors') {
+      return sum + ((item.dimensions.width * item.dimensions.height) / 144);
+    }
+    return sum;
+  }, 0);
+
+  // Calculate distributed additional costs for this item (tariff, shipping, delivery)
+  const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
+  const distributedCosts = totalArea > 0 ? (itemArea * additionalCosts / totalArea) : 0;
+  
+  // Apply margin to the total (base + distributed costs)
+  const costWithAdditionals = baseTotal + distributedCosts;
+  const marginPercent = parseFloat(margin || 0);
+  const marginMultiplier = marginPercent === 100 ? 2 : (1 / (1 - (marginPercent / 100)));
+  
+  return costWithAdditionals * marginMultiplier;
 };
 
 const calculateItemPrice = (item) => {
@@ -375,9 +422,11 @@ const calculateBaseCost = (configuration) => {
 
 const PricingSummary = ({ 
   configuration, 
+  clientInfo = {},
   quoteItems = [], 
   onAddToQuote, 
   onStartNew,
+  onAddNewItem, // New prop for adding items to existing quotes
   onEditItem,
   onRemoveItem,
   onQuoteSaved,
@@ -682,6 +731,12 @@ const PricingSummary = ({
         items: quoteItems,
         totalAmount: pricing.grandTotal,
         id: savedQuote?.id, // Preserve the ID if editing an existing quote
+        // Include client information
+        clientInfo,
+        customerName: clientInfo.isCompany ? 
+          `${clientInfo.companyName} (${clientInfo.firstName} ${clientInfo.lastName})` :
+          `${clientInfo.firstName} ${clientInfo.lastName}`,
+        projectName: clientInfo.projectName,
         // Include additional costs
         tariff,
         margin,
@@ -789,6 +844,11 @@ const PricingSummary = ({
         ...quoteDialog.quote,
         items: itemsWithPricing,
         totalAmount: pricing.grandTotal,
+        clientInfo,
+        customerName: clientInfo.isCompany ? 
+          `${clientInfo.companyName} (${clientInfo.firstName} ${clientInfo.lastName})` :
+          `${clientInfo.firstName} ${clientInfo.lastName}`,
+        projectName: clientInfo.projectName,
         additionalCosts,
         totalArea,
         pricing: {
@@ -841,6 +901,57 @@ const PricingSummary = ({
       <Typography variant="h5" gutterBottom>
         {savedQuote ? `Edit Quote #${savedQuote.id}` : 'Quote Summary'}
       </Typography>
+
+      {/* Client Information Display */}
+      {(clientInfo.firstName || clientInfo.lastName || clientInfo.projectName) && (
+        <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200' }}>
+          <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PersonIcon /> Client Information
+          </Typography>
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">Client:</Typography>
+              <Typography variant="body1">
+                {clientInfo.isCompany && clientInfo.companyName ? 
+                  `${clientInfo.companyName}` : 
+                  `${clientInfo.firstName} ${clientInfo.lastName}`.trim()
+                }
+              </Typography>
+              {clientInfo.isCompany && clientInfo.jobTitle && (
+                <Typography variant="body2" color="text.secondary">
+                  {clientInfo.jobTitle}
+                </Typography>
+              )}
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">Project:</Typography>
+              <Typography variant="body1">{clientInfo.projectName}</Typography>
+              {clientInfo.projectType && (
+                <Typography variant="body2" color="text.secondary">
+                  {clientInfo.projectType}
+                </Typography>
+              )}
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">Contact:</Typography>
+              <Typography variant="body2">{clientInfo.email}</Typography>
+              <Typography variant="body2">{clientInfo.phone}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">Address:</Typography>
+              <Typography variant="body2">
+                {clientInfo.address?.street && (
+                  <>
+                    {clientInfo.address.street}<br />
+                    {clientInfo.address.city && `${clientInfo.address.city}, `}
+                    {clientInfo.address.state} {clientInfo.address.zipCode}
+                  </>
+                )}
+              </Typography>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
 
       {!isConfigurationEmpty && (
         <Paper sx={{ p: 3, mb: 3 }}>
@@ -1211,7 +1322,7 @@ const PricingSummary = ({
             <Button
               variant="outlined"
               color="primary"
-              onClick={onStartNew}
+              onClick={savedQuote && onAddNewItem ? onAddNewItem : onStartNew}
               startIcon={<AddIcon />}
               size="small"
             >
@@ -1260,11 +1371,17 @@ const PricingSummary = ({
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Box sx={{ textAlign: 'right' }}>
                         <Typography variant="subtitle1" color="primary">
-                          ${total.toFixed(2)}
+                          ${(() => {
+                            const finalPrice = calculateFinalItemPrice(total, item, pricing.items, tariff, shipping, delivery, margin);
+                            return finalPrice.toFixed(2);
+                          })()}
                         </Typography>
                         {(item.quantity || 1) > 1 && (
                           <Typography variant="caption" color="text.secondary">
-                            ${(total / (item.quantity || 1)).toFixed(2)} each
+                            ${(() => {
+                              const finalPrice = calculateFinalItemPrice(total, item, pricing.items, tariff, shipping, delivery, margin);
+                              return (finalPrice / (item.quantity || 1)).toFixed(2);
+                            })()} each
                           </Typography>
                         )}
                       </Box>
@@ -1679,7 +1796,7 @@ const PricingSummary = ({
                 <Button
                   variant="outlined"
                   color="primary"
-                  onClick={onStartNew}
+                  onClick={savedQuote && onAddNewItem ? onAddNewItem : onStartNew}
                   startIcon={<AddIcon />}
                 >
                   Add Another Item
