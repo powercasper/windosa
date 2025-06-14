@@ -243,6 +243,68 @@ const QuoteLineItem = ({ item }) => {
                 </View>
               </View>
 
+              {/* Glass Specifications */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Glass Specifications</Text>
+                <View style={styles.row}>
+                  <Text style={styles.label}>Type:</Text>
+                  <Text style={styles.value}>{item.glassType || 'Standard'}</Text>
+                </View>
+                
+                {/* Enhanced glass specifications if available */}
+                {item.glassDetails?.specifications ? (
+                  <>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Product:</Text>
+                      <Text style={styles.value}>{item.glassDetails.productCode || item.glassDetails.type}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Construction:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.construction}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Light Trans.:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.lightTransmittance}%</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Solar Factor:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.solarHeatGainCoefficient}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Thermal U:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.thermalTransmission}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Acoustic:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.acousticRating}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Gas Fill:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.gasFill}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Spacer:</Text>
+                      <Text style={styles.value}>{item.glassDetails.specifications.spacer}</Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    {/* Basic glass info for legacy items */}
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Description:</Text>
+                      <Text style={styles.value}>
+                        {item.glassDetails?.description || 'Standard insulated glass unit'}
+                      </Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Specs:</Text>
+                      <Text style={styles.value}>
+                        {item.glassDetails?.specs || 'Standard IGU specifications'}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </View>
 
             </View>
           </View>

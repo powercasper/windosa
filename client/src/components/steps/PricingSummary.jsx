@@ -54,6 +54,7 @@ import { generateQuote } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
 import { generateQuotePDF } from '../../utils/pdfGenerator';
+import { getGlassByType } from '../../utils/glassDatabase';
 
 const STORAGE_KEY = 'orderAdditionalCosts';
 
@@ -140,14 +141,28 @@ const calculateItemPrice = (item) => {
   // Get quantity (default to 1 if not specified)
   const quantity = item.quantity || 1;
 
-  // Glass rates remain the same per sq ft regardless of operation type
-  const glassRates = {
-    'Double Pane': 12.5,
-    'Triple Pane': 18.75,
-    'Security Glass': 22,
-    'Acoustic Glass': 25
-  };
-  const glassUnitCost = glassRates[item.glassType] || glassRates['Double Pane'];
+  // Get glass pricing from enhanced database or fallback to legacy rates
+  let glassUnitCost = 12.5; // Default fallback
+  
+  if (item.glassDetails?.price) {
+    // Use enhanced glass database pricing
+    glassUnitCost = item.glassDetails.price;
+  } else {
+    // Fallback to legacy glass rates for backward compatibility
+    const legacyGlassRates = {
+      'Double Pane': 12.5,
+      'Triple Pane': 18.75,
+      'Security Glass': 22,
+      'Acoustic Glass': 25,
+      // Enhanced glass types with fallback pricing
+      'SKN 184 High Performance': 22.50,
+      'SKN 154 Balanced Performance': 20.75,
+      'XTREME 50-22 Solar Control': 24.25,
+      'XTREME 61-29 Balanced': 21.50,
+      'XTREME 70/33 Maximum Light': 23.00
+    };
+    glassUnitCost = legacyGlassRates[item.glassType] || legacyGlassRates['Double Pane'];
+  }
 
   if (item.systemType === 'Entrance Doors') {
     // Calculate door panel area and cost
