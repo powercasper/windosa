@@ -71,7 +71,7 @@ const calculateDistributedCosts = (items, totalArea, additionalCosts) => {
   return { costPerSqFt, totalDistributedCost: totalAdditionalCosts };
 };
 
-const calculateTypeMetrics = (items, type, additionalCosts) => {
+const calculateTypeMetrics = (items, type, additionalCosts, margin, delivery) => {
   const typeItems = items.filter(({ item }) => item.systemType === type);
   
   const totalArea = typeItems.reduce((sum, { item }) => {
@@ -107,10 +107,20 @@ const calculateTypeMetrics = (items, type, additionalCosts) => {
     return sum;
   }, 0);
 
+  // Use additional costs excluding delivery (delivery is not subject to margin)
   const { costPerSqFt: additionalCostPerSqFt } = calculateDistributedCosts(items, allItemsArea, additionalCosts);
   const distributedCost = totalArea * additionalCostPerSqFt;
   
-  const totalCost = baseCost + distributedCost;
+  // Calculate costs with margin applied to (base + tariff + shipping) only
+  const costBeforeMargin = baseCost + distributedCost;
+  const marginPercent = parseFloat(margin || 0);
+  const marginMultiplier = marginPercent > 0 ? 1 / (1 - (marginPercent / 100)) : 1;
+  const costAfterMargin = costBeforeMargin * marginMultiplier;
+  
+  // Add proportional delivery cost (not subject to margin)
+  const deliveryValue = parseFloat(delivery || 0);
+  const proportionalDelivery = allItemsArea > 0 ? (totalArea / allItemsArea) * deliveryValue : 0;
+  const totalCost = costAfterMargin + proportionalDelivery;
   const costPerSqFt = totalArea > 0 ? totalCost / totalArea : 0;
 
   return {
@@ -143,27 +153,27 @@ const calculateItemPrice = (item) => {
   // Get quantity (default to 1 if not specified)
   const quantity = item.quantity || 1;
 
-  // Get glass pricing from enhanced database or fallback to legacy rates
-  let glassUnitCost = 12.5; // Default fallback
+  // Get glass pricing from database - CONSISTENT WITH SERVER
+  let glassUnitCost = 12.0; // Database default
   
   if (item.glassDetails?.price) {
     // Use enhanced glass database pricing
     glassUnitCost = item.glassDetails.price;
   } else {
-    // Fallback to legacy glass rates for backward compatibility
-    const legacyGlassRates = {
+    // Use database prices for all premium glass (consistent with server)
+    const databaseGlassRates = {
       'Double Pane': 12.5,
-      'Triple Pane': 18.75,
+      'Triple Pane': 18.0,
       'Security Glass': 22,
       'Acoustic Glass': 25,
-      // Enhanced glass types with fallback pricing
-      'SKN 184 High Performance': 22.50,
-      'SKN 154 Balanced Performance': 20.75,
-      'XTREME 50-22 Solar Control': 24.25,
-      'XTREME 61-29 Balanced': 21.50,
-      'XTREME 70/33 Maximum Light': 23.00
+      // Database prices - CONSISTENT WITH SERVER
+      'SKN 184 High Performance': 12.00,
+      'SKN 154 Balanced Performance': 12.00,
+      'XTREME 50-22 Solar Control': 12.00,
+      'XTREME 61-29 Balanced': 12.00,
+      'XTREME 70/33 Maximum Light': 12.00
     };
-    glassUnitCost = legacyGlassRates[item.glassType] || legacyGlassRates['Double Pane'];
+    glassUnitCost = databaseGlassRates[item.glassType] || 12.0;
   }
 
   if (item.systemType === 'Entrance Doors') {
@@ -780,11 +790,13 @@ const PricingSummary = ({
           return 0;
         })();
 
-        // Calculate item's proportional additional costs
-        const itemAdditionalCosts = itemArea * additionalCostPerSqFt;
-        const totalWithAdditions = total + itemAdditionalCosts;
-        const marginMultiplier = 1 / (1 - (additionalCosts.margin / 100));
-        const finalPrice = totalWithAdditions * marginMultiplier;
+        // Calculate item's proportional additional costs - CONSISTENT LOGIC
+        const itemAdditionalCostsForMargin = itemArea * (additionalCosts.tariff + additionalCosts.shipping) / totalArea;
+        const itemDeliveryCost = itemArea * additionalCosts.delivery / totalArea;
+        const costBeforeMargin = total + itemAdditionalCostsForMargin;
+        const marginMultiplier = additionalCosts.margin > 0 ? 1 / (1 - (additionalCosts.margin / 100)) : 1;
+        const subtotalPrice = costBeforeMargin * marginMultiplier;
+        const finalPrice = subtotalPrice + itemDeliveryCost;
 
         return {
           ...item,
@@ -793,7 +805,7 @@ const PricingSummary = ({
             glassCost,
             laborCost,
             baseTotal: total,
-            additionalCosts: itemAdditionalCosts,
+            additionalCosts: itemAdditionalCostsForMargin + itemDeliveryCost,
             finalPrice,
             area: itemArea
           },
@@ -974,10 +986,12 @@ const PricingSummary = ({
               <Typography variant="h6" color="primary">
                 ${(() => {
                   const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
-                  const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
-                  const totalWithAdditions = baseCost + additionalCosts;
-                  const marginMultiplier = 1 / (1 - (parseFloat(margin || 0) / 100));
-                  return (totalWithAdditions * marginMultiplier).toFixed(2);
+                  const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
+                  const deliveryValue = parseFloat(delivery || 0);
+                  const costBeforeMargin = baseCost + additionalCostsForMargin;
+                  const marginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;
+                  const subtotal = costBeforeMargin * marginMultiplier;
+                  return (subtotal + deliveryValue).toFixed(2);
                 })()}
               </Typography>
             </Grid>
@@ -2253,7 +2267,7 @@ const PricingSummary = ({
                       </Typography>
                       <Stack spacing={1}>
                         {(() => {
-                          const metrics = calculateTypeMetrics(pricing.items, 'Windows', { tariff, shipping, delivery });
+                          const metrics = calculateTypeMetrics(pricing.items, 'Windows', { tariff, shipping }, margin, delivery);
                           return (
                             <>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -2299,7 +2313,7 @@ const PricingSummary = ({
                       </Typography>
                       <Stack spacing={1}>
                         {(() => {
-                          const metrics = calculateTypeMetrics(pricing.items, 'Entrance Doors', { tariff, shipping, delivery });
+                          const metrics = calculateTypeMetrics(pricing.items, 'Entrance Doors', { tariff, shipping }, margin, delivery);
                           return (
                             <>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -2345,7 +2359,7 @@ const PricingSummary = ({
                       </Typography>
                       <Stack spacing={1}>
                         {(() => {
-                          const metrics = calculateTypeMetrics(pricing.items, 'Sliding Doors', { tariff, shipping, delivery });
+                          const metrics = calculateTypeMetrics(pricing.items, 'Sliding Doors', { tariff, shipping }, margin, delivery);
                           return (
                             <>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -2409,12 +2423,14 @@ const PricingSummary = ({
                           }, 0);
 
                           const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
-                          const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
-                          const totalCost = baseCost + additionalCosts;
+                          const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
+                          const deliveryValue = parseFloat(delivery || 0);
+                          const costBeforeMargin = baseCost + additionalCostsForMargin;
                           const marginPercent = parseFloat(margin || 0);
-                          const marginMultiplier = marginPercent / 100;
-                          const finalPrice = totalCost / (1 - marginMultiplier);
-                          const profit = finalPrice - totalCost;
+                          const marginMultiplier = marginPercent > 0 ? 1 / (1 - (marginPercent / 100)) : 1;
+                          const subtotal = costBeforeMargin * marginMultiplier;
+                          const finalPrice = subtotal + deliveryValue;
+                          const profit = subtotal - costBeforeMargin;
                           const costPerSqFt = totalArea > 0 ? finalPrice / totalArea : 0;
 
                           return (
@@ -2429,11 +2445,19 @@ const PricingSummary = ({
                               </Box>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                 <Typography variant="body2" color="text.secondary">Additional Costs:</Typography>
-                                <Typography variant="body2">${additionalCosts.toFixed(2)}</Typography>
+                                <Typography variant="body2">${additionalCostsForMargin.toFixed(2)}</Typography>
                               </Box>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
-                                <Typography variant="subtitle2" color="primary">Total Cost:</Typography>
-                                <Typography variant="subtitle2" color="primary">${totalCost.toFixed(2)}</Typography>
+                                <Typography variant="subtitle2" color="primary">Subtotal:</Typography>
+                                <Typography variant="subtitle2" color="primary">${subtotal.toFixed(2)}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <Typography variant="body2" color="text.secondary">Delivery:</Typography>
+                                <Typography variant="body2">${deliveryValue.toFixed(2)}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '2px solid', borderColor: 'primary.main' }}>
+                                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>Total Cost:</Typography>
+                                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>${finalPrice.toFixed(2)}</Typography>
                               </Box>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                 <Typography variant="body2" color="text.secondary">Cost per sq ft:</Typography>
@@ -2552,17 +2576,19 @@ const PricingSummary = ({
                       <Stack spacing={2}>
                         {(() => {
                           const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
-                          const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
-                          const totalCost = baseCost + additionalCosts;
+                          const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
+                          const deliveryValue = parseFloat(delivery || 0);
+                          const costBeforeMargin = baseCost + additionalCostsForMargin;
                           const marginPercent = parseFloat(margin || 0);
-                          const marginMultiplier = marginPercent / 100;
-                          const finalPrice = totalCost / (1 - marginMultiplier);
-                          const profit = finalPrice - totalCost;
-                          const profitMarginPercent = (profit / finalPrice) * 100;
+                          const marginMultiplier = marginPercent > 0 ? 1 / (1 - (marginPercent / 100)) : 1;
+                          const subtotal = costBeforeMargin * marginMultiplier;
+                          const finalPrice = subtotal + deliveryValue;
+                          const profit = subtotal - costBeforeMargin;
+                          const profitMarginPercent = marginPercent;
 
                           return (
                             <>
-                              <Box>
+                                                              <Box>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                   Cost Summary
                                 </Typography>
@@ -2573,11 +2599,19 @@ const PricingSummary = ({
                                   </Box>
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                     <Typography variant="body2" color="text.secondary">Additional Cost:</Typography>
-                                    <Typography variant="body2">${additionalCosts.toFixed(2)}</Typography>
+                                    <Typography variant="body2">${additionalCostsForMargin.toFixed(2)}</Typography>
                                   </Box>
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
-                                    <Typography variant="subtitle2" color="primary">Total Cost:</Typography>
-                                    <Typography variant="subtitle2" color="primary">${totalCost.toFixed(2)}</Typography>
+                                    <Typography variant="subtitle2" color="primary">Subtotal:</Typography>
+                                    <Typography variant="subtitle2" color="primary">${subtotal.toFixed(2)}</Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                    <Typography variant="body2" color="text.secondary">Delivery:</Typography>
+                                    <Typography variant="body2">${deliveryValue.toFixed(2)}</Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '2px solid', borderColor: 'primary.main' }}>
+                                    <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>Total Cost:</Typography>
+                                    <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>${finalPrice.toFixed(2)}</Typography>
                                   </Box>
                                 </Stack>
                               </Box>
@@ -2679,15 +2713,18 @@ const PricingSummary = ({
                       return sum + area;
                     }, 0);
 
-                    // Calculate proportional additional costs for this item
-                    const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
-                    const itemAdditionalCosts = (itemArea / totalArea) * additionalCosts;
+                    // Calculate proportional additional costs for this item - CONSISTENT LOGIC
+                    const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
+                    const deliveryValue = parseFloat(delivery || 0);
+                    const itemAdditionalCostsForMargin = (itemArea / totalArea) * additionalCostsForMargin;
+                    const itemDeliveryCost = (itemArea / totalArea) * deliveryValue;
                     
-                    // Calculate unit price including additional costs and margin
+                    // Calculate unit price with consistent logic
                     const baseUnitPrice = total;
-                    const unitPriceWithAdditions = baseUnitPrice + itemAdditionalCosts;
-                    const marginMultiplier = 1 / (1 - (parseFloat(margin || 0) / 100));
-                    const finalUnitPrice = unitPriceWithAdditions * marginMultiplier;
+                    const costBeforeMargin = baseUnitPrice + itemAdditionalCostsForMargin;
+                    const marginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;
+                    const subtotalPrice = costBeforeMargin * marginMultiplier;
+                    const finalUnitPrice = subtotalPrice + itemDeliveryCost;
                     
                     const description = (() => {
                       if (item.systemType === 'Windows') {
@@ -2747,10 +2784,12 @@ const PricingSummary = ({
                     <TableCell align="right">
                       ${(() => {
                         const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
-                        const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
-                        const totalWithAdditions = baseCost + additionalCosts;
-                        const marginMultiplier = 1 / (1 - (parseFloat(margin || 0) / 100));
-                        return (totalWithAdditions * marginMultiplier).toFixed(2);
+                        const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
+                        const deliveryValue = parseFloat(delivery || 0);
+                        const costBeforeMargin = baseCost + additionalCostsForMargin;
+                        const marginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;
+                        const subtotal = costBeforeMargin * marginMultiplier;
+                        return (subtotal + deliveryValue).toFixed(2);
                       })()}
                     </TableCell>
                   </TableRow>
@@ -2778,10 +2817,12 @@ const PricingSummary = ({
                     <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1.1em' }}>
                       ${(() => {
                         const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
-                        const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
-                        const totalWithAdditions = baseCost + additionalCosts;
-                        const marginMultiplier = 1 / (1 - (parseFloat(margin || 0) / 100));
-                        return (totalWithAdditions * marginMultiplier).toFixed(2);
+                        const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
+                        const deliveryValue = parseFloat(delivery || 0);
+                        const costBeforeMargin = baseCost + additionalCostsForMargin;
+                        const marginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;
+                        const subtotal = costBeforeMargin * marginMultiplier;
+                        return (subtotal + deliveryValue).toFixed(2);
                       })()}
                     </TableCell>
                   </TableRow>

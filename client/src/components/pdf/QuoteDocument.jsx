@@ -264,10 +264,11 @@ const QuoteDocument = ({ quote }) => {
     const delivery = quote.additionalCosts?.delivery || 0;
     const margin = quote.additionalCosts?.margin || 0;
 
-    // Calculate totals
+    // Calculate totals (delivery is NOT subject to margin - standard business practice)
     const additionalCostsExceptDelivery = tariff + shipping;
     const totalWithoutMarginAndDelivery = baseItemsCost + additionalCostsExceptDelivery;
-    const marginMultiplier = 1 / (1 - (margin / 100));
+    const marginPercent = parseFloat(margin || 0);
+    const marginMultiplier = marginPercent > 0 ? 1 / (1 - (marginPercent / 100)) : 1;
     const subtotal = totalWithoutMarginAndDelivery * marginMultiplier;
     const grandTotal = subtotal + delivery;
 
@@ -286,20 +287,37 @@ const QuoteDocument = ({ quote }) => {
   };
 
   const pricing = calculatePricing();
+  
+  // Debug logging for consistency check
+  console.log('=== PDF PRICING DEBUG ===');
+  console.log('Base items cost:', pricing.baseItemsCost);
+  console.log('Tariff:', pricing.tariff);
+  console.log('Shipping:', pricing.shipping);
+  console.log('Delivery:', pricing.delivery);
+  console.log('Margin:', pricing.margin);
+  console.log('Subtotal:', pricing.subtotal);
+  console.log('Grand Total:', pricing.grandTotal);
+  console.log('=========================');
 
-  // Function to calculate individual item final price (consistent with overall totals)
+  // Simplified item calculation - CONSISTENT WITH SERVER/FRONTEND
   const calculateItemFinalPrice = (item, itemArea, totalArea) => {
-    // Get base item cost (system + glass + labor)
+    // Use the same base cost from server calculation (already includes quantity)
     const baseItemCost = (item.pricing?.systemCost || 0) + (item.pricing?.glassCost || 0) + (item.pricing?.laborCost || 0);
     
-    // Calculate proportional additional costs (tariff + shipping only, delivery is added at the end)
-    const proportionalAdditionalCosts = totalArea > 0 ? 
+    // Calculate proportional additional costs (tariff + shipping, excluding delivery)
+    const proportionalTariffShipping = totalArea > 0 ? 
       (itemArea / totalArea) * (pricing.tariff + pricing.shipping) : 0;
     
-    // Apply margin to base cost + proportional additional costs
-    const costWithAdditionalCosts = baseItemCost + proportionalAdditionalCosts;
-    const marginMultiplier = 1 / (1 - (pricing.margin / 100));
-    const finalItemPrice = costWithAdditionalCosts * marginMultiplier;
+    // Apply margin to (base + tariff + shipping)
+    const costBeforeMargin = baseItemCost + proportionalTariffShipping;
+    const marginMultiplier = pricing.margin > 0 ? 1 / (1 - (pricing.margin / 100)) : 1;
+    const costAfterMargin = costBeforeMargin * marginMultiplier;
+    
+    // Add proportional delivery (not subject to margin)
+    const proportionalDelivery = totalArea > 0 ? 
+      (itemArea / totalArea) * pricing.delivery : 0;
+    
+    const finalItemPrice = costAfterMargin + proportionalDelivery;
     
     return finalItemPrice;
   };

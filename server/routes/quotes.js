@@ -10,6 +10,7 @@ const {
   doorOperables,
   systemBrands 
 } = require('../db/metaData');
+const { getGlassByType } = require('../db/glassDatabase');
 
 // Get metadata endpoint
 router.get('/metadata', (req, res) => {
@@ -29,6 +30,20 @@ router.get('/metadata', (req, res) => {
   }
 });
 
+// Helper function to get glass price from database
+const getGlassPrice = (glassType) => {
+  // First try to get from database
+  const glassData = getGlassByType(glassType);
+  if (glassData && glassData.price) {
+    console.log(`✅ Database price found for ${glassType}: $${glassData.price}`);
+    return glassData.price;
+  }
+  
+  // Fallback for unknown glass types
+  console.log(`⚠️ No database price found for ${glassType}, using fallback: $12.5`);
+  return 12.5; // Default fallback price
+};
+
 // Helper function to calculate pricing
 const calculatePricing = (configuration) => {
   console.log('\n=== PRICING CALCULATION START ===');
@@ -46,23 +61,11 @@ const calculatePricing = (configuration) => {
   let totalLaborCost = 0;
   let totalArea = 0;
 
-  // Glass rates (enhanced with Phase 1 glass options)
-  const glassRates = {
-    'Double Pane': 12.5,
-    'Triple Pane': 18.75,
-    'Security Glass': 22,
-    'Acoustic Glass': 25,
-    // Enhanced glass options from Phase 1
-    'SKN 184 High Performance': 22.50,
-    'SKN 154 Balanced Performance': 20.75,
-    'XTREME 50-22 Solar Control': 24.25,
-    'XTREME 61-29 Balanced': 21.50,
-    'XTREME 70/33 Maximum Light': 23.00
-  };
-  const glassUnitCost = glassRates[configuration.glassType] || glassRates['Double Pane'];
+  // Get glass price from database instead of hard-coded rates
+  const glassUnitCost = getGlassPrice(configuration.glassType);
   console.log('\nGlass Calculation:');
   console.log('- Selected glass type:', configuration.glassType);
-  console.log('- Glass unit cost:', glassUnitCost);
+  console.log('- Glass unit cost from database:', glassUnitCost);
 
   if (configuration.systemType === 'Entrance Doors') {
     // Calculate door panel area and cost
