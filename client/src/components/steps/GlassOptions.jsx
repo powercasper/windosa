@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Grid,
   Card,
@@ -14,25 +14,25 @@ import {
   Stack,
   Button,
   Collapse,
-  Alert
+  Alert,
+  CircularProgress,
+  Skeleton
 } from '@mui/material';
 import {
   CompareArrows as CompareIcon,
   ExpandMore as ExpandIcon,
   ExpandLess as CollapseIcon,
   TrendingUp as SavingsIcon,
-  Science as AdvancedIcon
+  Science as AdvancedIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { 
-  glassDatabase, 
-  legacyGlassOptions, 
-  getAllGlassOptions, 
-  getGlassByType,
   performanceLevels 
 } from '../../utils/glassDatabase';
 import GlassComparison from '../glass/GlassComparison';
 import EnergySavingsSummary from '../glass/EnergySavingsSummary';
 import AdvancedGlassTools from '../glass/AdvancedGlassTools';
+import glassService from '../../services/glassService';
 
 // Performance indicator component
 const PerformanceIndicator = ({ label, value, level, unit = '', icon }) => {
@@ -58,6 +58,35 @@ const PerformanceIndicator = ({ label, value, level, unit = '', icon }) => {
     </Box>
   );
 };
+
+// Glass card skeleton for loading state
+const GlassCardSkeleton = () => (
+  <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 1 }}>
+        <Box sx={{ flex: 1 }}>
+          <Skeleton variant="text" width="80%" height={28} />
+          <Skeleton variant="rectangular" width={80} height={20} sx={{ mt: 0.5, borderRadius: 1 }} />
+        </Box>
+        <Skeleton variant="circular" width={24} height={24} />
+      </Box>
+      
+      <Skeleton variant="text" width="100%" height={20} sx={{ mb: 2 }} />
+      <Skeleton variant="text" width="90%" height={20} sx={{ mb: 2 }} />
+      
+      <Grid container spacing={1} sx={{ mb: 2 }}>
+        {[1, 2, 3, 4].map((i) => (
+          <Grid item xs={3} key={i}>
+            <Skeleton variant="rectangular" width="100%" height={40} />
+          </Grid>
+        ))}
+      </Grid>
+      
+      <Box sx={{ flexGrow: 1 }} />
+      <Skeleton variant="text" width="60%" height={24} sx={{ alignSelf: 'center' }} />
+    </CardContent>
+  </Card>
+);
 
 // Enhanced glass card component
 const EnhancedGlassCard = ({ glass, isSelected, onSelect }) => {
@@ -221,7 +250,7 @@ const EnhancedGlassCard = ({ glass, isSelected, onSelect }) => {
           )}
 
           {/* Standard specifications for legacy glass */}
-          {!hasSpecs && (
+          {!hasSpecs && glass.specs && (
             <>
               <Typography 
                 variant="body2" 
@@ -256,17 +285,65 @@ const EnhancedGlassCard = ({ glass, isSelected, onSelect }) => {
 };
 
 const GlassOptions = ({ configuration, onUpdate, onNext }) => {
-  // Get all glass options (enhanced + legacy for backward compatibility)
-  const allGlassOptions = getAllGlassOptions();
+  // State management for server-side data
+  const [glassOptions, setGlassOptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
   
   // State for comparison and energy savings
   const [showComparison, setShowComparison] = useState(false);
   const [showEnergySavings, setShowEnergySavings] = useState(false);
   const [showAdvancedTools, setShowAdvancedTools] = useState(false);
   
-  const handleGlassSelect = (glassType) => {
+  // Load glass options from server
+  const loadGlassOptions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const data = await glassService.getAllGlassOptions();
+      
+      // Convert object to array for easier handling
+      const optionsArray = Object.values(data);
+      setGlassOptions(optionsArray);
+      
+      console.log(`✅ Loaded ${optionsArray.length} glass options from server`);
+      if (data.fallback) {
+        console.warn('⚠️ Using fallback glass data');
+      }
+    } catch (err) {
+      console.error('❌ Failed to load glass options:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    loadGlassOptions();
+  }, []);
+
+  // Retry loading data
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    loadGlassOptions();
+  };
+
+  // Get glass by type for detailed information
+  const getGlassByType = async (glassType) => {
+    try {
+      return await glassService.getGlassByType(glassType);
+    } catch (err) {
+      console.warn('Failed to get glass details, using local data:', err);
+      return glassOptions.find(g => g.type === glassType) || null;
+    }
+  };
+
+  const handleGlassSelect = async (glassType) => {
     // Get the full glass object for storing detailed information
-    const selectedGlass = getGlassByType(glassType);
+    const selectedGlass = await getGlassByType(glassType);
     
     // Update configuration with glass type and detailed glass object
     onUpdate({ 
@@ -276,9 +353,9 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
     onNext();
   };
 
-  const handleCompareGlass = (glassType) => {
+  const handleCompareGlass = async (glassType) => {
     // Select glass but don't proceed to next step
-    const selectedGlass = getGlassByType(glassType);
+    const selectedGlass = await getGlassByType(glassType);
     onUpdate({ 
       glassType,
       glassDetails: selectedGlass
@@ -314,6 +391,30 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
 
   const glassArea = calculateGlassArea();
 
+  // Error state
+  if (error && !loading && glassOptions.length === 0) {
+    return (
+      <Box>
+        <Typography variant="h5" gutterBottom>
+          Select Glass Package
+        </Typography>
+        
+        <Alert 
+          severity="error" 
+          action={
+            <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={handleRetry}>
+              Retry
+            </Button>
+          }
+          sx={{ mb: 2 }}
+        >
+          Failed to load glass options: {error}
+          {retryCount > 0 && ` (Attempt ${retryCount + 1})`}
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Typography variant="h5" gutterBottom>
@@ -325,66 +426,98 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
         Higher performance glass provides better energy efficiency and comfort.
       </Typography>
 
-      <Grid container spacing={3}>
-        {allGlassOptions.map((glass) => {
-          const isSelected = configuration.glassType === glass.type;
-          return (
-            <Grid item xs={12} sm={6} lg={4} key={glass.type || glass.id}>
-              <EnhancedGlassCard 
-                glass={glass}
-                isSelected={isSelected}
-                onSelect={handleGlassSelect}
-              />
+      {/* Loading or Error States */}
+      {loading && (
+        <Grid container spacing={3}>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Grid item xs={12} sm={6} lg={4} key={i}>
+              <GlassCardSkeleton />
             </Grid>
-          );
-        })}
-      </Grid>
+          ))}
+        </Grid>
+      )}
+
+      {/* Show any errors while still displaying data */}
+      {error && !loading && glassOptions.length > 0 && (
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={handleRetry}>
+              Refresh
+            </Button>
+          }
+        >
+          Using cached data. Server connection issue: {error}
+        </Alert>
+      )}
+
+      {/* Glass Options Grid */}
+      {!loading && glassOptions.length > 0 && (
+        <Grid container spacing={3}>
+          {glassOptions.map((glass) => {
+            const isSelected = configuration.glassType === glass.type;
+            return (
+              <Grid item xs={12} sm={6} lg={4} key={glass.type || glass.id}>
+                <EnhancedGlassCard 
+                  glass={glass}
+                  isSelected={isSelected}
+                  onSelect={handleGlassSelect}
+                />
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
 
       {/* Comparison and Energy Savings Tools */}
-      <Box sx={{ mt: 3 }}>
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<CompareIcon />}
-            onClick={() => setShowComparison(true)}
-            sx={{ borderRadius: 2 }}
-          >
-            Compare Glass Options
-          </Button>
-          
-          {configuration.glassType && (
+      {!loading && glassOptions.length > 0 && (
+        <Box sx={{ mt: 3 }}>
+          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
             <Button
-              variant={showEnergySavings ? "contained" : "outlined"}
-              startIcon={<SavingsIcon />}
-              onClick={() => setShowEnergySavings(!showEnergySavings)}
+              variant="outlined"
+              startIcon={<CompareIcon />}
+              onClick={() => setShowComparison(true)}
               sx={{ borderRadius: 2 }}
-              color="success"
             >
-              {showEnergySavings ? 'Hide' : 'Show'} Energy Savings
+              Compare Glass Options
             </Button>
-          )}
-          
-          <Button
-            variant="outlined"
-            startIcon={<AdvancedIcon />}
-            onClick={() => setShowAdvancedTools(true)}
-            sx={{ borderRadius: 2 }}
-            color="info"
-          >
-            Advanced Tools
-          </Button>
-        </Stack>
+            
+            {configuration.glassType && (
+              <Button
+                variant={showEnergySavings ? "contained" : "outlined"}
+                startIcon={<SavingsIcon />}
+                onClick={() => setShowEnergySavings(!showEnergySavings)}
+                sx={{ borderRadius: 2 }}
+                color="success"
+              >
+                {showEnergySavings ? 'Hide' : 'Show'} Energy Savings
+              </Button>
+            )}
+            
+            <Button
+              variant="outlined"
+              startIcon={<AdvancedIcon />}
+              onClick={() => setShowAdvancedTools(true)}
+              sx={{ borderRadius: 2 }}
+              color="info"
+            >
+              Advanced Tools
+            </Button>
+          </Stack>
 
-        {/* Energy Savings Summary */}
-        <Collapse in={showEnergySavings && configuration.glassType}>
-          <EnergySavingsSummary
-            selectedGlass={configuration.glassDetails}
-            glassArea={glassArea}
-            climateZone="Mixed" // Could be enhanced to detect user's climate zone
-          />
-        </Collapse>
-      </Box>
+          {/* Energy Savings Summary */}
+          <Collapse in={showEnergySavings && configuration.glassType}>
+            <EnergySavingsSummary
+              selectedGlass={configuration.glassDetails}
+              glassArea={glassArea}
+              climateZone="Mixed" // Could be enhanced to detect user's climate zone
+            />
+          </Collapse>
+        </Box>
+      )}
 
+      {/* Selected Glass Summary */}
       {configuration.glassType && (
         <Paper sx={{ mt: 3, p: 3, bgcolor: 'success.light', color: 'success.contrastText' }}>
           <Stack direction="row" spacing={3} alignItems="center">
@@ -427,7 +560,7 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
         open={showComparison}
         onClose={() => setShowComparison(false)}
         selectedGlass={configuration.glassDetails}
-        allGlassOptions={allGlassOptions}
+        allGlassOptions={glassOptions}
         glassArea={glassArea}
         onSelectGlass={handleCompareGlass}
       />
@@ -437,7 +570,7 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
         open={showAdvancedTools}
         onClose={() => setShowAdvancedTools(false)}
         selectedGlass={configuration.glassDetails}
-        allGlassOptions={allGlassOptions}
+        allGlassOptions={glassOptions}
         glassArea={glassArea}
       />
     </Box>

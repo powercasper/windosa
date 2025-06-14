@@ -1,12 +1,10 @@
-// server/db/metaData.js
-//
-// ─── METADATA ──────────────────────────────────────────────────────────────────
-//
+// client/src/utils/metadata.js
 
 const systemBrands = [
   "Alumil",
   "Reynaers"
 ];
+
 const systemHierarchy = {
     Windows:                systemBrands,
     "Entrance Doors":       systemBrands,
@@ -19,10 +17,10 @@ const systemArchitecture = {
     "Entrance Doors":  ["SD67","SD77","SD115"],
     "Sliding Doors":   ["SMARTIA M450","SMARTIA M630", "SMARTIA S650"]
   },
-  Aluprof: {
-    Windows:           ["MB-70","MB-79","MB-86"],
-    "Entrance Doors":  ["MB-70","MB-79","MB-86"],
-    "Sliding Doors":   ["MB-77HS","MB-59HS"]
+  Reynaers: {
+    Windows:           ["SlimLine 38 Classic","SlimLine 38 Cube","SlimLine 38 Ferro","SlimLine 68"],
+    "Entrance Doors":  ["SlimLine 38", "SlimLine 68", "MasterLine 8","CS 77"],
+    "Sliding Doors":   ["Hi-Finity", "SlimPatio 68"]
   }
 };
 
@@ -31,7 +29,14 @@ const finishOptions = {
   Anodized:       ["Standard","Brushed"]
 };
 
-const windowOperables = ["Tilt & Turn","Casement","Awning","Tilt Only"];
+const windowOperables = ["Fixed", "Tilt & Turn", "Casement", "Awning", "Tilt Only"];
+
+const doorModelCapabilities = {
+  "SD67": ["Single Door", "Double Door"],
+  "SD77": ["Single Door", "Double Door", "Pivot Door"],
+  "SD115": ["Pivot Door"]
+};
+
 const doorOperables = {
   openingTypes: ["Single Door", "Double Door", "Pivot Door"],
   swingDirections: {
@@ -43,77 +48,6 @@ const doorOperables = {
   lockTypes: ["Multi-Point Lock", "Single Point Lock", "Electric Strike", "Magnetic Lock"],
   thresholds: ["Standard", "ADA Compliant", "Zero Threshold"],
   hingeTypes: ["Standard", "3D Adjustable", "Concealed", "Pivot"]
-};
-
-const doorModelCapabilities = {
-  "SD67": ["Single Door", "Double Door"],
-  "SD77": ["Single Door", "Double Door", "Pivot Door"],
-  "SD115": ["Pivot Door"]
-};
-
-//
-// ─── PRICING TABLES ─────────────────────────────────────────────────────────────
-//
-const unitCostPerSqft = {
-  Alumil: {
-    // — Windows —
-    "S67":            { Fixed:22.7,  "Tilt & Turn":37.3, Casement:30, Awning:28, "Tilt Only":35 },
-    "S67 PHOS":       { Fixed:25,    "Tilt & Turn":42,   Casement:31, Awning:30, "Tilt Only":37 },
-    "S67 Urban":      { Fixed:25,    "Tilt & Turn":42,   Casement:31, Awning:30, "Tilt Only":37 },
-    "S77":            { Fixed:24.54, "Tilt & Turn":41,   Casement:32, Awning:29, "Tilt Only":38 },
-    "S77 PHOS":       { Fixed:27,    "Tilt & Turn":45,   Casement:33, Awning:31, "Tilt Only":39 },
-    "M9660":          { Fixed:24.54, "Tilt & Turn":41,   Casement:32, Awning:29, "Tilt Only":38 },
-    "M9660 PHOS":     { Fixed:27,    "Tilt & Turn":45,   Casement:33, Awning:31, "Tilt Only":39 },
-    // — Entrance Doors —
-    SD67:  { 
-      "Single Door": 65,
-      "Double Door": 70,
-      "Fixed": 30 // Keep fixed panel rate for sidelights
-    },
-    SD77:  { 
-      "Single Door": 75,
-      "Double Door": 80,
-      "Fixed": 32, // Keep fixed panel rate for sidelights
-      "Pivot Door": 85 // Added higher rate for pivot configuration
-    },
-    SD115: { 
-      "Pivot Door": 90, // Main pivot door rate
-      "Fixed": 35 // Fixed panel rate for sidelights
-    },
-    // — Sliding Doors —
-    "SMARTIA M450": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
-    "SMARTIA M630": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65},
-    "SMARTIA S650": {
-      "OX": 40.62,
-      "XX": 43.33,
-      "OXX": 41.45,
-      "XXX": 43.44,
-      "OXXO": 31.16,
-      "OXXX": 32.83,
-      "XXXX": 33.6,
-      "OXXXX": 33.9,  // 1 fixed + 4 sliding
-      "XXXXO": 33.9,  // 4 sliding + 1 fixed
-      "OXXXO": 33.5,  // 2 fixed + 3 sliding
-      "OOXXX": 33.2,  // 2 fixed + 3 sliding (grouped)
-      "XXXOO": 33.2,  // 3 sliding + 2 fixed (grouped)
-      "OXXXXO": 34.32,
-      "XXXXXX": 35.5,  // 6 sliding panels
-      "OOXXOO": 33.8   // 2 sliding panels with fixed ends and sides
-    }
-  },
-  Aluprof: {
-    // Windows
-    "MB-60":         { Fixed:23,  "Tilt & Turn":38, Casement:31, Awning:29, "Tilt Only":36 },
-    "MB-70":         { Fixed:24,  "Tilt & Turn":39, Casement:32, Awning:30, "Tilt Only":37 },
-    "MB-86":         { Fixed:25,  "Tilt & Turn":40, Casement:33, Awning:31, "Tilt Only":38 },
-    "MB-104 Passive":{ Fixed:26,  "Tilt & Turn":41, Casement:34, Awning:32, "Tilt Only":39 },
-    // Entrance Doors
-    "MB-70 Doors":   { Fixed:31, "Hinged Left Open In":47, "Hinged Right Open In":47, "Hinged Left Open Out":48, "Hinged Right Open Out":48 },
-    "MB-86 Doors":   { Fixed:33, "Hinged Left Open In":50, "Hinged Right Open In":50, "Hinged Left Open Out":51, "Hinged Right Open Out":51 },
-    "MB-104 Doors":  { Fixed:35, "Hinged Left Open In":53, "Hinged Right Open In":53, "Hinged Left Open Out":54, "Hinged Right Open Out":54 },
-    // Sliding Doors
-    "MB-Slide": {"OX": 40.62, "XX": 43.33, "OXX": 41.45, "XXX": 43.44, "OXXO": 31.16, "OXXX": 32.83, "XXXX": 33.65}
-  }
 };
 
 const laborRates = {
@@ -133,6 +67,101 @@ const laborRates = {
   "Folding": 10
 };
 
+const unitCostPerSqft = {
+  Alumil: {
+    // Windows
+    "S67":            { Fixed:16,   "Tilt & Turn":31,   Casement:30, Awning:28, "Tilt Only":33 },
+    "S67 PHOS":       { Fixed:16,   "Tilt & Turn":31,   Casement:31, Awning:30, "Tilt Only":33 },
+    "S67 Urban":      { Fixed:17,   "Tilt & Turn":32,   Casement:31, Awning:30, "Tilt Only":33 },
+    "S77":            { Fixed:17,   "Tilt & Turn":32,   Casement:32, Awning:29, "Tilt Only":33 },
+    "S77 PHOS":       { Fixed:17,   "Tilt & Turn":32,   Casement:33, Awning:31, "Tilt Only":33 },
+    "M9660":          { Fixed:15,   "Tilt & Turn":30,   Casement:32, Awning:29, "Tilt Only":33 },
+    "M9660 PHOS":     { Fixed:15,   "Tilt & Turn":30,   Casement:33, Awning:31, "Tilt Only":33 },
+    // Entrance Doors
+    SD67:  { 
+      "Single Door": 65,
+      "Double Door": 70,
+      "Fixed": 17 // Keep fixed panel rate for sidelights
+    },
+    SD77:  { 
+      "Single Door": 75,
+      "Double Door": 80,
+      "Fixed": 17, // Keep fixed panel rate for sidelights
+      "Pivot Door": 85 // Added higher rate for pivot configuration
+    },
+    SD115: { 
+      "Pivot Door": 90, // Main pivot door rate
+      "Fixed": 35 // Fixed panel rate for sidelights
+    },
+    // Sliding Doors
+    "SMARTIA M450": {"OX": 27.42, "XX": 29.50, "OXX": 28.69, "XXX": 30.49, "OXXO": 18.59, "OXXX": 20.39, "XXXX": 20.98},
+    "SMARTIA M630": {"OX": 27.42, "XX": 29.50, "OXX": 28.69, "XXX": 30.49, "OXXO": 18.59, "OXXX": 20.39, "XXXX": 20.98},
+    "SMARTIA S650": {
+      "OX": 40.62,
+      "XX": 43.33,
+      "OXX": 41.45,
+      "XXX": 43.44,
+      "OXXO": 31.16,
+      "OXXX": 41.51,
+      "XXXX": 33.6,
+      "OXXXX": 33.9,  // 1 fixed + 4 sliding
+      "XXXXO": 33.9,  // 4 sliding + 1 fixed
+      "OXXXO": 33.5,  // 2 fixed + 3 sliding
+      "OOXXX": 33.2,  // 2 fixed + 3 sliding (grouped)
+      "XXXOO": 33.2,  // 3 sliding + 2 fixed (grouped)
+      "OXXXXO": 34.32,
+      "XXXXXX": 35.5,  // 6 sliding panels
+      "OOXXOO": 33.8   // 2 sliding panels with fixed ends and sides
+    }
+  },
+  Reynaers: {
+    // Windows
+    "SlimLine 38 Classic":      { Fixed:17, "Tilt & Turn":32,   Casement:32, Awning:29, "Tilt Only":33 },
+    "SlimLine 38 Cube":         { Fixed:17, "Tilt & Turn":32,   Casement:32, Awning:29, "Tilt Only":33 },
+    "SlimLine 38 Ferro":        { Fixed:17, "Tilt & Turn":32,   Casement:32, Awning:29, "Tilt Only":35 },
+    "SlimLine 68 Window":       { Fixed:17, "Tilt & Turn":32,   Casement:32, Awning:29, "Tilt Only":35 },
+    // Entrance Doors
+    "SlimLine 38 Door":         { Fixed:17, "Tilt & Turn":32,   Casement:32, Awning:29, "Tilt Only":35 },
+    "MasterLine 8":             { Fixed:17, "Tilt & Turn":32,   Casement:32, Awning:29, "Tilt Only":35 },
+    "CS 77":                    { Fixed:17, "Tilt & Turn":32,   Casement:32, Awning:29, "Tilt Only":35 },
+    // Sliding Doors
+    "Hi-Finity": {
+      "OX": 40.62,
+      "XX": 43.33,
+      "OXX": 41.45,
+      "XXX": 43.44,
+      "OXXO": 31.16,
+      "OXXX": 32.83,
+      "XXXX": 33.6,
+      "OXXXX": 33.9,  // 1 fixed + 4 sliding
+      "XXXXO": 33.9,  // 4 sliding + 1 fixed
+      "OXXXO": 33.5,  // 2 fixed + 3 sliding
+      "OOXXX": 33.2,  // 2 fixed + 3 sliding (grouped)
+      "XXXOO": 33.2,  // 3 sliding + 2 fixed (grouped)
+      "OXXXXO": 34.32,
+      "XXXXXX": 35.5,  // 6 sliding panels
+      "OOXXOO": 33.8   // 2 sliding panels with fixed ends and sides
+    },
+    "SlimPatio 68": {
+      "OX": 40.62,
+      "XX": 43.33,
+      "OXX": 41.45,
+      "XXX": 43.44,
+      "OXXO": 31.16,
+      "OXXX": 32.83,
+      "XXXX": 33.6,
+      "OXXXX": 33.9,  // 1 fixed + 4 sliding
+      "XXXXO": 33.9,  // 4 sliding + 1 fixed
+      "OXXXO": 33.5,  // 2 fixed + 3 sliding
+      "OOXXX": 33.2,  // 2 fixed + 3 sliding (grouped)
+      "XXXOO": 33.2,  // 3 sliding + 2 fixed (grouped)
+      "OXXXXO": 34.32,
+      "XXXXXX": 35.5,  // 6 sliding panels
+      "OOXXOO": 33.8   // 2 sliding panels with fixed ends and sides
+    },
+  }
+};
+
 module.exports = {
   laborRates,
   systemHierarchy,
@@ -143,4 +172,4 @@ module.exports = {
   doorModelCapabilities,
   unitCostPerSqft,
   systemBrands
-}
+}; 

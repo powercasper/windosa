@@ -55,7 +55,7 @@ import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
-import { generateEnhancedQuotePDF } from '../../utils/enhancedPdfGenerator';
+import { generateHybridPDF } from '../../utils/hybridPdfGenerator';
 import { getGlassByType } from '../../utils/glassDatabase';
 
 const STORAGE_KEY = 'orderAdditionalCosts';
@@ -811,7 +811,7 @@ const PricingSummary = ({
         };
       });
 
-      await generateEnhancedQuotePDF({
+      await generateHybridPDF({
         ...quoteDialog.quote,
         items: itemsWithPricing,
         totalAmount: pricing.grandTotal,

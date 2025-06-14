@@ -8,8 +8,10 @@
     "test": "jest --detectOpenHandles --forceExit"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.3.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.1",
     "uuid": "^11.1.0"
   },

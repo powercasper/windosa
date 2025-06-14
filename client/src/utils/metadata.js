@@ -102,7 +102,7 @@ const unitCostPerSqft = {
       "OXX": 41.45,
       "XXX": 43.44,
       "OXXO": 31.16,
-      "OXXX": 32.83,
+      "OXXX": 41.51,
       "XXXX": 33.6,
       "OXXXX": 33.9,  // 1 fixed + 4 sliding
       "XXXXO": 33.9,  // 4 sliding + 1 fixed

@@ -5,6 +5,8 @@ const cors = require("cors");
 const path = require('path');
 const quotesRouter = require('./routes/quotes');
 const pricingRoutes = require('./routes/pricing');
+const pdfRoutes = require('./routes/pdfGeneration');
+const glassRoutes = require('./routes/glass');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -22,6 +24,8 @@ app.use(express.urlencoded({ extended: true }));
 // API Routes - all routes will be prefixed with /api
 app.use('/api', quotesRouter);
 app.use('/api', pricingRoutes);
+app.use('/api/pdf', pdfRoutes);
+app.use('/api/glass', glassRoutes);
 
 // Serve glass specification PDFs in development
 if (process.env.NODE_ENV !== 'production') {
