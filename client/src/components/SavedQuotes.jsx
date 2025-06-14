@@ -20,7 +20,6 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import DownloadIcon from '@mui/icons-material/Download';
 import CommentIcon from '@mui/icons-material/Comment';
 import WindowIcon from '@mui/icons-material/Window';
 import DoorFrontIcon from '@mui/icons-material/DoorFront';
@@ -28,7 +27,6 @@ import DoorSlidingIcon from '@mui/icons-material/DoorSliding';
 import { formatCurrency, formatDate, loadSavedQuotes } from '../utils/helpers';
 import AddIcon from '@mui/icons-material/Add';
 import ConfigurationPreviewUI from './ConfigurationPreviewUI';
-import { generateQuotePDF } from '../utils/pdfGenerator';
 
 const iconMapping = {
   Windows: WindowIcon,
@@ -72,89 +70,6 @@ const SavedQuotes = ({ onLoadQuote }) => {
 
   const handleEditQuote = (quote) => {
     onLoadQuote(quote, true);
-  };
-
-  const handleDownloadQuote = async (quote) => {
-    try {
-      // Add a small delay to ensure all data is properly processed
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Transform saved quote format to PDF format
-      const transformedItems = quote.items.map((item, index) => {
-        const area = (item.dimensions.width * item.dimensions.height) / 144; // Convert to sq ft
-        
-        // Try to get pricing from different possible sources
-        const itemPrice = item.total || item.finalPrice || item.pricing?.finalPrice || 
-                         (quote.totalAmount / quote.items.length); // Fallback to average price
-        
-        const estimatedSystemCost = itemPrice * 0.6;
-        const estimatedGlassCost = itemPrice * 0.25;
-        const estimatedLaborCost = itemPrice * 0.15;
-
-        return {
-          ...item,
-          itemNumber: index + 1,
-          location: item.location || 'N/A',
-          dimensions: {
-            ...item.dimensions,
-            totalWidth: item.dimensions.width,
-            totalHeight: item.dimensions.height
-          },
-          pricing: {
-            finalPrice: itemPrice,
-            systemCost: estimatedSystemCost,
-            glassCost: estimatedGlassCost,
-            laborCost: estimatedLaborCost,
-            area: area
-          },
-          // Ensure finish object has all required fields
-          finish: {
-            type: item.finish?.type || 'Standard',
-            color: item.finish?.color || 'White',
-            ralColor: item.finish?.ralColor || 'N/A'
-          },
-          // Transform panels for windows if they exist
-          panels: item.panels || (item.operationType ? [{
-            operationType: item.operationType,
-            width: item.dimensions.width,
-            hasMosquitoNet: false
-          }] : []),
-          // Add missing properties with proper fallbacks
-          openingType: item.openingType || 'N/A',
-          swingDirection: item.swingDirection || 'N/A',
-          handleType: item.handleType || 'Standard',
-          lockType: item.lockType || 'Standard',
-          hasMosquitoNet: item.hasMosquitoNet || false,
-          notes: item.notes || null // Use null instead of empty string
-        };
-      });
-
-      const pdfQuote = {
-        quoteNumber: quote.id,
-        projectName: `Quote #${quote.id}`,
-        customerName: quote.customerName || '',
-        items: transformedItems,
-        totalAmount: quote.totalAmount,
-        totalArea: transformedItems.reduce((total, item) => total + item.pricing.area, 0),
-        additionalCosts: {
-          tariff: parseFloat(quote.tariff || quote.additionalCosts?.tariff || 0),
-          shipping: parseFloat(quote.shipping || quote.additionalCosts?.shipping || 0),
-          delivery: parseFloat(quote.delivery || quote.additionalCosts?.delivery || 0),
-          margin: parseFloat(quote.margin || quote.additionalCosts?.margin || 0)
-        },
-        pricing: quote.pricing || {
-          totalSystemCost: quote.totalAmount * 0.6,
-          totalGlassCost: quote.totalAmount * 0.25,
-          totalLaborCost: quote.totalAmount * 0.15,
-          grandTotal: quote.totalAmount
-        }
-      };
-
-      await generateQuotePDF(pdfQuote);
-    } catch (error) {
-      console.error('Error downloading quote:', error);
-      alert('Failed to generate PDF. Please try again or contact support.');
-    }
   };
 
   const renderItemConfiguration = (item) => {
@@ -303,13 +218,6 @@ const SavedQuotes = ({ onLoadQuote }) => {
                     title="View Quote"
                   >
                     <VisibilityIcon />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleDownloadQuote(quote)}
-                    title="Download PDF"
-                  >
-                    <DownloadIcon />
                   </IconButton>
                   <IconButton
                     size="small"

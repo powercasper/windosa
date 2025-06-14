@@ -192,49 +192,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#e8f4f8',
   },
   tableCell: {
-    fontSize: 7,
+    fontSize: 8,
     paddingHorizontal: 2,
     textAlign: 'center',
   },
   tableCellLeft: {
-    fontSize: 7,
+    fontSize: 8,
     paddingHorizontal: 2,
     textAlign: 'left',
   },
   tableCellRight: {
-    fontSize: 7,
+    fontSize: 8,
     paddingHorizontal: 2,
     textAlign: 'right',
   },
   tableHeaderCell: {
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: 'bold',
     paddingHorizontal: 2,
     textAlign: 'center',
   },
   tableHeaderCellLeft: {
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: 'bold',
     paddingHorizontal: 2,
     textAlign: 'left',
   },
   tableHeaderCellRight: {
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: 'bold',
     paddingHorizontal: 2,
     textAlign: 'right',
   },
-  // Column widths
+  // Column widths (removed Base Price column)
   colPosition: { width: '8%' },
   colQuantity: { width: '10%' },
-  colDescription: { width: '25%' },
-  colLocation: { width: '12%' },
-  colArea: { width: '10%' },
-  colBasePrice: { width: '12%' },
-  colUnitPrice: { width: '12%' },
-  colTotal: { width: '11%' },
+  colDescription: { width: '38%' },
+  colLocation: { width: '14%' },
+  colArea: { width: '12%' },
+  colUnitPrice: { width: '18%' },
+  colTotal: { width: '18%' },
   tableNote: {
-    fontSize: 6,
+    fontSize: 7,
     color: '#666',
     marginTop: 5,
     fontStyle: 'italic',
@@ -250,6 +249,60 @@ const QuoteDocument = ({ quote }) => {
 
   // Calculate total quantity
   const totalQuantity = quote.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+  // Unified pricing calculation function
+  const calculatePricing = () => {
+    // Calculate base costs from individual items
+    const totalSystemCost = quote.items.reduce((sum, item) => sum + (item.pricing?.systemCost || 0), 0);
+    const totalGlassCost = quote.items.reduce((sum, item) => sum + (item.pricing?.glassCost || 0), 0);
+    const totalLaborCost = quote.items.reduce((sum, item) => sum + (item.pricing?.laborCost || 0), 0);
+    const baseItemsCost = totalSystemCost + totalGlassCost + totalLaborCost;
+
+    // Additional costs
+    const tariff = quote.additionalCosts?.tariff || 0;
+    const shipping = quote.additionalCosts?.shipping || 0;
+    const delivery = quote.additionalCosts?.delivery || 0;
+    const margin = quote.additionalCosts?.margin || 0;
+
+    // Calculate totals
+    const additionalCostsExceptDelivery = tariff + shipping;
+    const totalWithoutMarginAndDelivery = baseItemsCost + additionalCostsExceptDelivery;
+    const marginMultiplier = 1 / (1 - (margin / 100));
+    const subtotal = totalWithoutMarginAndDelivery * marginMultiplier;
+    const grandTotal = subtotal + delivery;
+
+    return {
+      baseItemsCost,
+      totalSystemCost,
+      totalGlassCost,
+      totalLaborCost,
+      tariff,
+      shipping,
+      delivery,
+      margin,
+      subtotal,
+      grandTotal
+    };
+  };
+
+  const pricing = calculatePricing();
+
+  // Function to calculate individual item final price (consistent with overall totals)
+  const calculateItemFinalPrice = (item, itemArea, totalArea) => {
+    // Get base item cost (system + glass + labor)
+    const baseItemCost = (item.pricing?.systemCost || 0) + (item.pricing?.glassCost || 0) + (item.pricing?.laborCost || 0);
+    
+    // Calculate proportional additional costs (tariff + shipping only, delivery is added at the end)
+    const proportionalAdditionalCosts = totalArea > 0 ? 
+      (itemArea / totalArea) * (pricing.tariff + pricing.shipping) : 0;
+    
+    // Apply margin to base cost + proportional additional costs
+    const costWithAdditionalCosts = baseItemCost + proportionalAdditionalCosts;
+    const marginMultiplier = 1 / (1 - (pricing.margin / 100));
+    const finalItemPrice = costWithAdditionalCosts * marginMultiplier;
+    
+    return finalItemPrice;
+  };
 
   const itemPages = splitIntoPages(quote.items);
   const totalPages = 1 + itemPages.length + 1; // 1 header page + item pages + 1 itemized overview page
@@ -386,33 +439,17 @@ const QuoteDocument = ({ quote }) => {
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Subtotal:</Text>
                 <Text style={styles.summaryValue}>
-                  ${(() => {
-                    const baseCosts = (quote.pricing?.totalSystemCost || 0) + (quote.pricing?.totalGlassCost || 0) + (quote.pricing?.totalLaborCost || 0);
-                    const additionalCostsExceptDelivery = (quote.additionalCosts?.tariff || 0) + (quote.additionalCosts?.shipping || 0);
-                    const totalWithoutMarginAndDelivery = baseCosts + additionalCostsExceptDelivery;
-                    const marginMultiplier = 1 / (1 - ((quote.additionalCosts?.margin || 0) / 100));
-                    const subtotal = totalWithoutMarginAndDelivery * marginMultiplier;
-                    return subtotal.toFixed(2);
-                  })()}
+                  ${pricing.subtotal.toFixed(2)}
                 </Text>
               </View>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Delivery Costs:</Text>
-                <Text style={styles.summaryValue}>${(quote.additionalCosts?.delivery || 0).toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>${pricing.delivery.toFixed(2)}</Text>
               </View>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>GRAND TOTAL:</Text>
                 <Text style={styles.totalValue}>
-                  ${(() => {
-                    const baseCosts = (quote.pricing?.totalSystemCost || 0) + (quote.pricing?.totalGlassCost || 0) + (quote.pricing?.totalLaborCost || 0);
-                    const additionalCostsExceptDelivery = (quote.additionalCosts?.tariff || 0) + (quote.additionalCosts?.shipping || 0);
-                    const totalWithoutMarginAndDelivery = baseCosts + additionalCostsExceptDelivery;
-                    const marginMultiplier = 1 / (1 - ((quote.additionalCosts?.margin || 0) / 100));
-                    const subtotal = totalWithoutMarginAndDelivery * marginMultiplier;
-                    const deliveryCosts = (quote.additionalCosts?.delivery || 0);
-                    const grandTotal = subtotal + deliveryCosts;
-                    return grandTotal.toFixed(2);
-                  })()}
+                  ${pricing.grandTotal.toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -484,9 +521,6 @@ const QuoteDocument = ({ quote }) => {
               <View style={[styles.colArea]}>
                 <Text style={styles.tableHeaderCellRight}>Area [ft²]</Text>
               </View>
-              <View style={[styles.colBasePrice]}>
-                <Text style={styles.tableHeaderCellRight}>Base Price</Text>
-              </View>
               <View style={[styles.colUnitPrice]}>
                 <Text style={styles.tableHeaderCellRight}>Unit Price*</Text>
               </View>
@@ -496,23 +530,8 @@ const QuoteDocument = ({ quote }) => {
             </View>
 
             {/* Table Rows */}
-            {quote.items.map((item, index) => {
-              const itemArea = (() => {
-                if (item.systemType === 'Windows') {
-                  return ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
-                } else if (item.systemType === 'Entrance Doors') {
-                  return (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-                          item.dimensions.width +
-                          (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
-                         (item.dimensions.height + 
-                          (item.transom?.enabled ? item.transom.height : 0)) / 144);
-                } else if (item.systemType === 'Sliding Doors') {
-                  return ((item.dimensions.width * item.dimensions.height) / 144);
-                }
-                return 0;
-              })();
-
-              // Calculate total area for all items
+            {(() => {
+              // Calculate total area once for all items
               const totalArea = quote.items.reduce((sum, itm) => {
                 let area = 0;
                 if (itm.systemType === 'Windows') {
@@ -529,56 +548,63 @@ const QuoteDocument = ({ quote }) => {
                 return sum + area;
               }, 0);
 
-              // Calculate proportional additional costs for this item
-              const additionalCosts = (quote.additionalCosts?.tariff || 0) + (quote.additionalCosts?.shipping || 0) + (quote.additionalCosts?.delivery || 0);
-              const itemAdditionalCosts = totalArea > 0 ? (itemArea / totalArea) * additionalCosts : 0;
-              
-              // Calculate unit price including additional costs and margin
-              const baseUnitPrice = item.pricing?.baseTotal || 0;
-              const unitPriceWithAdditions = baseUnitPrice + itemAdditionalCosts;
-              const marginMultiplier = 1 / (1 - ((quote.additionalCosts?.margin || 0) / 100));
-              const finalUnitPrice = unitPriceWithAdditions * marginMultiplier;
-              
-              const description = (() => {
-                if (item.systemType === 'Windows') {
-                  return `${item.brand} ${item.systemModel} - ${item.panels.map(p => p.operationType).join('/')}`;
-                } else if (item.systemType === 'Entrance Doors') {
-                  return `${item.brand} ${item.systemModel} - ${item.openingType}`;
-                } else if (item.systemType === 'Sliding Doors') {
-                  return `${item.brand} ${item.systemModel} - ${item.operationType}`;
-                }
-                return '';
-              })();
+              return quote.items.map((item, index) => {
+                const itemArea = (() => {
+                  if (item.systemType === 'Windows') {
+                    return ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
+                  } else if (item.systemType === 'Entrance Doors') {
+                    return (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                            item.dimensions.width +
+                            (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                           (item.dimensions.height + 
+                            (item.transom?.enabled ? item.transom.height : 0)) / 144);
+                  } else if (item.systemType === 'Sliding Doors') {
+                    return ((item.dimensions.width * item.dimensions.height) / 144);
+                  }
+                  return 0;
+                })();
 
-              return (
-                <View key={item.id} style={styles.tableRow}>
-                  <View style={[styles.colPosition]}>
-                    <Text style={styles.tableCell}>{String(index + 1).padStart(3, '0')}</Text>
+                // Use consistent pricing calculation
+                const finalItemPrice = calculateItemFinalPrice(item, itemArea, totalArea);
+                
+                const description = (() => {
+                  if (item.systemType === 'Windows') {
+                    return `${item.brand} ${item.systemModel} - ${item.panels.map(p => p.operationType).join('/')}`;
+                  } else if (item.systemType === 'Entrance Doors') {
+                    return `${item.brand} ${item.systemModel} - ${item.openingType}`;
+                  } else if (item.systemType === 'Sliding Doors') {
+                    return `${item.brand} ${item.systemModel} - ${item.operationType}`;
+                  }
+                  return '';
+                })();
+
+                return (
+                  <View key={item.id} style={styles.tableRow}>
+                    <View style={[styles.colPosition]}>
+                      <Text style={styles.tableCell}>{String(index + 1).padStart(3, '0')}</Text>
+                    </View>
+                    <View style={[styles.colQuantity]}>
+                      <Text style={styles.tableCell}>{item.quantity || 1}</Text>
+                    </View>
+                    <View style={[styles.colDescription]}>
+                      <Text style={styles.tableCellLeft}>{description}</Text>
+                    </View>
+                    <View style={[styles.colLocation]}>
+                      <Text style={styles.tableCell}>{item.location || '-'}</Text>
+                    </View>
+                    <View style={[styles.colArea]}>
+                      <Text style={styles.tableCellRight}>{itemArea.toFixed(1)}</Text>
+                    </View>
+                    <View style={[styles.colUnitPrice]}>
+                      <Text style={styles.tableCellRight}>${(finalItemPrice / (item.quantity || 1)).toFixed(2)}</Text>
+                    </View>
+                    <View style={[styles.colTotal]}>
+                      <Text style={styles.tableCellRight}>${finalItemPrice.toFixed(2)}</Text>
+                    </View>
                   </View>
-                  <View style={[styles.colQuantity]}>
-                    <Text style={styles.tableCell}>{item.quantity || 1}</Text>
-                  </View>
-                  <View style={[styles.colDescription]}>
-                    <Text style={styles.tableCellLeft}>{description}</Text>
-                  </View>
-                  <View style={[styles.colLocation]}>
-                    <Text style={styles.tableCell}>{item.location || '-'}</Text>
-                  </View>
-                  <View style={[styles.colArea]}>
-                    <Text style={styles.tableCellRight}>{itemArea.toFixed(1)}</Text>
-                  </View>
-                  <View style={[styles.colBasePrice]}>
-                    <Text style={styles.tableCellRight}>${(baseUnitPrice / (item.quantity || 1)).toFixed(2)}</Text>
-                  </View>
-                  <View style={[styles.colUnitPrice]}>
-                    <Text style={styles.tableCellRight}>${(finalUnitPrice / (item.quantity || 1)).toFixed(2)}</Text>
-                  </View>
-                  <View style={[styles.colTotal]}>
-                    <Text style={styles.tableCellRight}>${finalUnitPrice.toFixed(2)}</Text>
-                  </View>
-                </View>
-              );
-            })}
+                );
+              });
+            })()}
 
             {/* Total Row */}
             <View style={styles.tableTotalRow}>
@@ -590,57 +616,13 @@ const QuoteDocument = ({ quote }) => {
               <View style={[styles.colLocation]}></View>
               <View style={[styles.colArea]}>
                 <Text style={styles.tableHeaderCellRight}>
-                  {quote.items.reduce((sum, item) => {
-                    let area = 0;
-                    if (item.systemType === 'Windows') {
-                      area = (item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144;
-                    } else if (item.systemType === 'Entrance Doors') {
-                      area = ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-                             item.dimensions.width +
-                             (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
-                            (item.dimensions.height + 
-                             (item.transom?.enabled ? item.transom.height : 0)) / 144;
-                    } else if (item.systemType === 'Sliding Doors') {
-                      area = (item.dimensions.width * item.dimensions.height) / 144;
-                    }
-                    return sum + area;
-                  }, 0).toFixed(1)}
-                </Text>
-              </View>
-              <View style={[styles.colBasePrice]}>
-                <Text style={styles.tableHeaderCellRight}>
-                  ${quote.items.reduce((sum, item) => sum + (item.pricing?.baseTotal || 0), 0).toFixed(2)}
+                  {quote.totalArea?.toFixed(1) || '0.0'}
                 </Text>
               </View>
               <View style={[styles.colUnitPrice]}></View>
               <View style={[styles.colTotal]}>
                 <Text style={styles.tableHeaderCellRight}>
-                  ${(() => {
-                    const baseCost = quote.items.reduce((sum, item) => sum + (item.pricing?.baseTotal || 0), 0);
-                    const additionalCostsExceptDelivery = (quote.additionalCosts?.tariff || 0) + (quote.additionalCosts?.shipping || 0);
-                    const totalWithoutMarginAndDelivery = baseCost + additionalCostsExceptDelivery;
-                    const marginMultiplier = 1 / (1 - ((quote.additionalCosts?.margin || 0) / 100));
-                    const subtotal = totalWithoutMarginAndDelivery * marginMultiplier;
-                    return subtotal.toFixed(2);
-                  })()}
-                </Text>
-              </View>
-            </View>
-
-            {/* Subtotal Row */}
-            <View style={styles.tableRow}>
-              <View style={[styles.colPosition]}></View>
-              <View style={[styles.colQuantity]}></View>
-              <View style={[styles.colDescription]}></View>
-              <View style={[styles.colLocation]}></View>
-              <View style={[styles.colArea]}></View>
-              <View style={[styles.colBasePrice]}></View>
-              <View style={[styles.colUnitPrice]}>
-                <Text style={styles.tableHeaderCellRight}>Subtotal (Items Only)</Text>
-              </View>
-              <View style={[styles.colTotal]}>
-                <Text style={styles.tableHeaderCellRight}>
-                  ${quote.items.reduce((sum, item) => sum + (item.pricing?.baseTotal || 0), 0).toFixed(2)}
+                  ${pricing.subtotal.toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -652,22 +634,12 @@ const QuoteDocument = ({ quote }) => {
               <View style={[styles.colDescription]}></View>
               <View style={[styles.colLocation]}></View>
               <View style={[styles.colArea]}></View>
-              <View style={[styles.colBasePrice]}></View>
               <View style={[styles.colUnitPrice]}>
-                <Text style={[styles.tableHeaderCellRight, { fontSize: 8, fontWeight: 'bold' }]}>GRAND TOTAL</Text>
+                <Text style={[styles.tableHeaderCellRight, { fontSize: 9, fontWeight: 'bold' }]}>GRAND TOTAL</Text>
               </View>
               <View style={[styles.colTotal]}>
-                <Text style={[styles.tableHeaderCellRight, { fontSize: 8, fontWeight: 'bold' }]}>
-                  ${(() => {
-                    const baseCost = quote.items.reduce((sum, item) => sum + (item.pricing?.baseTotal || 0), 0);
-                    const additionalCostsExceptDelivery = (quote.additionalCosts?.tariff || 0) + (quote.additionalCosts?.shipping || 0);
-                    const totalWithoutMarginAndDelivery = baseCost + additionalCostsExceptDelivery;
-                    const marginMultiplier = 1 / (1 - ((quote.additionalCosts?.margin || 0) / 100));
-                    const subtotal = totalWithoutMarginAndDelivery * marginMultiplier;
-                    const deliveryCosts = (quote.additionalCosts?.delivery || 0);
-                    const grandTotal = subtotal + deliveryCosts;
-                    return grandTotal.toFixed(2);
-                  })()}
+                <Text style={[styles.tableHeaderCellRight, { fontSize: 9, fontWeight: 'bold' }]}>
+                  ${pricing.grandTotal.toFixed(2)}
                 </Text>
               </View>
             </View>
