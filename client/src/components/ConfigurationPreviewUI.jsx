@@ -1,6 +1,21 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 
+// Helper function to determine handle location from swing direction
+const getHandleLocation = (swingDirection) => {
+  if (!swingDirection) return 'right';
+  
+  // For single doors, handle is on the side opposite to the hinges
+  if (swingDirection.includes('Left Hand')) {
+    return 'left';  // Left hand doors have handle on left side
+  } else if (swingDirection.includes('Right Hand')) {
+    return 'right'; // Right hand doors have handle on right side
+  }
+  
+  // For pivot doors, typically handle is on the right
+  return 'right';
+};
+
 const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
   // Calculate total dimensions for better scaling
   const calculateDimensions = () => {
@@ -222,6 +237,118 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
     );
   };
 
+  // Render grid for sidelights with their own grid configuration
+  const renderSidelightGrid = (sidelightConfig) => {
+    if (!sidelightConfig?.grid?.enabled) return null;
+
+    const verticalLines = [];
+    const horizontalLines = [];
+
+    // Vertical grid lines
+    for (let i = 1; i < sidelightConfig.grid.horizontal; i++) {
+      verticalLines.push(
+        <Box
+          key={`v-${i}`}
+          sx={{
+            ...styles.gridLine,
+            left: `${(i * 100) / sidelightConfig.grid.horizontal}%`,
+            top: 0,
+            bottom: 0,
+            width: '1px',
+          }}
+        />
+      );
+    }
+
+    // Horizontal grid lines
+    for (let i = 1; i < sidelightConfig.grid.vertical; i++) {
+      horizontalLines.push(
+        <Box
+          key={`h-${i}`}
+          sx={{
+            ...styles.gridLine,
+            top: `${(i * 100) / sidelightConfig.grid.vertical}%`,
+            left: 0,
+            right: 0,
+            height: '1px',
+          }}
+        />
+      );
+    }
+
+    return (
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          pointerEvents: 'none',
+        }}
+      >
+        {verticalLines}
+        {horizontalLines}
+      </Box>
+    );
+  };
+
+  // Render grid for transom with its own grid configuration
+  const renderTransomGrid = (transomConfig) => {
+    if (!transomConfig?.grid?.enabled) return null;
+
+    const verticalLines = [];
+    const horizontalLines = [];
+
+    // Vertical grid lines
+    for (let i = 1; i < transomConfig.grid.horizontal; i++) {
+      verticalLines.push(
+        <Box
+          key={`v-${i}`}
+          sx={{
+            ...styles.gridLine,
+            left: `${(i * 100) / transomConfig.grid.horizontal}%`,
+            top: 0,
+            bottom: 0,
+            width: '1px',
+          }}
+        />
+      );
+    }
+
+    // Horizontal grid lines
+    for (let i = 1; i < transomConfig.grid.vertical; i++) {
+      horizontalLines.push(
+        <Box
+          key={`h-${i}`}
+          sx={{
+            ...styles.gridLine,
+            top: `${(i * 100) / transomConfig.grid.vertical}%`,
+            left: 0,
+            right: 0,
+            height: '1px',
+          }}
+        />
+      );
+    }
+
+    return (
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          pointerEvents: 'none',
+        }}
+      >
+        {verticalLines}
+        {horizontalLines}
+      </Box>
+    );
+  };
+
   const renderPanels = () => {
     if (configuration.systemType === 'Windows' && configuration.panels) {
       return (
@@ -377,8 +504,10 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                 width: `${(configuration.leftSidelight.width / ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
                   configuration.dimensions.width + 
                   (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0))) * 100}%`,
+                position: 'relative',
               }}
             >
+              {renderSidelightGrid(configuration.leftSidelight)}
               <Typography variant="caption" sx={styles.caption}>
                 Left ({configuration.leftSidelight.width}")
               </Typography>
@@ -463,30 +592,29 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
               <Typography variant="caption" sx={styles.caption}>
                 Door ({configuration.dimensions.width}")
               </Typography>
-              {configuration.doorSwing && (
+              {configuration.swingDirection && (
+                <>
+                  {/* Handle based on swing direction */}
                 <Box
                   sx={{
                     ...styles.handle,
-                    [configuration.doorSwing]: '2px',
+                      [getHandleLocation(configuration.swingDirection)]: '2px',
                   }}
                 />
-              )}
               {/* Hinges on opposite side to handle */}
-              {configuration.doorSwing && (
-                <>
                   <Box sx={{
                     ...styles.hinge,
-                    [configuration.doorSwing === 'left' ? 'right' : 'left']: '1px',
+                    [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: '1px',
                     top: '15%'
                   }} />
                   <Box sx={{
                     ...styles.hinge,
-                    [configuration.doorSwing === 'left' ? 'right' : 'left']: '1px',
+                    [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: '1px',
                     top: '46%'
                   }} />
                   <Box sx={{
                     ...styles.hinge,
-                    [configuration.doorSwing === 'left' ? 'right' : 'left']: '1px',
+                    [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: '1px',
                     top: '77%'
                   }} />
                 </>
@@ -501,8 +629,10 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                 width: `${(configuration.rightSidelight.width / ((configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
                   configuration.dimensions.width + 
                   (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0))) * 100}%`,
+                position: 'relative',
               }}
             >
+              {renderSidelightGrid(configuration.rightSidelight)}
               <Typography variant="caption" sx={styles.caption}>
                 Right ({configuration.rightSidelight.width}")
               </Typography>
@@ -519,7 +649,8 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
     <Box sx={styles.container}>
       {configuration.transom?.enabled && (
         <Box sx={styles.transom}>
-          <Box sx={styles.transomPanel}>
+          <Box sx={{ ...styles.transomPanel, position: 'relative' }}>
+            {renderTransomGrid(configuration.transom)}
             <Typography variant="caption" sx={styles.caption}>
               Transom ({configuration.transom.height}")
             </Typography>

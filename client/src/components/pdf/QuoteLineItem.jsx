@@ -243,31 +243,7 @@ const QuoteLineItem = ({ item }) => {
                 </View>
               </View>
 
-              {/* Cost Breakdown */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Cost Breakdown</Text>
-                <View style={styles.row}>
-                  <Text style={styles.label}>System:</Text>
-                  <Text style={styles.value}>
-                    {formatPrice(item.pricing.systemCost)}
-                    {quantity > 1 && ` (${formatPrice(item.pricing.systemCost / quantity)} each)`}
-                  </Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Glass:</Text>
-                  <Text style={styles.value}>
-                    {formatPrice(item.pricing.glassCost)}
-                    {quantity > 1 && ` (${formatPrice(item.pricing.glassCost / quantity)} each)`}
-                  </Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Labor:</Text>
-                  <Text style={styles.value}>
-                    {formatPrice(item.pricing.laborCost)}
-                    {quantity > 1 && ` (${formatPrice(item.pricing.laborCost / quantity)} each)`}
-                  </Text>
-                </View>
-              </View>
+
             </View>
           </View>
         </View>

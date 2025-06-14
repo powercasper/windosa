@@ -21,6 +21,7 @@ import {
   Snackbar,
   TextField,
   InputAdornment,
+  Tooltip,
   TableContainer,
   Table,
   TableHead,
@@ -45,6 +46,9 @@ import CalculateIcon from '@mui/icons-material/Calculate';
 import PaidIcon from '@mui/icons-material/Paid';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
+import PersonIcon from '@mui/icons-material/Person';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
@@ -150,14 +154,49 @@ const calculateItemPrice = (item) => {
     const doorHeight = item.dimensions.height;
     const doorWidth = item.dimensions.width;
     const doorArea = (doorWidth * doorHeight) / 144; // Convert to sq ft
-    const doorUnitCost = unitCostPerSqft[item.brand][item.systemModel][item.openingType];
+    
+    // Safely access door unit cost with fallback
+    let doorUnitCost = 0;
+    try {
+      const brandCosts = unitCostPerSqft[item.brand];
+      if (brandCosts && brandCosts[item.systemModel] && typeof brandCosts[item.systemModel] === 'object') {
+        doorUnitCost = brandCosts[item.systemModel][item.openingType];
+      }
+    } catch (error) {
+      console.warn('Error accessing door cost for', item.brand, item.systemModel, item.openingType);
+    }
+
+    // Use fallback values if doorUnitCost is not found
+    if (!doorUnitCost) {
+      const fallbackDoorCosts = {
+        'Single Door': 70,
+        'Double Door': 75,
+        'Pivot Door': 85
+      };
+      doorUnitCost = fallbackDoorCosts[item.openingType] || 70;
+      console.warn(`Using fallback door cost ${doorUnitCost} for ${item.brand} ${item.systemModel} ${item.openingType}`);
+    }
     
     totalSystemCost += doorArea * doorUnitCost;
     totalGlassCost += doorArea * glassUnitCost;
     totalArea += doorArea;
 
-    // Calculate fixed glass areas (sidelights and transom)
-    const fixedUnitCost = unitCostPerSqft[item.brand][item.systemModel]['Fixed'];
+    // Calculate fixed glass areas (sidelights and transom) with safe access
+    let fixedUnitCost = 0;
+    try {
+      const brandCosts = unitCostPerSqft[item.brand];
+      if (brandCosts && brandCosts[item.systemModel] && typeof brandCosts[item.systemModel] === 'object') {
+        fixedUnitCost = brandCosts[item.systemModel]['Fixed'];
+      }
+    } catch (error) {
+      console.warn('Error accessing fixed cost for', item.brand, item.systemModel);
+    }
+
+    // Use fallback for fixed panels if not found
+    if (!fixedUnitCost) {
+      fixedUnitCost = 32; // Default fixed panel cost
+      console.warn(`Using fallback fixed cost ${fixedUnitCost} for ${item.brand} ${item.systemModel}`);
+    }
 
     // Sidelights
     if (item.leftSidelight?.enabled) {
@@ -195,7 +234,31 @@ const calculateItemPrice = (item) => {
       const panelArea = (panel.width * item.dimensions.height) / 144;
       totalArea += panelArea;
 
-      const systemUnitCost = unitCostPerSqft[item.brand][item.systemModel][panel.operationType];
+      // Safely access system unit cost with fallback values
+      let systemUnitCost = 0;
+      try {
+        const brandCosts = unitCostPerSqft[item.brand];
+        if (brandCosts && brandCosts[item.systemModel] && typeof brandCosts[item.systemModel] === 'object') {
+          systemUnitCost = brandCosts[item.systemModel][panel.operationType];
+        }
+      } catch (error) {
+        console.warn('Error accessing system cost for', item.brand, item.systemModel, panel.operationType);
+      }
+
+      // Use fallback values if systemUnitCost is not found
+      if (!systemUnitCost) {
+        // Default fallback costs per operation type
+        const fallbackCosts = {
+          'Fixed': 25,
+          'Tilt & Turn': 40,
+          'Casement': 32,
+          'Awning': 30,
+          'Tilt Only': 37
+        };
+        systemUnitCost = fallbackCosts[panel.operationType] || 30;
+        console.warn(`Using fallback cost ${systemUnitCost} for ${item.brand} ${item.systemModel} ${panel.operationType}`);
+      }
+
       totalSystemCost += systemUnitCost * panelArea;
       
       // Add mosquito net cost if the panel is operational and has a net
@@ -205,7 +268,7 @@ const calculateItemPrice = (item) => {
 
       totalGlassCost += glassUnitCost * panelArea;
       
-      const laborRate = laborRates[panel.operationType];
+      const laborRate = laborRates[panel.operationType] || 5; // Fallback labor rate
       totalLaborCost += laborRate * panelArea;
     });
   } else if (item.systemType === 'Sliding Doors') {
@@ -213,8 +276,19 @@ const calculateItemPrice = (item) => {
     const area = (item.dimensions.width * item.dimensions.height) / 144;
     totalArea = area;
     
-    const costs = unitCostPerSqft[item.brand][item.systemModel];
-    const systemUnitCost = costs[item.operationType];
+    // Safely access sliding door costs with fallback
+    let costs = null;
+    let systemUnitCost = 0;
+    
+    try {
+      const brandCosts = unitCostPerSqft[item.brand];
+      if (brandCosts && brandCosts[item.systemModel] && typeof brandCosts[item.systemModel] === 'object') {
+        costs = brandCosts[item.systemModel];
+        systemUnitCost = costs[item.operationType];
+      }
+    } catch (error) {
+      console.warn('Error accessing sliding door cost for', item.brand, item.systemModel, item.operationType);
+    }
     
     if (!systemUnitCost) {
       console.warn('No direct cost found for configuration:', item.operationType);
@@ -225,26 +299,32 @@ const calculateItemPrice = (item) => {
 
       if (totalPanels === 5) {
         if (numFixed === 1) {
-          systemUnitCost = costs['OXXXX'] || 33.9;
+          systemUnitCost = (costs && costs['OXXXX']) || 33.9;
         } else if (numFixed === 2) {
           systemUnitCost = item.operationType.includes('OO') ? 
-            (costs['OOXXX'] || 33.2) : 
-            (costs['OXXXO'] || 33.5);
+            ((costs && costs['OOXXX']) || 33.2) : 
+            ((costs && costs['OXXXO']) || 33.5);
         } else {
-          systemUnitCost = costs['OXXXX'] || 33.9;
+          systemUnitCost = (costs && costs['OXXXX']) || 33.9;
         }
       } else if (totalPanels === 6) {
         if (numFixed === 0) {
-          systemUnitCost = costs['XXXXXX'] || 35.5;
+          systemUnitCost = (costs && costs['XXXXXX']) || 35.5;
         } else if (numFixed === 2) {
-          systemUnitCost = costs['OXXXXO'] || 34.32;
+          systemUnitCost = (costs && costs['OXXXXO']) || 34.32;
         } else if (numFixed === 4) {
-          systemUnitCost = costs['OOXXOO'] || 33.8;
+          systemUnitCost = (costs && costs['OOXXOO']) || 33.8;
         } else {
-          systemUnitCost = costs['OXXXXO'] || 34.32;
+          systemUnitCost = (costs && costs['OXXXXO']) || 34.32;
         }
       } else {
-        systemUnitCost = costs['OXXO'] || 31.16; // Default fallback
+        systemUnitCost = (costs && costs['OXXO']) || 31.16; // Default fallback
+      }
+      
+      // If still no cost found, use a generic fallback
+      if (!systemUnitCost) {
+        systemUnitCost = 32; // Generic sliding door fallback
+        console.warn(`Using generic fallback cost ${systemUnitCost} for ${item.brand} ${item.systemModel} ${item.operationType}`);
       }
     }
 
@@ -296,13 +376,16 @@ const calculateBaseCost = (configuration) => {
 
 const PricingSummary = ({ 
   configuration, 
+  clientInfo = {},
   quoteItems = [], 
   onAddToQuote, 
   onStartNew,
+  onAddNewItem, // New prop for adding items to existing quotes
   onEditItem,
   onRemoveItem,
   onQuoteSaved,
   onCopyItem,  // Add new prop
+  onUpdateItemQuantity, // New prop for inline quantity updates
   savedQuote = null
 }) => {
   const [pricing, setPricing] = useState({
@@ -320,6 +403,10 @@ const PricingSummary = ({
   });
   const [showAddSuccess, setShowAddSuccess] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  // State for inline quantity editing
+  const [editingQuantity, setEditingQuantity] = useState(null); // itemId or 'current' for current item
+  const [tempQuantity, setTempQuantity] = useState('');
   
   // Initialize costs from storage or defaults
   const storedCosts = getStoredCosts();
@@ -368,6 +455,124 @@ const PricingSummary = ({
 
   const formatPrice = (value) => {
     return (value || 0).toFixed(2);
+  };
+
+  // Quantity editing functions
+  const handleQuantityEdit = (itemId, currentQuantity) => {
+    setEditingQuantity(itemId);
+    setTempQuantity(String(currentQuantity || 1));
+  };
+
+  const handleQuantityCancel = () => {
+    setEditingQuantity(null);
+    setTempQuantity('');
+  };
+
+  const handleQuantityChange = (value) => {
+    // Only allow positive integers
+    if (value === '' || /^[1-9]\d*$/.test(value)) {
+      setTempQuantity(value);
+    }
+  };
+
+  const handleQuantitySave = (itemId) => {
+    const newQuantity = parseInt(tempQuantity) || 1;
+    
+    if (itemId === 'current') {
+      // For current item, show an alert that they need to add to quote first
+      alert('To change quantity, please add this item to your quote first, then edit the quantity from the quote items below.');
+      setEditingQuantity(null);
+      setTempQuantity('');
+      return;
+    }
+
+    // Update item quantity without navigation
+    if (onUpdateItemQuantity) {
+      onUpdateItemQuantity(itemId, newQuantity);
+    } else {
+      // Fallback: Find the item and update its quantity via onEditItem
+      const itemToUpdate = quoteItems.find(item => item.id === itemId);
+      if (itemToUpdate && onEditItem) {
+        const updatedItem = { ...itemToUpdate, quantity: newQuantity };
+        onEditItem(updatedItem);
+      }
+    }
+    
+    setEditingQuantity(null);
+    setTempQuantity('');
+  };
+
+  const handleQuantityKeyPress = (event, itemId) => {
+    if (event.key === 'Enter') {
+      handleQuantitySave(itemId);
+    } else if (event.key === 'Escape') {
+      handleQuantityCancel();
+    }
+  };
+
+  // Editable Quantity Component
+  const EditableQuantityChip = ({ itemId, quantity, size = "small", sx = {} }) => {
+    const isEditing = editingQuantity === itemId;
+    const isCurrentItem = itemId === 'current';
+    
+    if (isEditing) {
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ...sx }}>
+          <TextField
+            size="small"
+            value={tempQuantity}
+            onChange={(e) => handleQuantityChange(e.target.value)}
+            onKeyPress={(e) => handleQuantityKeyPress(e, itemId)}
+            autoFocus
+            sx={{ 
+              width: '60px',
+              '& .MuiInputBase-input': {
+                textAlign: 'center',
+                fontSize: size === 'small' ? '0.75rem' : '0.875rem'
+              }
+            }}
+            inputProps={{
+              min: 1,
+              max: 999
+            }}
+          />
+          <IconButton 
+            size="small" 
+            onClick={() => handleQuantitySave(itemId)}
+            sx={{ p: 0.25, color: 'success.main' }}
+          >
+            <CheckIcon fontSize="small" />
+          </IconButton>
+          <IconButton 
+            size="small" 
+            onClick={handleQuantityCancel}
+            sx={{ p: 0.25, color: 'error.main' }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      );
+    }
+
+    return (
+      <Tooltip title={isCurrentItem ? "Add to quote first to edit quantity" : "Click to edit quantity"}>
+        <Chip
+          size={size}
+          label={`Qty: ${quantity || 1}`}
+          color="primary"
+          variant="outlined"
+          onClick={() => handleQuantityEdit(itemId, quantity)}
+          sx={{
+            cursor: 'pointer',
+            '&:hover': {
+              backgroundColor: 'primary.light',
+              color: 'white'
+            },
+            ...sx
+          }}
+        />
+      </Tooltip>
+    );
   };
 
   // Calculate total items cost from all items in the quote
@@ -480,6 +685,12 @@ const PricingSummary = ({
         items: quoteItems,
         totalAmount: pricing.grandTotal,
         id: savedQuote?.id, // Preserve the ID if editing an existing quote
+        // Include client information
+        clientInfo,
+        customerName: clientInfo.isCompany ? 
+          `${clientInfo.companyName} (${clientInfo.firstName} ${clientInfo.lastName})` :
+          `${clientInfo.firstName} ${clientInfo.lastName}`,
+        projectName: clientInfo.projectName,
         // Include additional costs
         tariff,
         margin,
@@ -487,13 +698,13 @@ const PricingSummary = ({
         delivery
       };
       
-      saveQuote(quoteToSave);
+      const savedQuoteResult = saveQuote(quoteToSave);
       setSaveSuccess(true);
       setQuoteDialog(prev => ({ ...prev, open: false }));
       
-      // Notify parent components that the quote was saved
+      // Notify parent components that the quote was saved, passing the saved quote data
       if (onQuoteSaved) {
-        onQuoteSaved(quoteToSave);
+        onQuoteSaved(savedQuoteResult);
       }
     } catch (error) {
       setQuoteDialog(prev => ({
@@ -587,6 +798,11 @@ const PricingSummary = ({
         ...quoteDialog.quote,
         items: itemsWithPricing,
         totalAmount: pricing.grandTotal,
+        clientInfo,
+        customerName: clientInfo.isCompany ? 
+          `${clientInfo.companyName} (${clientInfo.firstName} ${clientInfo.lastName})` :
+          `${clientInfo.firstName} ${clientInfo.lastName}`,
+        projectName: clientInfo.projectName,
         additionalCosts,
         totalArea,
         pricing: {
@@ -640,6 +856,118 @@ const PricingSummary = ({
         {savedQuote ? `Edit Quote #${savedQuote.id}` : 'Quote Summary'}
       </Typography>
 
+      {/* Client Information Display */}
+      <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200' }}>
+        <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PersonIcon /> Client Information
+        </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="body2" color="text.secondary">Client:</Typography>
+            <Typography variant="body1">
+              {clientInfo.isCompany && clientInfo.companyName ? 
+                `${clientInfo.companyName}` : 
+                clientInfo.firstName || clientInfo.lastName ?
+                  `${clientInfo.firstName || ''} ${clientInfo.lastName || ''}`.trim() :
+                  'JC'
+              }
+            </Typography>
+            {(clientInfo.isCompany && clientInfo.jobTitle) && (
+              <Typography variant="body2" color="text.secondary">
+                {clientInfo.jobTitle}
+              </Typography>
+            )}
+            {!clientInfo.isCompany && !clientInfo.jobTitle && (
+              <Typography variant="body2" color="text.secondary">
+                john colt, CEO
+              </Typography>
+            )}
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="body2" color="text.secondary">Project:</Typography>
+            <Typography variant="body1">{clientInfo.projectName || 'Colr esidence'}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {clientInfo.projectType || 'residential'}
+            </Typography>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="body2" color="text.secondary">Contact:</Typography>
+            <Typography variant="body2">{clientInfo.email || 'jc@gm.com'}</Typography>
+            <Typography variant="body2">{clientInfo.phone || '(555) 123-4567'}</Typography>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="body2" color="text.secondary">Address:</Typography>
+            <Typography variant="body2">
+              {clientInfo.address?.street ? (
+                <>
+                  {clientInfo.address.street}<br />
+                  {clientInfo.address.city && `${clientInfo.address.city}, `}
+                  {clientInfo.address.state} {clientInfo.address.zipCode}
+                </>
+              ) : (
+                <>
+                  7801 N Lamar Blvd<br />
+                  Austin, TX 78724
+                </>
+              )}
+            </Typography>
+          </Grid>
+                 </Grid>
+       </Paper>
+
+      {/* Project Details */}
+      {pricing.items.length > 0 && (
+        <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <SummarizeIcon /> Project Details
+          </Typography>
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">Total Items:</Typography>
+              <Typography variant="h6" color="primary">{pricing.items.length}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">Total Quantity:</Typography>
+              <Typography variant="h6" color="primary">
+                {pricing.items.reduce((sum, { item }) => sum + (item.quantity || 1), 0)}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">Total Area:</Typography>
+              <Typography variant="h6" color="primary">
+                {pricing.items.reduce((sum, { item }) => {
+                  let area = 0;
+                  if (item.systemType === 'Windows') {
+                    area = (item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144;
+                  } else if (item.systemType === 'Entrance Doors') {
+                    area = ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                           item.dimensions.width +
+                           (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                          (item.dimensions.height + 
+                           (item.transom?.enabled ? item.transom.height : 0)) / 144;
+                  } else if (item.systemType === 'Sliding Doors') {
+                    area = (item.dimensions.width * item.dimensions.height) / 144;
+                  }
+                  return sum + area;
+                }, 0).toFixed(1)} sq ft
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="body2" color="text.secondary">Project Total:</Typography>
+              <Typography variant="h6" color="primary">
+                ${(() => {
+                  const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
+                  const additionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
+                  const totalWithAdditions = baseCost + additionalCosts;
+                  const marginMultiplier = 1 / (1 - (parseFloat(margin || 0) / 100));
+                  return (totalWithAdditions * marginMultiplier).toFixed(2);
+                })()}
+              </Typography>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
+
       {!isConfigurationEmpty && (
         <Paper sx={{ p: 3, mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -647,23 +975,19 @@ const PricingSummary = ({
               <Typography variant="h6">
                 Current Item
               </Typography>
-              {configuration.quantity && configuration.quantity > 1 && (
-                <Chip 
-                  size="small" 
-                  label={`Qty: ${configuration.quantity}`}
-                  color="primary"
-                  variant="outlined"
-                />
-              )}
+              <EditableQuantityChip
+                itemId="current"
+                quantity={configuration.quantity}
+              />
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant="h6" color="primary">
                   {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
                 </Typography>
-                {configuration.quantity && configuration.quantity > 1 && currentItemPrice && (
+                {currentItemPrice && (configuration.quantity || 1) > 1 && (
                   <Typography variant="caption" color="text.secondary">
-                    {formatCurrency(currentItemPrice.total / configuration.quantity)} each
+                    {formatCurrency(currentItemPrice.total / (configuration.quantity || 1))} each
                   </Typography>
                 )}
               </Box>
@@ -1013,7 +1337,7 @@ const PricingSummary = ({
             <Button
               variant="outlined"
               color="primary"
-              onClick={onStartNew}
+              onClick={savedQuote && onAddNewItem ? onAddNewItem : onStartNew}
               startIcon={<AddIcon />}
               size="small"
             >
@@ -1047,15 +1371,11 @@ const PricingSummary = ({
                       <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <WindowIcon color="primary" />
                         Item {item.itemNumber} - {item.brand} {item.systemModel}
-                        {item.quantity && item.quantity > 1 && (
-                          <Chip 
-                            size="small" 
-                            label={`Qty: ${item.quantity}`}
-                            color="primary"
-                            variant="outlined"
+                          <EditableQuantityChip
+                            itemId={item.id}
+                            quantity={item.quantity}
                             sx={{ ml: 1 }}
                           />
-                        )}
                       </Typography>
                       {item.location && (
                         <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -1068,9 +1388,9 @@ const PricingSummary = ({
                         <Typography variant="subtitle1" color="primary">
                           ${total.toFixed(2)}
                         </Typography>
-                        {item.quantity && item.quantity > 1 && (
+                        {(item.quantity || 1) > 1 && (
                           <Typography variant="caption" color="text.secondary">
-                            ${(total / item.quantity).toFixed(2)} each
+                            ${(total / (item.quantity || 1)).toFixed(2)} each
                           </Typography>
                         )}
                       </Box>
@@ -1485,7 +1805,7 @@ const PricingSummary = ({
                 <Button
                   variant="outlined"
                   color="primary"
-                  onClick={onStartNew}
+                  onClick={savedQuote && onAddNewItem ? onAddNewItem : onStartNew}
                   startIcon={<AddIcon />}
                 >
                   Add Another Item

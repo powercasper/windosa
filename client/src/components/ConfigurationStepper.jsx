@@ -17,6 +17,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
+import ClientInformation from './steps/ClientInformation';
 import BrandSelection from './steps/BrandSelection';
 import SystemTypeSelection from './steps/SystemTypeSelection';
 import SystemConfigurationForm from './steps/SystemConfigurationForm';
@@ -24,6 +25,7 @@ import GlassOptions from './steps/GlassOptions';
 import PricingSummary from './steps/PricingSummary';
 
 const steps = [
+  'Client Information',
   'Select Brand',
   'Choose System Type',
   'Configure System',
@@ -46,6 +48,27 @@ const emptyConfiguration = {
   quantity: 1
 };
 
+const emptyClientInfo = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  isCompany: false,
+  companyName: '',
+  jobTitle: '',
+  projectName: '',
+  projectType: '',
+  preferredContactMethod: 'email',
+  address: {
+    street: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'United States'
+  },
+  notes: ''
+};
+
 const ConfigurationStepper = ({ 
   metadata, 
   onLoadSavedQuote, 
@@ -53,8 +76,9 @@ const ConfigurationStepper = ({
   isEditingQuote, 
   loadedQuote 
 }) => {
-  const [activeStep, setActiveStep] = useState(isEditingQuote ? 4 : 0);
+  const [activeStep, setActiveStep] = useState(isEditingQuote ? 5 : 0);
   const [currentConfiguration, setCurrentConfiguration] = useState(emptyConfiguration);
+  const [clientInfo, setClientInfo] = useState(loadedQuote?.clientInfo || emptyClientInfo);
   const [quoteItems, setQuoteItems] = useState(loadedQuote ? loadedQuote.items : []);
   const [currentQuote, setCurrentQuote] = useState(loadedQuote);
   const [isEditingItem, setIsEditingItem] = useState(false);
@@ -64,9 +88,21 @@ const ConfigurationStepper = ({
     if (loadedQuote) {
       setQuoteItems(loadedQuote.items);
       setCurrentQuote(loadedQuote);
-      setActiveStep(4);
+      setClientInfo(loadedQuote.clientInfo || emptyClientInfo);
+      setActiveStep(5);
     }
   }, [loadedQuote]);
+
+  const handleClientInfoUpdate = (update) => {
+    setClientInfo(prev => ({
+      ...prev,
+      ...update,
+      address: {
+        ...prev.address,
+        ...update.address
+      }
+    }));
+  };
 
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
@@ -78,8 +114,12 @@ const ConfigurationStepper = ({
 
   const handleStepClick = (step) => {
     // When editing a quote (not an item), only allow moving to the Quote Summary step
-    if (currentQuote && !isEditingItem && step !== 4) {
+    if (currentQuote && !isEditingItem && step !== 5) {
       return;
+    }
+    // When editing an item, allow free navigation through steps (except step 0 which is client info)
+    if (isEditingItem && step === 0) {
+      return; // Don't allow editing client info when editing an item
     }
     // When editing an item, allow free navigation through steps
     if (isEditingItem || step <= getLastCompletedStep() + 1) {
@@ -123,7 +163,7 @@ const ConfigurationStepper = ({
     });
     setQuoteItems(prev => prev.filter(i => i.id !== item.id));
     setIsEditingItem(true);
-    setActiveStep(0);
+    setActiveStep(1); // Skip client info step when editing items
   };
 
   const handleAddToQuote = () => {
@@ -154,6 +194,16 @@ const ConfigurationStepper = ({
     });
     setCurrentConfiguration(emptyConfiguration);
     setIsEditingItem(false);
+    // Return to quote summary after adding item
+    setActiveStep(5);
+  };
+
+  const handleAddNewItem = () => {
+    // Function to start adding a new item to an existing quote
+    setCurrentConfiguration(emptyConfiguration);
+    setIsEditingItem(false);
+    // If we have a saved quote, skip client info and go to brand selection
+    setActiveStep(currentQuote ? 1 : 0);
   };
 
   const handleRemoveFromQuote = (itemId) => {
@@ -175,15 +225,43 @@ const ConfigurationStepper = ({
     setQuoteItems([...quoteItems, newItem]);
   };
 
-  const handleQuoteSaved = () => {
+  const handleUpdateItemQuantity = (itemId, newQuantity) => {
+    setQuoteItems(prevItems => 
+      prevItems.map(item => 
+        item.id === itemId 
+          ? { ...item, quantity: newQuantity }
+          : item
+      )
+    );
+  };
+
+  const handleQuoteSaved = (savedQuote) => {
+    // Update the current quote state with the saved quote
+    if (savedQuote) {
+      setCurrentQuote(savedQuote);
+    }
+    // Keep user on the quote summary page after saving
+    // Do NOT reset the state or navigate away
+    
+    // Only notify parent if needed for other functionality
+    if (onQuoteSaved) {
+      onQuoteSaved(savedQuote);
+    }
+  };
+
+  const handleStartNewQuote = () => {
+    // Reset everything when starting a new quote
+    setCurrentConfiguration(emptyConfiguration);
+    setClientInfo(emptyClientInfo);
+    setCurrentQuote(null);
+    setQuoteItems([]);
+    setIsEditingItem(false);
+    setActiveStep(0);
+    
+    // Notify parent to reset any app-level state
     if (onQuoteSaved) {
       onQuoteSaved();
     }
-    setCurrentQuote(null);
-    setQuoteItems([]);
-    setCurrentConfiguration(emptyConfiguration);
-    setIsEditingItem(false);
-    setActiveStep(0);
   };
 
   const getLastCompletedStep = () => {
@@ -191,17 +269,29 @@ const ConfigurationStepper = ({
     if (isEditingItem) {
       return activeStep;
     }
+    
+    // If we have a current quote (saved quote), client info is already completed
+    const hasClientInfo = currentQuote || (clientInfo.firstName && clientInfo.lastName && clientInfo.email && clientInfo.phone && clientInfo.projectName);
+    
     // Normal completion check for new items
-    if (!currentConfiguration.brand) return -1;
-    if (!currentConfiguration.systemType) return 0;
-    if (!currentConfiguration.systemModel || !currentConfiguration.dimensions.width || !currentConfiguration.dimensions.height) return 1;
-    if (!currentConfiguration.glassType) return 2;
-    return 3;
+    if (!hasClientInfo) return -1;
+    if (!currentConfiguration.brand) return 0;
+    if (!currentConfiguration.systemType) return 1;
+    if (!currentConfiguration.systemModel || !currentConfiguration.dimensions.width || !currentConfiguration.dimensions.height) return 2;
+    if (!currentConfiguration.glassType) return 3;
+    return 4;
   };
 
   const getStepContent = (step) => {
     switch (step) {
       case 0:
+        return <ClientInformation 
+          clientInfo={clientInfo}
+          onUpdate={handleClientInfoUpdate}
+          onNext={handleNext}
+          onBack={handleBack}
+        />;
+      case 1:
         return <BrandSelection 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
@@ -209,7 +299,7 @@ const ConfigurationStepper = ({
           brands={metadata?.systemBrands || []}
           isEditing={isEditingItem}
         />;
-      case 1:
+      case 2:
         return <SystemTypeSelection 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
@@ -217,7 +307,7 @@ const ConfigurationStepper = ({
           systemTypes={Object.keys(metadata?.systemHierarchy || {})}
           isEditing={isEditingItem}
         />;
-      case 2:
+      case 3:
         return <SystemConfigurationForm 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
@@ -225,31 +315,26 @@ const ConfigurationStepper = ({
           metadata={metadata}
           isEditing={isEditingItem}
         />;
-      case 3:
+      case 4:
         return <GlassOptions 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
           onNext={handleNext}
           isEditing={isEditingItem}
         />;
-      case 4:
+      case 5:
         return <PricingSummary 
           configuration={currentConfiguration}
+          clientInfo={clientInfo}
           quoteItems={quoteItems}
           onAddToQuote={handleAddToQuote}
-          onStartNew={() => {
-            setCurrentConfiguration(emptyConfiguration);
-            setCurrentQuote(null);
-            setIsEditingItem(false);
-            setActiveStep(0);
-            if (onQuoteSaved) {
-              onQuoteSaved();
-            }
-          }}
+          onStartNew={handleStartNewQuote}
+          onAddNewItem={handleAddNewItem}
           onEditItem={handleEditItem}
           onRemoveItem={handleRemoveFromQuote}
           onCopyItem={handleCopyItem}
           onQuoteSaved={handleQuoteSaved}
+          onUpdateItemQuantity={handleUpdateItemQuantity}
           savedQuote={currentQuote}
         />;
       default:
@@ -260,14 +345,17 @@ const ConfigurationStepper = ({
   const isStepValid = (step) => {
     switch (step) {
       case 0:
-        return !!currentConfiguration.brand;
+        // Client info is valid if we have a saved quote OR if all required fields are filled
+        return !!(currentQuote || (clientInfo.firstName && clientInfo.lastName && clientInfo.email && clientInfo.phone && clientInfo.projectName));
       case 1:
-        return !!currentConfiguration.systemType;
+        return !!currentConfiguration.brand;
       case 2:
+        return !!currentConfiguration.systemType;
+      case 3:
         return !!currentConfiguration.systemModel && 
                currentConfiguration.dimensions.width > 0 && 
                currentConfiguration.dimensions.height > 0;
-      case 3:
+      case 4:
         return !!currentConfiguration.glassType;
       default:
         return true;
@@ -292,7 +380,9 @@ const ConfigurationStepper = ({
                   onClick={() => handleStepClick(index)}
                   disabled={
                     // When editing a quote (not an item), only allow Quote Summary
-                    (currentQuote && !isEditingItem && index !== 4) || 
+                    (currentQuote && !isEditingItem && index !== 5) || 
+                    // When editing an item, don't allow client info step
+                    (isEditingItem && index === 0) ||
                     // When not editing an item, require step completion
                     (!isEditingItem && index > getLastCompletedStep() + 1)
                   }
@@ -316,7 +406,7 @@ const ConfigurationStepper = ({
         <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
           <Button
             color="inherit"
-            disabled={activeStep === 0 || (currentQuote && !isEditingItem && activeStep === 4)}
+            disabled={activeStep === 0 || (currentQuote && !isEditingItem && activeStep === 5) || (isEditingItem && activeStep === 1)}
             onClick={handleBack}
             sx={{ mr: 1 }}
           >
