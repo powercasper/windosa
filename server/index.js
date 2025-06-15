@@ -8,6 +8,7 @@ const pricingRoutes = require('./routes/pricing');
 const pdfRoutes = require('./routes/pdfGeneration');
 const glassRoutes = require('./routes/glass');
 const recommendationRoutes = require('./routes/recommendations');
+const { healthCheck } = require('./utils/healthCheck');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -34,9 +35,15 @@ if (process.env.NODE_ENV !== 'production') {
   app.use('/glass-specs', express.static(path.join(__dirname, '../client/public')));
 }
 
-// Health check endpoint
+// Health check endpoint with detailed status
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'healthy' });
+  const detailedStatus = healthCheck.getStatus();
+  res.json(detailedStatus);
+});
+
+// Simple health check for load balancers
+app.get('/api/health/simple', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
 // Serve static files from the React app in production
@@ -60,4 +67,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Access the API at http://localhost:${PORT}`);
   console.log('For local network access, use your machine\'s IP address');
+  
+  // Start health monitoring system
+  console.log('🚀 Starting health monitoring system...');
+  healthCheck.start();
 });

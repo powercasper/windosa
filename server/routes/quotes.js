@@ -432,4 +432,238 @@ router.post('/quotes/generate', async (req, res) => {
   }
 });
 
+// NEW: Calculate pricing for a single item (replaces client calculateItemPrice)
+router.post('/quotes/calculate-item', async (req, res) => {
+  try {
+    const { item } = req.body;
+    
+    if (!item || !item.systemType || !item.dimensions || !item.glassType) {
+      return res.status(400).json({ error: 'Missing required item configuration' });
+    }
+
+    const pricing = calculatePricing(item);
+    
+    res.json({
+      item,
+      pricing,
+      area: pricing.area,
+      success: true
+    });
+  } catch (error) {
+    console.error('Error calculating item price:', error);
+    res.status(500).json({ error: 'Failed to calculate item price' });
+  }
+});
+
+// NEW: Calculate quote totals with additional costs and margins
+router.post('/quotes/calculate-quote-totals', async (req, res) => {
+  try {
+    const { items, additionalCosts = {} } = req.body;
+    
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Items array is required' });
+    }
+
+    // Calculate pricing for each item
+    const itemsWithPricing = items.map(item => {
+      const pricing = calculatePricing(item);
+      return {
+        item,
+        pricing,
+        systemCost: pricing.systemCost,
+        glassCost: pricing.glassCost,
+        laborCost: pricing.laborCost,
+        total: pricing.total,
+        area: pricing.area
+      };
+    });
+
+    // Calculate totals
+    const totals = itemsWithPricing.reduce((acc, curr) => ({
+      totalSystemCost: acc.totalSystemCost + curr.systemCost,
+      totalGlassCost: acc.totalGlassCost + curr.glassCost,
+      totalLaborCost: acc.totalLaborCost + curr.laborCost,
+      baseTotal: acc.baseTotal + curr.total,
+      totalArea: acc.totalArea + curr.area
+    }), {
+      totalSystemCost: 0,
+      totalGlassCost: 0,
+      totalLaborCost: 0,
+      baseTotal: 0,
+      totalArea: 0
+    });
+
+    // Apply additional costs and margins
+    const tariff = parseFloat(additionalCosts.tariff || 0);
+    const shipping = parseFloat(additionalCosts.shipping || 0);
+    const delivery = parseFloat(additionalCosts.delivery || 0);
+    const margin = parseFloat(additionalCosts.margin || 0);
+
+    // Calculate final pricing (delivery not subject to margin)
+    const additionalCostsForMargin = tariff + shipping;
+    const costBeforeMargin = totals.baseTotal + additionalCostsForMargin;
+    const marginMultiplier = margin > 0 ? 1 / (1 - (margin / 100)) : 1;
+    const subtotal = costBeforeMargin * marginMultiplier;
+    const grandTotal = subtotal + delivery;
+
+    res.json({
+      items: itemsWithPricing,
+      totals: {
+        ...totals,
+        subtotal,
+        grandTotal,
+        additionalCosts: {
+          tariff,
+          shipping,
+          delivery,
+          margin
+        }
+      },
+      success: true
+    });
+  } catch (error) {
+    console.error('Error calculating quote totals:', error);
+    res.status(500).json({ error: 'Failed to calculate quote totals' });
+  }
+});
+
+// NEW: Calculate type-specific metrics (replaces client calculateTypeMetrics)
+router.post('/quotes/calculate-type-metrics', async (req, res) => {
+  try {
+    const { items, systemType, additionalCosts = {} } = req.body;
+    
+    if (!Array.isArray(items) || !systemType) {
+      return res.status(400).json({ error: 'Items array and systemType are required' });
+    }
+
+    // Filter items by type and calculate pricing
+    const typeItems = items.filter(item => item.systemType === systemType);
+    const itemsWithPricing = typeItems.map(item => {
+      const pricing = calculatePricing(item);
+      return { item, pricing };
+    });
+
+    if (itemsWithPricing.length === 0) {
+      return res.json({
+        systemType,
+        totalArea: 0,
+        baseCost: 0,
+        distributedCost: 0,
+        totalCost: 0,
+        costPerSqFt: 0,
+        success: true
+      });
+    }
+
+    // Calculate total area for this type
+    const totalArea = itemsWithPricing.reduce((sum, { pricing }) => sum + pricing.area, 0);
+    const baseCost = itemsWithPricing.reduce((sum, { pricing }) => sum + pricing.total, 0);
+
+    // Calculate distributed additional costs (excluding delivery)
+    const allItemsArea = items.reduce((sum, item) => {
+      const pricing = calculatePricing(item);
+      return sum + pricing.area;
+    }, 0);
+
+    const tariff = parseFloat(additionalCosts.tariff || 0);
+    const shipping = parseFloat(additionalCosts.shipping || 0);
+    const delivery = parseFloat(additionalCosts.delivery || 0);
+    const margin = parseFloat(additionalCosts.margin || 0);
+
+    const additionalCostsForMargin = tariff + shipping;
+    const additionalCostPerSqFt = allItemsArea > 0 ? additionalCostsForMargin / allItemsArea : 0;
+    const distributedCost = totalArea * additionalCostPerSqFt;
+
+    // Apply margin
+    const costBeforeMargin = baseCost + distributedCost;
+    const marginMultiplier = margin > 0 ? 1 / (1 - (margin / 100)) : 1;
+    const costAfterMargin = costBeforeMargin * marginMultiplier;
+
+    // Add proportional delivery
+    const proportionalDelivery = allItemsArea > 0 ? (totalArea / allItemsArea) * delivery : 0;
+    const totalCost = costAfterMargin + proportionalDelivery;
+    const costPerSqFt = totalArea > 0 ? totalCost / totalArea : 0;
+
+    res.json({
+      systemType,
+      totalArea: parseFloat(totalArea.toFixed(1)),
+      baseCost: parseFloat(baseCost.toFixed(2)),
+      distributedCost: parseFloat(distributedCost.toFixed(2)),
+      totalCost: parseFloat(totalCost.toFixed(2)),
+      costPerSqFt: parseFloat(costPerSqFt.toFixed(2)),
+      success: true
+    });
+  } catch (error) {
+    console.error('Error calculating type metrics:', error);
+    res.status(500).json({ error: 'Failed to calculate type metrics' });
+  }
+});
+
+// NEW: Calculate individual item final prices for PDF/quotes
+router.post('/quotes/calculate-item-final-prices', async (req, res) => {
+  try {
+    const { items, additionalCosts = {} } = req.body;
+    
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: 'Items array is required' });
+    }
+
+    // Calculate total area first
+    const totalArea = items.reduce((sum, item) => {
+      const pricing = calculatePricing(item);
+      return sum + pricing.area;
+    }, 0);
+
+    const tariff = parseFloat(additionalCosts.tariff || 0);
+    const shipping = parseFloat(additionalCosts.shipping || 0);
+    const delivery = parseFloat(additionalCosts.delivery || 0);
+    const margin = parseFloat(additionalCosts.margin || 0);
+
+    // Calculate final prices for each item
+    const itemsWithFinalPrices = items.map(item => {
+      const pricing = calculatePricing(item);
+      const itemArea = pricing.area;
+
+      // Proportional additional costs (tariff + shipping, excluding delivery)
+      const proportionalTariffShipping = totalArea > 0 ? 
+        (itemArea / totalArea) * (tariff + shipping) : 0;
+
+      // Apply margin to (base + tariff + shipping)
+      const costBeforeMargin = pricing.total + proportionalTariffShipping;
+      const marginMultiplier = margin > 0 ? 1 / (1 - (margin / 100)) : 1;
+      const costAfterMargin = costBeforeMargin * marginMultiplier;
+
+      // Add proportional delivery (not subject to margin)
+      const proportionalDelivery = totalArea > 0 ? 
+        (itemArea / totalArea) * delivery : 0;
+
+      const finalPrice = costAfterMargin + proportionalDelivery;
+      const unitPrice = (item.quantity || 1) > 0 ? finalPrice / (item.quantity || 1) : finalPrice;
+
+      return {
+        item,
+        pricing: {
+          ...pricing,
+          proportionalTariffShipping,
+          proportionalDelivery,
+          costBeforeMargin,
+          costAfterMargin,
+          finalPrice,
+          unitPrice
+        }
+      };
+    });
+
+    res.json({
+      items: itemsWithFinalPrices,
+      totalArea,
+      additionalCosts: { tariff, shipping, delivery, margin },
+      success: true
+    });
+  } catch (error) {
+    console.error('Error calculating item final prices:', error);
+    res.status(500).json({ error: 'Failed to calculate item final prices' });
+  }
+});
+
 module.exports = router; 

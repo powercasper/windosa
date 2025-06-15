@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Paper,
   Typography,
@@ -28,7 +28,8 @@ import {
   TableRow,
   TableBody,
   TableFooter,
-  TableCell
+  TableCell,
+  Collapse
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -51,16 +52,21 @@ import CloseIcon from '@mui/icons-material/Close';
 import PersonIcon from '@mui/icons-material/Person';
 import WbSunny from '@mui/icons-material/WbSunny';
 import CheckCircle from '@mui/icons-material/CheckCircle';
+import AnalyticsIcon from '@mui/icons-material/Analytics';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import { unitCostPerSqft, laborRates } from '../../utils/metadata';
 import { generateQuote } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
 import { generateHybridPDF } from '../../utils/hybridPdfGenerator';
 import { getGlassByType } from '../../utils/glassDatabase';
+import { useItemPricing, useQuoteTotals, useTypeMetrics } from '../../hooks/usePricing';
+import { performanceMonitor, usePerformanceTracking } from '../../utils/performanceMonitor';
 
 const STORAGE_KEY = 'orderAdditionalCosts';
 
 // Helper functions for cost distribution
+// FALLBACK: Distributed costs calculation (server-side preferred)
 const calculateDistributedCosts = (items, totalArea, additionalCosts) => {
   const { tariff, shipping, delivery } = additionalCosts;
   const totalAdditionalCosts = parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0);
@@ -71,6 +77,7 @@ const calculateDistributedCosts = (items, totalArea, additionalCosts) => {
   return { costPerSqFt, totalDistributedCost: totalAdditionalCosts };
 };
 
+// FALLBACK: Type metrics calculation (server-side preferred via /api/quotes/calculate-type-metrics)
 const calculateTypeMetrics = (items, type, additionalCosts, margin, delivery) => {
   const typeItems = items.filter(({ item }) => item.systemType === type);
   
@@ -144,6 +151,7 @@ const getStoredCosts = () => {
   return null;
 };
 
+// FALLBACK: Item price calculation (server-side preferred via /api/quotes/calculate-item)
 const calculateItemPrice = (item) => {
   let totalSystemCost = 0;
   let totalGlassCost = 0;
@@ -448,6 +456,34 @@ const PricingSummary = ({
   // Add isGeneratingPDF state
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
+  // ENHANCED: Performance tracking and analytics
+  const { trackAction } = usePerformanceTracking('PricingSummary');
+  const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
+
+  // MIGRATION: Server-side current item pricing (alongside existing client logic)
+  const { pricing: serverItemPricing, loading: itemPricingLoading } = useItemPricing(configuration);
+  
+  // Calculate current item price (existing client logic for comparison)
+  const clientItemPrice = useMemo(() => {
+    if (!configuration.systemModel) return null;
+    return calculateItemPrice(configuration);
+  }, [configuration]);
+
+  // MIGRATION: Server-side quote totals calculation
+  const additionalCosts = useMemo(() => ({
+    tariff: parseFloat(tariff || 0),
+    shipping: parseFloat(shipping || 0), 
+    delivery: parseFloat(delivery || 0),
+    margin: parseFloat(margin || 0)
+  }), [tariff, shipping, delivery, margin]);
+
+  const { totals: serverQuoteTotals, loading: quoteTotalsLoading } = useQuoteTotals(quoteItems, additionalCosts);
+
+  // MIGRATION: Server-side system type metrics
+  const { metrics: windowsMetrics, loading: windowsLoading } = useTypeMetrics(quoteItems, 'Windows', additionalCosts);
+  const { metrics: doorsMetrics, loading: doorsLoading } = useTypeMetrics(quoteItems, 'Entrance Doors', additionalCosts);
+  const { metrics: slidingMetrics, loading: slidingLoading } = useTypeMetrics(quoteItems, 'Sliding Doors', additionalCosts);
+
   // Store costs whenever they change
   useEffect(() => {
     const costs = { tariff, margin, shipping, delivery };
@@ -638,35 +674,74 @@ const PricingSummary = ({
     calculatePricing();
   }, [pricing.items, tariff, margin, shipping, delivery]);
 
+  // MIGRATION: Use server-side quote totals when available, fallback to client calculation
   useEffect(() => {
-    // Only calculate pricing for items in the quote
-    const calculatedPricing = quoteItems.map(item => ({
-      item,
-      ...calculateItemPrice(item)
-    }));
+    if (serverQuoteTotals && serverQuoteTotals.items) {
+      // Use server-side calculated pricing
+      console.log('🔄 Using SERVER-side quote totals:', serverQuoteTotals);
+      setPricing({
+        items: serverQuoteTotals.items.map(({ item, pricing }) => ({
+          item,
+          systemCost: pricing.systemCost,
+          glassCost: pricing.glassCost, 
+          laborCost: pricing.laborCost,
+          total: pricing.total,
+          area: pricing.area
+        })),
+        totalSystemCost: serverQuoteTotals.totals.totalSystemCost,
+        totalGlassCost: serverQuoteTotals.totals.totalGlassCost,
+        totalLaborCost: serverQuoteTotals.totals.totalLaborCost,
+        grandTotal: serverQuoteTotals.totals.grandTotal
+      });
+    } else if (!quoteTotalsLoading && quoteItems.length > 0) {
+      // Fallback to client-side calculation
+      console.log('📱 Using CLIENT-side quote pricing fallback');
+      const calculatedPricing = quoteItems.map(item => ({
+        item,
+        ...calculateItemPrice(item)
+      }));
 
-    const totals = calculatedPricing.reduce((acc, curr) => ({
-      totalSystemCost: acc.totalSystemCost + curr.systemCost,
-      totalGlassCost: acc.totalGlassCost + curr.glassCost,
-      totalLaborCost: acc.totalLaborCost + curr.laborCost,
-      grandTotal: acc.grandTotal + curr.total
-    }), {
-      totalSystemCost: 0,
-      totalGlassCost: 0,
-      totalLaborCost: 0,
-      grandTotal: 0
-    });
+      const totals = calculatedPricing.reduce((acc, curr) => ({
+        totalSystemCost: acc.totalSystemCost + curr.systemCost,
+        totalGlassCost: acc.totalGlassCost + curr.glassCost,
+        totalLaborCost: acc.totalLaborCost + curr.laborCost,
+        grandTotal: acc.grandTotal + curr.total
+      }), {
+        totalSystemCost: 0,
+        totalGlassCost: 0,
+        totalLaborCost: 0,
+        grandTotal: 0
+      });
 
-    setPricing({
-      items: calculatedPricing,
-      ...totals
-    });
-  }, [quoteItems]); // Only depend on quoteItems, not configuration
+      setPricing({
+        items: calculatedPricing,
+        ...totals
+      });
+    }
+  }, [serverQuoteTotals, quoteTotalsLoading, quoteItems]); // Depend on server data and fallback conditions
 
-  // Calculate current item price separately
-  const currentItemPrice = configuration.systemModel ? calculateItemPrice(configuration) : null;
+  // MIGRATION: Use server-side pricing when available, fallback to client calculation
+  const currentItemPrice = useMemo(() => {
+    if (!configuration.systemModel) return null;
+    
+    // Prefer server-side calculation, fallback to client-side
+    if (serverItemPricing?.pricing) {
+      console.log('🔄 Using SERVER-side pricing:', serverItemPricing.pricing.total);
+      return serverItemPricing.pricing;
+    } else if (clientItemPrice) {
+      console.log('📱 Using CLIENT-side pricing:', clientItemPrice.total);
+      return clientItemPrice;
+    }
+    
+    return null;
+  }, [configuration.systemModel, serverItemPricing, clientItemPrice]);
 
   const handleGenerateQuote = async () => {
+    trackAction('generateQuote', { 
+      itemCount: quoteItems.length,
+      totalAmount: pricing.grandTotal 
+    });
+    
     setQuoteDialog({
       ...quoteDialog,
       open: true,
@@ -688,7 +763,9 @@ const PricingSummary = ({
           totalAmount: pricing.grandTotal
         }
       });
+      trackAction('generateQuoteSuccess', { quoteNumber: quote.quoteNumber });
     } catch (error) {
+      trackAction('generateQuoteError', { error: error.message });
       setQuoteDialog({
         ...quoteDialog,
         loading: false,
@@ -698,6 +775,10 @@ const PricingSummary = ({
   };
 
   const handleAddToQuote = () => {
+    trackAction('addToQuote', { 
+      systemType: configuration.systemType,
+      itemPrice: currentItemPrice?.total 
+    });
     onAddToQuote();
     setShowAddSuccess(true);
     setTimeout(() => {
@@ -879,11 +960,101 @@ const PricingSummary = ({
     );
   }
 
+  // ENHANCED: Performance Dashboard Component
+  const PerformanceDashboard = () => {
+    const [metrics, setMetrics] = useState(null);
+
+    useEffect(() => {
+      const updateMetrics = () => {
+        setMetrics(performanceMonitor.getSummary());
+      };
+      
+      updateMetrics();
+      const interval = setInterval(updateMetrics, 2000); // Update every 2 seconds
+      return () => clearInterval(interval);
+    }, []);
+
+    if (!metrics) return null;
+
+    return (
+      <Collapse in={showPerformanceDashboard}>
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'background.default', border: '1px solid', borderColor: 'warning.main' }}>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            📊 Performance Dashboard
+            <Chip label="BETA" size="small" color="warning" />
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={6} sm={3}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" color="primary">{metrics.totalApiCalls}</Typography>
+                <Typography variant="caption">API Calls</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" color="success.main">
+                  {metrics.averageApiTime.toFixed(0)}ms
+                </Typography>
+                <Typography variant="caption">Avg Response</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" color="info.main">
+                  {metrics.cacheHitRate.toFixed(1)}%
+                </Typography>
+                <Typography variant="caption">Cache Hit Rate</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" color={metrics.totalErrors > 0 ? 'error.main' : 'success.main'}>
+                  {metrics.totalErrors}
+                </Typography>
+                <Typography variant="caption">Errors</Typography>
+              </Box>
+            </Grid>
+          </Grid>
+          <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+            <Button 
+              size="small" 
+              onClick={() => performanceMonitor.exportMetrics()}
+              startIcon={<CloudDownloadIcon />}
+            >
+              Export Metrics
+            </Button>
+            <Button 
+              size="small" 
+              onClick={() => setShowPerformanceDashboard(false)}
+            >
+              Close
+            </Button>
+          </Box>
+        </Paper>
+      </Collapse>
+    );
+  };
+
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>
-        {savedQuote ? `Edit Quote #${savedQuote.id}` : 'Quote Summary'}
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5">
+          {savedQuote ? `Edit Quote #${savedQuote.id}` : 'Quote Summary'}
+        </Typography>
+        {/* ENHANCED: Performance Dashboard Toggle */}
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AnalyticsIcon />}
+          onClick={() => setShowPerformanceDashboard(!showPerformanceDashboard)}
+          sx={{ ml: 2 }}
+        >
+          Performance
+        </Button>
+      </Box>
+
+      {/* ENHANCED: Performance Dashboard */}
+      <PerformanceDashboard />
 
       {/* Client Information Display */}
       <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200' }}>
@@ -1013,13 +1184,37 @@ const PricingSummary = ({
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Box sx={{ textAlign: 'right' }}>
-                <Typography variant="h6" color="primary">
-                  {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
-                </Typography>
-                {currentItemPrice && (configuration.quantity || 1) > 1 && (
-                  <Typography variant="caption" color="text.secondary">
-                    {formatCurrency(currentItemPrice.total / (configuration.quantity || 1))} each
-                  </Typography>
+                {/* MIGRATION DEMO: Show loading state and calculation source */}
+                {itemPricingLoading ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={16} />
+                    <Typography variant="body2" color="text.secondary">
+                      Calculating...
+                    </Typography>
+                  </Box>
+                ) : (
+                  <>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="h6" color="primary">
+                        {currentItemPrice ? formatCurrency(currentItemPrice.total) : '-'}
+                      </Typography>
+                      {/* Show calculation source indicator */}
+                      {currentItemPrice && (
+                        <Chip 
+                          label={serverItemPricing?.pricing ? 'Server' : 'Client'} 
+                          size="small" 
+                          color={serverItemPricing?.pricing ? 'success' : 'default'}
+                          variant="outlined"
+                          sx={{ fontSize: '0.6rem', height: '20px' }}
+                        />
+                      )}
+                    </Box>
+                    {currentItemPrice && (configuration.quantity || 1) > 1 && (
+                      <Typography variant="caption" color="text.secondary">
+                        {formatCurrency(currentItemPrice.total / (configuration.quantity || 1))} each
+                      </Typography>
+                    )}
+                  </>
                 )}
               </Box>
               <Button
@@ -2267,12 +2462,29 @@ const PricingSummary = ({
                       </Typography>
                       <Stack spacing={1}>
                         {(() => {
-                          const metrics = calculateTypeMetrics(pricing.items, 'Windows', { tariff, shipping }, margin, delivery);
+                          // MIGRATION: Use server-side metrics when available, fallback to client calculation
+                          const metrics = windowsMetrics || calculateTypeMetrics(pricing.items, 'Windows', { tariff, shipping }, margin, delivery);
+                          const isServerCalculated = !!windowsMetrics;
+                          
+                          if (windowsLoading) {
+                            return (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 2 }}>
+                                <CircularProgress size={16} />
+                                <Typography variant="body2" color="text.secondary">Calculating...</Typography>
+                              </Box>
+                            );
+                          }
+                          
                           return (
                             <>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="body2" color="text.secondary">Total Area:</Typography>
-                                <Typography variant="body2">{metrics.totalArea} sq ft</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Typography variant="body2">{metrics.totalArea} sq ft</Typography>
+                                  {isServerCalculated && (
+                                    <Chip label="Server" size="small" color="success" variant="outlined" sx={{ fontSize: '0.5rem', height: '16px' }} />
+                                  )}
+                                </Box>
                               </Box>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                 <Typography variant="body2" color="text.secondary">Base Cost:</Typography>
@@ -2313,12 +2525,29 @@ const PricingSummary = ({
                       </Typography>
                       <Stack spacing={1}>
                         {(() => {
-                          const metrics = calculateTypeMetrics(pricing.items, 'Entrance Doors', { tariff, shipping }, margin, delivery);
+                          // MIGRATION: Use server-side metrics when available, fallback to client calculation
+                          const metrics = doorsMetrics || calculateTypeMetrics(pricing.items, 'Entrance Doors', { tariff, shipping }, margin, delivery);
+                          const isServerCalculated = !!doorsMetrics;
+                          
+                          if (doorsLoading) {
+                            return (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 2 }}>
+                                <CircularProgress size={16} />
+                                <Typography variant="body2" color="text.secondary">Calculating...</Typography>
+                              </Box>
+                            );
+                          }
+                          
                           return (
                             <>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="body2" color="text.secondary">Total Area:</Typography>
-                                <Typography variant="body2">{metrics.totalArea} sq ft</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Typography variant="body2">{metrics.totalArea} sq ft</Typography>
+                                  {isServerCalculated && (
+                                    <Chip label="Server" size="small" color="success" variant="outlined" sx={{ fontSize: '0.5rem', height: '16px' }} />
+                                  )}
+                                </Box>
                               </Box>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                 <Typography variant="body2" color="text.secondary">Base Cost:</Typography>
@@ -2359,12 +2588,29 @@ const PricingSummary = ({
                       </Typography>
                       <Stack spacing={1}>
                         {(() => {
-                          const metrics = calculateTypeMetrics(pricing.items, 'Sliding Doors', { tariff, shipping }, margin, delivery);
+                          // MIGRATION: Use server-side metrics when available, fallback to client calculation
+                          const metrics = slidingMetrics || calculateTypeMetrics(pricing.items, 'Sliding Doors', { tariff, shipping }, margin, delivery);
+                          const isServerCalculated = !!slidingMetrics;
+                          
+                          if (slidingLoading) {
+                            return (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 2 }}>
+                                <CircularProgress size={16} />
+                                <Typography variant="body2" color="text.secondary">Calculating...</Typography>
+                              </Box>
+                            );
+                          }
+                          
                           return (
                             <>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="body2" color="text.secondary">Total Area:</Typography>
-                                <Typography variant="body2">{metrics.totalArea} sq ft</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Typography variant="body2">{metrics.totalArea} sq ft</Typography>
+                                  {isServerCalculated && (
+                                    <Chip label="Server" size="small" color="success" variant="outlined" sx={{ fontSize: '0.5rem', height: '16px' }} />
+                                  )}
+                                </Box>
                               </Box>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                 <Typography variant="body2" color="text.secondary">Base Cost:</Typography>
