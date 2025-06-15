@@ -1745,16 +1745,7 @@ const PricingSummary = ({
                                     {item.operationType || 'Custom'}
                                             </Typography>
                                           </Box>
-                                {item.grid?.enabled && (
-                                  <Box sx={{ display: 'flex', gap: 1 }}>
-                                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                      Grid:
-                                    </Typography>
-                                            <Typography variant="body2">
-                                      {item.grid.horizontal}H × {item.grid.vertical}V Divided Lights
-                                            </Typography>
-                                          </Box>
-                                )}
+                                {/* Sliding doors do not support grid configuration */}
                                 {item.panels?.map((panel, idx) => (
                                   <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
                                     <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>

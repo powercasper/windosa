@@ -1377,11 +1377,12 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                 </Grid>
               </Paper>
 
-              {/* Grid Configuration */}
-              <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
-                <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <GridOnIcon fontSize="small" /> Grid Configuration
-                </Typography>
+              {/* Grid Configuration - Only for glass entrance doors */}
+              {configuration.systemType === 'Entrance Doors' && configuration.doorType === 'glass' && (
+                <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                  <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <GridOnIcon fontSize="small" /> Grid Configuration
+                  </Typography>
                 <Stack spacing={2}>
                   <FormControlLabel
                     control={
@@ -1458,6 +1459,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                   )}
                 </Stack>
               </Paper>
+              )}
 
               {/* Hardware Configuration */}
               <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
