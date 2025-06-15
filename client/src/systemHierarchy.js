@@ -49,7 +49,7 @@ const systemArchitecture = {
     Alumil: {
         Windows: ["S67", "S67 PHOS", "S67 Urban", "S77", "S77 PHOS", "M9660", "M9660 PHOS"],
         "Entrance Doors": ["SD67", "SD77", "SD115"],
-    "Sliding Doors": ["SMARTIA M450", "SMARTIA M630", "SMARTIA S650"]
+    "Sliding Doors": ["SMARTIA M450", "SMARTIA M630", "SUPREME S650"]
       },
       Aluprof: {
     Windows: ["MB-70", "MB-79", "MB-86"],

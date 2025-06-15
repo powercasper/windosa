@@ -15,7 +15,7 @@ const systemArchitecture = {
   Alumil: {
     Windows:           ["S67","S67 PHOS","S67 Urban","S77","S77 PHOS","M9660","M9660 PHOS"],
     "Entrance Doors":  ["SD67","SD77","SD115"],
-    "Sliding Doors":   ["SMARTIA M450","SMARTIA M630", "SMARTIA S650"]
+    "Sliding Doors":   ["SMARTIA M450","SMARTIA M630", "SUPREME S650"]
   },
   Reynaers: {
     Windows:           ["SlimLine 38 Classic","SlimLine 38 Cube","SlimLine 38 Ferro","SlimLine 68"],
@@ -98,7 +98,7 @@ const unitCostPerSqft = {
     // Sliding Doors
     "SMARTIA M450": {"OX": 27.42, "XX": 29.50, "OXX": 28.69, "XXX": 30.49, "OXXO": 18.59, "OXXX": 20.39, "XXXX": 20.98},
     "SMARTIA M630": {"OX": 27.42, "XX": 29.50, "OXX": 28.69, "XXX": 30.49, "OXXO": 18.59, "OXXX": 20.39, "XXXX": 20.98},
-    "SMARTIA S650": {
+    "SUPREME S650": {
       "OX": 40.62,
       "XX": 43.33,
       "OXX": 41.45,

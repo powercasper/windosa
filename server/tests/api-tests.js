@@ -9,7 +9,7 @@ let testResults = [];
 // Test configuration with known expected results
 const TEST_SLIDING_DOOR = {
   brand: "Alumil",
-  systemModel: "SMARTIA S650",
+  systemModel: "SUPREME S650",
   systemType: "Sliding Doors", 
   operationType: "OXXX",
   dimensions: { width: 216, height: 108 },
