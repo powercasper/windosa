@@ -105,7 +105,7 @@ healthCheck.addCheck('pricing-calculation-accuracy', async () => {
   // Test configuration that should give known results
   const testConfig = {
     brand: "Alumil",
-    systemModel: "SMARTIA S650", 
+    systemModel: "SUPREME S650", 
     systemType: "Sliding Doors",
     operationType: "OXXX",
     dimensions: { width: 216, height: 108 },
