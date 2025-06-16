@@ -62,6 +62,7 @@ import { generateHybridPDF } from '../../utils/hybridPdfGenerator';
 import { getGlassByType } from '../../utils/glassDatabase';
 import { useItemPricing, useQuoteTotals, useTypeMetrics } from '../../hooks/usePricing';
 import { performanceMonitor, usePerformanceTracking } from '../../utils/performanceMonitor';
+import { fetchMetadata } from '../../api/metadata';
 
 const STORAGE_KEY = 'orderAdditionalCosts';
 
@@ -415,14 +416,35 @@ const PricingSummary = ({
   quoteItems = [], 
   onAddToQuote, 
   onStartNew,
-  onAddNewItem, // New prop for adding items to existing quotes
+  onAddNewItem,
   onEditItem,
   onRemoveItem,
   onQuoteSaved,
-  onCopyItem,  // Add new prop
-  onUpdateItemQuantity, // New prop for inline quantity updates
+  onCopyItem,
+  onUpdateItemQuantity,
   savedQuote = null
 }) => {
+  const [metadata, setMetadata] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch metadata on component mount
+  useEffect(() => {
+    const loadMetadata = async () => {
+      try {
+        const data = await fetchMetadata();
+        setMetadata(data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Failed to load metadata:', err);
+        setError(err);
+        setLoading(false);
+      }
+    };
+
+    loadMetadata();
+  }, []);
+
   const [pricing, setPricing] = useState({
     items: [],
     totalSystemCost: 0,
@@ -958,6 +980,14 @@ const PricingSummary = ({
         </Paper>
       </Box>
     );
+  }
+
+  if (loading) {
+    return <CircularProgress />;
+  }
+
+  if (error) {
+    return <Alert severity="error">Failed to load pricing data. Please try again later.</Alert>;
   }
 
   // ENHANCED: Performance Dashboard Component
