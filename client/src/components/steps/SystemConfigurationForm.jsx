@@ -19,6 +19,8 @@ import {
   Switch,
   FormControlLabel,
   Checkbox,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -42,90 +44,81 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   const [useEqualWidths, setUseEqualWidths] = useState(true);
   const [showGridConfig, setShowGridConfig] = useState(false);
 
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ mt: 2 }}>
+        Error loading configuration options. Please try again later.
+      </Alert>
+    );
+  }
+
+  if (!metadata) {
+    return (
+      <Alert severity="warning" sx={{ mt: 2 }}>
+        Configuration data not available. Please try refreshing the page.
+      </Alert>
+    );
+  }
+
+  if (!configuration?.brand || !configuration?.systemType) {
+    return (
+      <Alert severity="warning" sx={{ mt: 2 }}>
+        Please select a brand and system type first.
+      </Alert>
+    );
+  }
+
   useEffect(() => {
-    if (metadata && configuration.brand && configuration.systemType) {
-      const models = metadata.systemArchitecture[configuration.brand][configuration.systemType] || [];
+    if (configuration.brand && configuration.systemType) {
+      console.log('Loading models for:', {
+        brand: configuration.brand,
+        systemType: configuration.systemType,
+        metadata: metadata,
+        systemArchitecture: metadata?.systemArchitecture
+      });
+      
+      // Safely access systemArchitecture with optional chaining
+      const brandConfig = metadata?.systemArchitecture?.[configuration.brand];
+      console.log('Brand config:', brandConfig);
+      
+      const models = brandConfig?.[configuration.systemType] || [];
+      console.log('Available models:', models);
+      
       setAvailableModels(models);
 
+      // If current model is not in available models, clear it
+      if (configuration.systemModel && !models.includes(configuration.systemModel)) {
+        console.log('Clearing invalid model:', configuration.systemModel);
+        onUpdate({ systemModel: '' });
+      }
+
       if (configuration.systemType === 'Windows') {
-        setAvailableOperables(metadata.windowOperables || []);
+        console.log('Setting window operables:', metadata?.windowOperables);
+        setAvailableOperables(metadata?.windowOperables || []);
+        
+        // Initialize panels with default operation type if not set
+        if (configuration.panels?.length > 0) {
+          const updatedPanels = configuration.panels.map(panel => ({
+            ...panel,
+            operationType: panel.operationType || 'Fixed'
+          }));
+          onUpdate({ panels: updatedPanels });
+        }
       } else if (configuration.systemType === 'Entrance Doors') {
-        setAvailableOperables(metadata.doorOperables?.openingTypes || []);
+        setAvailableOperables(metadata?.doorOperables?.openingTypes || []);
       } else if (configuration.systemType === 'Sliding Doors') {
         setAvailableOperables(['OX', 'XX', 'OXX', 'XXX', 'OXXO', 'OXXX', 'XXXX', 'OXXXX', 'XXXXO', 'OXXXO', 'OOXXX', 'XXXOO', 'OXXXXO', 'XXXXXX', 'OOXXOO']);
       }
-
-      // Only set default configurations if there isn't an existing configuration
-      if (configuration.systemType === 'Entrance Doors' && !configuration.openingType) {
-        const defaultOpeningType = configuration.systemModel === 'SD115' ? 'Pivot Door' :
-                                 metadata.doorModelCapabilities[configuration.systemModel]?.[0] || 'Single Door';
-        
-        const defaultSwingDirection = defaultOpeningType === 'Pivot Door' ? 'Center Pivot' :
-                                    defaultOpeningType === 'Single Door' ? 'Left Hand In' :
-                                    'Active Left';
-
-        onUpdate({
-          openingType: defaultOpeningType,
-          swingDirection: defaultSwingDirection,
-          handleType: configuration.systemModel === 'SD115' ? 'Pull Handle' : 'Lever Handle',
-          lockType: 'Multi-Point Lock',
-          threshold: 'Standard',
-          hingeType: configuration.systemModel === 'SD115' ? 'Pivot' : 'Standard',
-          dimensions: configuration.dimensions || { width: '', height: '' },
-          hasSidelights: configuration.hasSidelights || false,
-          leftSidelight: configuration.leftSidelight || { enabled: false, width: 12 },
-          rightSidelight: configuration.rightSidelight || { enabled: false, width: 12 },
-          transom: configuration.transom || { enabled: false, height: 12 },
-          doorType: 'glass',
-          grid: { enabled: false, horizontal: 2, vertical: 3 }
-        });
-      } else if (configuration.systemType === 'Windows' && (!configuration.panels || configuration.panels.length === 0)) {
-        onUpdate({
-          panels: [{
-            width: 0,
-            operationType: 'Fixed',
-            handleLocation: 'right'
-          }],
-          dimensions: configuration.dimensions || { width: '', height: '' },
-          grid: {
-            enabled: false,
-            horizontal: 2,
-            vertical: 3
-          }
-        });
-      } else if (configuration.systemType === 'Sliding Doors' && (!configuration.panels || configuration.panels.length === 0)) {
-        const defaultPanels = [
-          {
-            type: 'Fixed',
-            width: 0,
-            direction: null
-          },
-          {
-            type: 'Sliding',
-            width: 0,
-            direction: 'right'
-          }
-        ];
-        
-        onUpdate({
-          panels: defaultPanels,
-          dimensions: configuration.dimensions || { width: '', height: '' },
-          grid: undefined // Remove grid configuration for sliding doors
-        });
-      }
-
-      // Set default finish if not already set
-      if (!configuration.finish?.type) {
-        onUpdate({
-          finish: {
-            type: 'Powder Coated',
-            color: 'Standard',
-            ralColor: '9016'
-          }
-        });
-      }
     }
-  }, [metadata, configuration.brand, configuration.systemType, configuration.systemModel]);
+  }, [metadata, configuration.brand, configuration.systemType]);
 
   useEffect(() => {
     // Initialize panels array if it doesn't exist and we're configuring a window
@@ -222,6 +215,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   }, [configuration.hasSidelights, configuration.systemType]);
 
   const handleChange = (field) => (event) => {
+    console.log('Handling change:', { field, value: event.target.value });
     onUpdate({ [field]: event.target.value });
   };
 
@@ -430,22 +424,6 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
     });
   };
 
-  if (loading) {
-    return <Typography>Loading configuration options...</Typography>;
-  }
-
-  if (error) {
-    return <Typography color="error">Error loading configuration options. Please try again later.</Typography>;
-  }
-
-  if (!configuration.brand || !configuration.systemType) {
-    return (
-      <Typography color="error">
-        Please select a brand and system type first
-      </Typography>
-    );
-  }
-
   return (
     <Box>
       <Typography variant="h5" gutterBottom>
@@ -530,7 +508,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
               >
                 <InputLabel>Model</InputLabel>
                 <Select
-                  value={availableModels.length > 0 ? (configuration.systemModel || '') : ''}
+                  value={configuration.systemModel || ''}
                   onChange={handleChange('systemModel')}
                   label="Model"
                   disabled={availableModels.length === 0}
@@ -553,6 +531,11 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                     </MenuItem>
                   ))}
                 </Select>
+                {availableModels.length === 0 && (
+                  <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                    No models available for the selected brand and system type
+                  </Typography>
+                )}
               </FormControl>
             </Grid>
             <Grid item xs={12}>
