@@ -13,7 +13,7 @@ import {
   Chip,
   Button,
 } from '@mui/material';
-import { systemBrands } from '../../utils/metadata';
+import { useMetadata } from '../../contexts/MetadataContext';
 import DefaultFinishOptions from '../DefaultFinishOptions';
 import BusinessIcon from '@mui/icons-material/Business';
 
@@ -29,6 +29,18 @@ const systemTypeLabels = {
 };
 
 const BrandSelection = ({ configuration, onUpdate, onNext, brands, isEditing }) => {
+  const { metadata, loading, error } = useMetadata();
+
+  if (loading) {
+    return <Typography>Loading brands...</Typography>;
+  }
+
+  if (error) {
+    return <Typography color="error">Error loading brands. Please try again later.</Typography>;
+  }
+
+  const systemBrands = metadata?.systemBrands || [];
+
   const handleBrandSelect = (brand) => {
     onUpdate({ brand });
     onNext();
@@ -62,7 +74,7 @@ const BrandSelection = ({ configuration, onUpdate, onNext, brands, isEditing }) 
         Select Brand
       </Typography>
       <Grid container spacing={3}>
-        {brands.map((brand) => {
+        {systemBrands.map((brand) => {
           const isSelected = configuration.brand === brand;
           const description = getBrandDescription(brand);
           
