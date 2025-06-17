@@ -13,7 +13,6 @@ import {
   Alert,
   List,
   ListItem,
-  ListItemText,
   IconButton,
   Stack,
   Grid,
@@ -37,15 +36,10 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import WindowIcon from '@mui/icons-material/Window';
-import ColorLensIcon from '@mui/icons-material/ColorLens';
-import SquareFootIcon from '@mui/icons-material/SquareFoot';
-import CommentIcon from '@mui/icons-material/Comment';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import DoorSlidingIcon from '@mui/icons-material/DoorSliding';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import InventoryIcon from '@mui/icons-material/Inventory';
-import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import CalculateIcon from '@mui/icons-material/Calculate';
 import PaidIcon from '@mui/icons-material/Paid';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -60,7 +54,6 @@ import { generateQuote } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
 import { generateHybridPDF } from '../../utils/hybridPdfGenerator';
-import { getGlassByType } from '../../utils/glassDatabase';
 import { useItemPricing, useQuoteTotals, useTypeMetrics } from '../../hooks/usePricing';
 import { performanceMonitor, usePerformanceTracking } from '../../utils/performanceMonitor';
 import { useMetadata } from '../../contexts/MetadataContext';
@@ -198,9 +191,6 @@ const calculateItemPrice = (item, metadata) => {
   let totalGlassCost = 0;
   let totalLaborCost = 0;
   let totalArea = 0;
-
-  // Get quantity (default to 1 if not specified)
-  const quantity = Number(item.quantity) || 1;
 
   // Get glass pricing from database - CONSISTENT WITH SERVER
   let glassUnitCost = 12.0; // Database default
@@ -504,29 +494,6 @@ const calculateItemPrice = (item, metadata) => {
   };
 };
 
-const calculateBaseCost = (configuration) => {
-  if (!configuration.systemModel) return 0;
-
-  if (configuration.systemType === 'Windows') {
-    const totalWidth = configuration.panels.reduce((sum, panel) => sum + panel.width, 0);
-    const area = (totalWidth * configuration.dimensions.height) / 144; // Convert to square feet
-    let cost = area * unitCostPerSqft[configuration.systemModel];
-
-    // Add mosquito net cost if enabled
-    if (configuration.hasMosquitoNet) {
-      const operationalPanels = configuration.panels.filter(panel => panel.operationType !== 'Fixed').length;
-      cost += operationalPanels * 100; // $100 per operational window
-    }
-
-    return cost;
-  } else if (configuration.systemType === 'Sliding Doors') {
-    // ... existing sliding doors calculation ...
-  } else if (configuration.systemType === 'Entrance Doors') {
-    // ... existing entrance doors calculation ...
-  }
-  return 0;
-};
-
 const PricingSummary = ({ 
   configuration, 
   clientInfo = {},
@@ -653,11 +620,6 @@ const PricingSummary = ({
         setDelivery(numericValue);
         break;
     }
-  };
-
-  const formatPrice = (value) => {
-    if (value === undefined || value === null) return '0.00';
-    return value.toFixed(2);
   };
 
   // Quantity editing functions
