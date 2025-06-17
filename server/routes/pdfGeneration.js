@@ -24,14 +24,28 @@ const GLASS_SPEC_MAPPING = {
 
 // Pre-qualification PDF mapping (brand-systemmodel format)
 const PRE_Q_PDF_MAPPING = {
-  // Alumil Systems - S650 is SUPREME, not SMARTIA
+  // Alumil Systems
+  'alumil-s67': 'alumil-s67.pdf',
+  'alumil-s67-phos': 'alumil-s67.pdf',
+  'alumil-s67-urban': 'alumil-s67-urban.pdf',
+  'alumil-s77': 'alumil-s77.pdf',
+  'alumil-s77-phos': 'alumil-s77.pdf',
+  'alumil-m9660': 'alumil-m9660.pdf',
+  'alumil-m9660-phos': 'alumil-m9660.pdf',
   'alumil-s650': 'alumil-s650.pdf',           // SUPREME S650
   'alumil-supreme': 'alumil-s650.pdf',        // Alternative naming
-  'alumil-smartia-m630': 'alumil-m630.pdf',  // SMARTIA M630
-  'alumil-m630': 'alumil-m630.pdf',          // Alternative naming
-  'alumil-smartia-m11000': 'alumil-m11000.pdf', // SMARTIA M11000
-  'alumil-m11000': 'alumil-m11000.pdf',      // Alternative naming
+  'alumil-m630': 'alumil-m630.pdf',          // SMARTIA M630
+  'alumil-smartia-m630': 'alumil-m630.pdf',  // Alternative naming
+  'alumil-m450': 'alumil-m450.pdf',          // SMARTIA M450
+  'alumil-smartia-m450': 'alumil-m450.pdf',  // Alternative naming
+  'alumil-m11000': 'alumil-m11000.pdf',      // SMARTIA M11000
+  'alumil-smartia-m11000': 'alumil-m11000.pdf', // Alternative naming
   'alumil-visoglide': 'alumil-visoglide.pdf',
+  
+  // Entrance Doors
+  'alumil-sd67': 'alumil-sd67.pdf',
+  'alumil-sd77': 'alumil-sd77.pdf',
+  'alumil-sd115': 'alumil-sd115.pdf',
   
   // Schuco Systems  
   'schuco-aws-75': 'schuco-aws75.pdf',
@@ -39,10 +53,7 @@ const PRE_Q_PDF_MAPPING = {
   'schuco-asi-80': 'schuco-asi80.pdf',
   
   // Test system for verification
-  'test-test-system': 'test-system.pdf',
-  
-  // Add more systems as needed
-  // Format: 'brand-systemmodel': 'filename.pdf'
+  'test-test-system': 'test-system.pdf'
 };
 
 // Helper function to extract glass products from quote items
@@ -77,7 +88,7 @@ const extractGlassProducts = (quote) => {
 
 // Helper function to extract system models from quote items for pre-q PDFs
 const extractSystemModels = (quote) => {
-  const systemModels = new Set();
+  const systemModelsMap = new Map();
   
   if (quote.items) {
     quote.items.forEach((item) => {
@@ -111,21 +122,22 @@ const extractSystemModels = (quote) => {
         }
         
         const systemKey = `${brand}-${systemModel}`;
-        systemModels.add(systemKey);
         
-        // Also store original values for display
-        systemModels.add({
-          key: systemKey,
-          brand: config.brand,
-          systemModel: config.systemModel,
-          displayName: `${config.brand} ${config.systemModel}`
-        });
+        // Only add if we haven't seen this system before
+        if (!systemModelsMap.has(systemKey)) {
+          systemModelsMap.set(systemKey, {
+            key: systemKey,
+            brand: config.brand,
+            systemModel: config.systemModel,
+            displayName: `${config.brand} ${config.systemModel}`
+          });
+        }
       }
     });
   }
   
-  // Filter out string keys, keep only objects with display info
-  return Array.from(systemModels).filter(item => typeof item === 'object');
+  // Return array of unique system models
+  return Array.from(systemModelsMap.values());
 };
 
 // Helper function to load glass spec PDFs
@@ -155,10 +167,11 @@ const loadGlassSpecPdfs = async (glassProducts) => {
 // Helper function to load pre-qualification PDFs
 const loadPreQPdfs = async (systemModels) => {
   const preQPdfs = [];
+  const addedFilenames = new Set(); // Track which PDF files we've already added
   
   for (const systemInfo of systemModels) {
     const filename = PRE_Q_PDF_MAPPING[systemInfo.key];
-    if (filename) {
+    if (filename && !addedFilenames.has(filename)) { // Only add if we haven't seen this PDF before
       try {
         const filePath = path.join(__dirname, '../assets/pre-q', filename);
         const pdfData = await fs.readFile(filePath);
@@ -168,10 +181,11 @@ const loadPreQPdfs = async (systemModels) => {
           data: pdfData,
           filename: filename
         });
+        addedFilenames.add(filename); // Mark this PDF as added
       } catch (error) {
         console.warn(`Could not load pre-q PDF for ${systemInfo.displayName} (${systemInfo.key}):`, error.message);
       }
-    } else {
+    } else if (!filename) {
       console.log(`No pre-q PDF mapping found for ${systemInfo.displayName} (${systemInfo.key})`);
     }
   }
@@ -199,9 +213,12 @@ router.post('/generate-enhanced-pdf', async (req, res) => {
     console.log('Glass products detected:', glassProducts);
     console.log('System models detected:', systemModels.map(s => s.displayName));
     
-    // Load glass specification PDFs and pre-qualification PDFs
-    const glassSpecPdfs = await loadGlassSpecPdfs(glassProducts);
-    const preQPdfs = await loadPreQPdfs(systemModels);
+    // Respect includePreQ and includeGlassSpecs flags
+    const includePreQ = quote.includePreQ !== false; // default true
+    const includeGlassSpecs = quote.includeGlassSpecs !== false; // default true
+
+    const glassSpecPdfs = includeGlassSpecs ? await loadGlassSpecPdfs(glassProducts) : [];
+    const preQPdfs = includePreQ ? await loadPreQPdfs(systemModels) : [];
     console.log(`Loaded ${glassSpecPdfs.length} glass specification PDFs`);
     console.log(`Loaded ${preQPdfs.length} pre-qualification PDFs`);
     

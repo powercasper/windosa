@@ -29,7 +29,9 @@ import {
   TableBody,
   TableFooter,
   TableCell,
-  Collapse
+  Collapse,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -239,6 +241,14 @@ const calculateItemPrice = (item, metadata) => {
     totalLaborCost = laborRate * area;
     totalArea = area;
 
+    // Add mosquito net cost for each panel where selected
+    const mosquitoNetPanels = item.panels.filter(panel => panel.operationType !== 'Fixed' && panel.hasMosquitoNet);
+    totalSystemCost += mosquitoNetPanels.length * 100;
+
+    // Add opening limiter cost for each panel where selected
+    const openingLimiterPanels = item.panels.filter(panel => panel.operationType !== 'Fixed' && panel.hasOpeningLimiter);
+    totalSystemCost += openingLimiterPanels.length * 50;
+
     // Detailed debug log
     console.log('[Pricing] Windows:', {
       width,
@@ -257,6 +267,8 @@ const calculateItemPrice = (item, metadata) => {
       laborRate,
       totalLaborCost,
       totalArea,
+      mosquitoNetCount: mosquitoNetPanels.length,
+      openingLimiterCount: openingLimiterPanels.length,
       total: totalSystemCost + totalGlassCost + totalLaborCost
     });
 
@@ -383,43 +395,51 @@ const calculateItemPrice = (item, metadata) => {
     };
   }
 
-  // Sliding Doors (add detailed debug log)
+  // Sliding Doors (now use linear inch pricing)
   if (item.systemType === 'Sliding Doors') {
     const width = Number(item.dimensions?.width) || 0;
     const height = Number(item.dimensions?.height) || 0;
+    const perimeter = 2 * (width + height);
     const area = (width * height) / 144;
-    let systemUnitCost = 0;
-    let laborRate = 0;
+    // Use operationType (e.g., OXXO, OX, etc) for cost lookup
     let operationType = item.operationType || 'OXXO';
-    let costTable = metadata.unitCostPerSqft?.[item.brand]?.[item.systemModel] || {};
-    if (costTable && typeof costTable === 'object') {
-      systemUnitCost = Number(costTable[operationType]) || 0;
-      laborRate = Number(metadata.laborRates?.['Sliding →']) || 5;
+    // Use linear inch pricing table
+    let costTable = metadata.unitCostPerLinearInch?.[item.brand]?.[item.systemModel] || {};
+    let systemCostPerInch = Number(costTable[operationType]) || 0;
+    let systemCost = perimeter * systemCostPerInch;
+    // (Optional) Add grid cost if grid is ever supported for sliding doors
+    let gridCost = 0;
+    if (item.grid?.enabled && costTable.grid) {
+      // For sliding doors, if grid is ever supported, add grid cost for mullion length
+      let horizontal = Number(item.grid.horizontal) || 0;
+      let vertical = Number(item.grid.vertical) || 0;
+      const mullionLength = (horizontal * height) + (vertical * width);
+      gridCost = mullionLength * (costTable.grid || 0);
+      systemCost += gridCost;
     }
-    if (!systemUnitCost) {
-      systemUnitCost = 32; // fallback
-    }
-    totalSystemCost = systemUnitCost * area;
+    totalSystemCost = systemCost;
     totalGlassCost = glassUnitCost * area;
+    // Use labor rate for sliding doors
+    let laborRate = Number(metadata.laborRates?.['Sliding →']) || 5;
     totalLaborCost = laborRate * area;
     totalArea = area;
-
     // Detailed debug log
-    console.log('[Pricing] Sliding Doors:', {
+    console.log('[Pricing] Sliding Doors (Linear Inch):', {
       width,
       height,
-      area,
+      perimeter,
       operationType,
-      systemUnitCost,
-      glassUnitCost,
-      laborRate,
+      systemCostPerInch,
+      perimeterCost: perimeter * systemCostPerInch,
+      gridCost,
       totalSystemCost,
+      glassUnitCost,
       totalGlassCost,
+      laborRate,
       totalLaborCost,
       totalArea,
       total: totalSystemCost + totalGlassCost + totalLaborCost
     });
-
     return {
       totalSystemCost,
       totalGlassCost,
@@ -814,7 +834,7 @@ const PricingSummary = ({
           systemCost: price?.totalSystemCost || 0,
           glassCost: price?.totalGlassCost || 0,
           laborCost: price?.totalLaborCost || 0,
-          total: (price?.totalSystemCost || 0) + (price?.totalGlassCost || 0) + (price?.totalLaborCost || 0),
+          total: ((price?.totalSystemCost || 0) + (price?.totalGlassCost || 0) + (price?.totalLaborCost || 0)) * (item.quantity || 1),
           area: price?.totalArea || 0
         };
       });
@@ -933,8 +953,13 @@ const PricingSummary = ({
     }
   };
 
-  // Add handleDownloadPDF function
-  const handleDownloadPDF = async () => {
+  // Add state for PDF options dialog
+  const [pdfOptionsOpen, setPdfOptionsOpen] = useState(false);
+  const [includePreQ, setIncludePreQ] = useState(true);
+  const [includeGlassSpecs, setIncludeGlassSpecs] = useState(true);
+
+  // Update handleDownloadPDF to accept options
+  const handleDownloadPDF = async (opts = { includePreQ: true, includeGlassSpecs: true }) => {
     try {
       setIsGeneratingPDF(true);
 
@@ -1031,7 +1056,9 @@ const PricingSummary = ({
           totalGlassCost: pricing.totalGlassCost,
           totalLaborCost: pricing.totalLaborCost,
           grandTotal: pricing.grandTotal
-        }
+        },
+        includePreQ: opts.includePreQ,
+        includeGlassSpecs: opts.includeGlassSpecs
       });
       setIsGeneratingPDF(false);
     } catch (error) {
@@ -1474,22 +1501,31 @@ const PricingSummary = ({
                         </Typography>
                         <Typography variant="body2">
                           {panel.operationType} ({panel.width}")
-                          {panel.operationType !== 'Fixed' && configuration.hasMosquitoNet && ' + Mosquito Net'}
+                          {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
+                          {panel.operationType !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
                         </Typography>
                   </Box>
                     ))
                 )}
                   {configuration.systemType === 'Sliding Doors' && configuration.panels && (
-                    configuration.panels.map((panel, idx) => (
-                      <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                          Panel {idx + 1}:
-                                  </Typography>
-                        <Typography variant="body2">
-                          {panel.type} {panel.type === 'Sliding' ? `(${panel.direction === 'left' ? '←' : '→'})` : ''}
-                                  </Typography>
-                                    </Box>
-                    ))
+                    configuration.panels.map((panel, idx) => {
+                      let direction = panel.direction;
+                      // Fallback: if direction is missing, default to right for first, left for second, etc.
+                      if (panel.type === 'Sliding' && !direction) {
+                        direction = idx % 2 === 0 ? 'right' : 'left';
+                      }
+                      return (
+                        <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                            Panel {idx + 1}:
+                          </Typography>
+                          <Typography variant="body2">
+                            {panel.type}
+                            {panel.type === 'Sliding' ? ` (${direction === 'left' ? '←' : '→'})` : ''}
+                          </Typography>
+                        </Box>
+                      );
+                    })
                   )}
                 </Stack>
                                 </Paper>
@@ -1854,7 +1890,8 @@ const PricingSummary = ({
                                           </Typography>
                                           <Typography variant="body2">
                                       {panel.operationType} ({panel.width}")
-                                      {panel.operationType !== 'Fixed' && item.hasMosquitoNet && ' + Mosquito Net'}
+                                      {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
+                                      {panel.operationType !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
                                           </Typography>
                                         </Box>
                                       ))}
@@ -1871,16 +1908,23 @@ const PricingSummary = ({
                                             </Typography>
                                           </Box>
                                 {/* Sliding doors do not support grid configuration */}
-                                {item.panels?.map((panel, idx) => (
-                                  <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
-                                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                      Panel {idx + 1}:
-                                        </Typography>
-                                            <Typography variant="body2">
-                                      {panel.type} {panel.type === 'Sliding' ? `(${panel.direction === 'left' ? '←' : '→'})` : ''}
-                                            </Typography>
-                                          </Box>
-                                ))}
+                                {item.panels?.map((panel, idx) => {
+                                  let direction = panel.direction;
+                                  if (panel.type === 'Sliding' && !direction) {
+                                    direction = idx % 2 === 0 ? 'right' : 'left';
+                                  }
+                                  return (
+                                    <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
+                                      <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                        Panel {idx + 1}:
+                                      </Typography>
+                                      <Typography variant="body2">
+                                        {panel.type}
+                                        {panel.type === 'Sliding' ? ` (${direction === 'left' ? '←' : '→'})` : ''}
+                                      </Typography>
+                                    </Box>
+                                  );
+                                })}
                               </>
                             )}
                             {item.systemType === 'Entrance Doors' && (
@@ -2450,7 +2494,7 @@ const PricingSummary = ({
                 {savedQuote ? 'Update Quote' : 'Save Quote'}
               </Button>
               <Button 
-                onClick={handleDownloadPDF} 
+                onClick={() => setPdfOptionsOpen(true)} 
                 color="primary"
                 disabled={isGeneratingPDF}
                 startIcon={isGeneratingPDF ? <CircularProgress size={20} /> : null}
@@ -3197,6 +3241,34 @@ const PricingSummary = ({
           </Paper>
         </Box>
       </Stack>
+
+      <Dialog open={pdfOptionsOpen} onClose={() => setPdfOptionsOpen(false)}>
+        <DialogTitle>PDF Download Options</DialogTitle>
+        <DialogContent>
+          <FormControlLabel
+            control={<Checkbox checked={includePreQ} onChange={e => setIncludePreQ(e.target.checked)} />}
+            label="Include Pre-Qualification Documents"
+          />
+          <FormControlLabel
+            control={<Checkbox checked={includeGlassSpecs} onChange={e => setIncludeGlassSpecs(e.target.checked)} />}
+            label="Include Glass Specs PDF"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPdfOptionsOpen(false)} color="primary">Cancel</Button>
+          <Button 
+            onClick={() => {
+              setPdfOptionsOpen(false);
+              handleDownloadPDF({ includePreQ, includeGlassSpecs });
+            }} 
+            color="primary" 
+            variant="contained"
+            disabled={isGeneratingPDF}
+          >
+            Download
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

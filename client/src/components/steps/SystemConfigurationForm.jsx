@@ -20,7 +20,8 @@ import {
   FormControlLabel,
   Checkbox,
   CircularProgress,
-  Alert
+  Alert,
+  Tooltip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -34,6 +35,7 @@ import PreviewIcon from '@mui/icons-material/Preview';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
 import { useMetadata } from '../../contexts/MetadataContext';
+import InfoIcon from '@mui/icons-material/Info';
 
 const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   const { metadata, loading, error } = useMetadata();
@@ -977,6 +979,40 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                                   <Switch
                                     checked={panel.hasMosquitoNet || false}
                                     onChange={(e) => handlePanelChange(index, 'hasMosquitoNet', e.target.checked)}
+                                  />
+                                </Box>
+                              </Paper>
+                            </Grid>
+                          )}
+                          {panel.operationType !== 'Fixed' && (
+                            <Grid item xs={12}>
+                              <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <Box>
+                                    <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      Opening Limiter
+                                      <Tooltip title={
+                                        <Box>
+                                          <Typography variant="subtitle2" gutterBottom>Hardware that limits the opening angle of hinged systems to avoid collision on nearby fixed objects. Also used as child safety device.</Typography>
+                                          <Typography variant="body2" gutterBottom>Technical Features:</Typography>
+                                          <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                                            <li>Perfect fit at all opening Alumil systems</li>
+                                            <li>Fits all standard Euro groove and PVC sash groove systems</li>
+                                            <li>Available for bottom hung, top hung and side hung windows</li>
+                                            <li>Adjustable opening angle depending on arm placement in five positions for top hung</li>
+                                          </ul>
+                                        </Box>
+                                      }>
+                                        <InfoIcon fontSize="small" color="action" />
+                                      </Tooltip>
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      Add opening limiter (+$50)
+                                    </Typography>
+                                  </Box>
+                                  <Switch
+                                    checked={panel.hasOpeningLimiter || false}
+                                    onChange={(e) => handlePanelChange(index, 'hasOpeningLimiter', e.target.checked)}
                                   />
                                 </Box>
                               </Paper>

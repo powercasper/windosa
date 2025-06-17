@@ -20,8 +20,8 @@ app.use(cors({
     : ['http://localhost:3000', 'http://127.0.0.1:3000'], // Allow both localhost variations in development
   credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
 // API Routes - all routes will be prefixed with /api
 app.use('/api', quotesRouter);
