@@ -29,7 +29,9 @@ import {
   TableBody,
   TableFooter,
   TableCell,
-  Collapse
+  Collapse,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -243,6 +245,10 @@ const calculateItemPrice = (item, metadata) => {
     const mosquitoNetPanels = item.panels.filter(panel => panel.operationType !== 'Fixed' && panel.hasMosquitoNet);
     totalSystemCost += mosquitoNetPanels.length * 100;
 
+    // Add opening limiter cost for each panel where selected
+    const openingLimiterPanels = item.panels.filter(panel => panel.operationType !== 'Fixed' && panel.hasOpeningLimiter);
+    totalSystemCost += openingLimiterPanels.length * 50;
+
     // Detailed debug log
     console.log('[Pricing] Windows:', {
       width,
@@ -261,6 +267,8 @@ const calculateItemPrice = (item, metadata) => {
       laborRate,
       totalLaborCost,
       totalArea,
+      mosquitoNetCount: mosquitoNetPanels.length,
+      openingLimiterCount: openingLimiterPanels.length,
       total: totalSystemCost + totalGlassCost + totalLaborCost
     });
 
@@ -826,7 +834,7 @@ const PricingSummary = ({
           systemCost: price?.totalSystemCost || 0,
           glassCost: price?.totalGlassCost || 0,
           laborCost: price?.totalLaborCost || 0,
-          total: (price?.totalSystemCost || 0) + (price?.totalGlassCost || 0) + (price?.totalLaborCost || 0),
+          total: ((price?.totalSystemCost || 0) + (price?.totalGlassCost || 0) + (price?.totalLaborCost || 0)) * (item.quantity || 1),
           area: price?.totalArea || 0
         };
       });
@@ -945,8 +953,13 @@ const PricingSummary = ({
     }
   };
 
-  // Add handleDownloadPDF function
-  const handleDownloadPDF = async () => {
+  // Add state for PDF options dialog
+  const [pdfOptionsOpen, setPdfOptionsOpen] = useState(false);
+  const [includePreQ, setIncludePreQ] = useState(true);
+  const [includeGlassSpecs, setIncludeGlassSpecs] = useState(true);
+
+  // Update handleDownloadPDF to accept options
+  const handleDownloadPDF = async (opts = { includePreQ: true, includeGlassSpecs: true }) => {
     try {
       setIsGeneratingPDF(true);
 
@@ -1043,7 +1056,9 @@ const PricingSummary = ({
           totalGlassCost: pricing.totalGlassCost,
           totalLaborCost: pricing.totalLaborCost,
           grandTotal: pricing.grandTotal
-        }
+        },
+        includePreQ: opts.includePreQ,
+        includeGlassSpecs: opts.includeGlassSpecs
       });
       setIsGeneratingPDF(false);
     } catch (error) {
@@ -1487,6 +1502,7 @@ const PricingSummary = ({
                         <Typography variant="body2">
                           {panel.operationType} ({panel.width}")
                           {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
+                          {panel.operationType !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
                         </Typography>
                   </Box>
                     ))
@@ -1875,6 +1891,7 @@ const PricingSummary = ({
                                           <Typography variant="body2">
                                       {panel.operationType} ({panel.width}")
                                       {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
+                                      {panel.operationType !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
                                           </Typography>
                                         </Box>
                                       ))}
@@ -2477,7 +2494,7 @@ const PricingSummary = ({
                 {savedQuote ? 'Update Quote' : 'Save Quote'}
               </Button>
               <Button 
-                onClick={handleDownloadPDF} 
+                onClick={() => setPdfOptionsOpen(true)} 
                 color="primary"
                 disabled={isGeneratingPDF}
                 startIcon={isGeneratingPDF ? <CircularProgress size={20} /> : null}
@@ -3224,6 +3241,34 @@ const PricingSummary = ({
           </Paper>
         </Box>
       </Stack>
+
+      <Dialog open={pdfOptionsOpen} onClose={() => setPdfOptionsOpen(false)}>
+        <DialogTitle>PDF Download Options</DialogTitle>
+        <DialogContent>
+          <FormControlLabel
+            control={<Checkbox checked={includePreQ} onChange={e => setIncludePreQ(e.target.checked)} />}
+            label="Include Pre-Qualification Documents"
+          />
+          <FormControlLabel
+            control={<Checkbox checked={includeGlassSpecs} onChange={e => setIncludeGlassSpecs(e.target.checked)} />}
+            label="Include Glass Specs PDF"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPdfOptionsOpen(false)} color="primary">Cancel</Button>
+          <Button 
+            onClick={() => {
+              setPdfOptionsOpen(false);
+              handleDownloadPDF({ includePreQ, includeGlassSpecs });
+            }} 
+            color="primary" 
+            variant="contained"
+            disabled={isGeneratingPDF}
+          >
+            Download
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

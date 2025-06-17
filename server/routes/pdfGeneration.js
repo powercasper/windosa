@@ -213,9 +213,12 @@ router.post('/generate-enhanced-pdf', async (req, res) => {
     console.log('Glass products detected:', glassProducts);
     console.log('System models detected:', systemModels.map(s => s.displayName));
     
-    // Load glass specification PDFs and pre-qualification PDFs
-    const glassSpecPdfs = await loadGlassSpecPdfs(glassProducts);
-    const preQPdfs = await loadPreQPdfs(systemModels);
+    // Respect includePreQ and includeGlassSpecs flags
+    const includePreQ = quote.includePreQ !== false; // default true
+    const includeGlassSpecs = quote.includeGlassSpecs !== false; // default true
+
+    const glassSpecPdfs = includeGlassSpecs ? await loadGlassSpecPdfs(glassProducts) : [];
+    const preQPdfs = includePreQ ? await loadPreQPdfs(systemModels) : [];
     console.log(`Loaded ${glassSpecPdfs.length} glass specification PDFs`);
     console.log(`Loaded ${preQPdfs.length} pre-qualification PDFs`);
     

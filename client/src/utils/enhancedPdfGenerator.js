@@ -107,8 +107,9 @@ export const generateEnhancedQuotePDF = async (quote) => {
     const quoteBlob = await asPdf.toBlob();
     const quoteArrayBuffer = await quoteBlob.arrayBuffer();
     
-    // Step 2: Get glass specification PDFs
-    const glassSpecPdfs = await getGlassSpecPdfs(quote);
+    // Step 2: Get glass specification PDFs if requested
+    const includeGlassSpecs = quote.includeGlassSpecs !== false; // default true
+    const glassSpecPdfs = includeGlassSpecs ? await getGlassSpecPdfs(quote) : [];
     
     // Step 3: If no glass specs found, just return the quote PDF
     if (glassSpecPdfs.length === 0) {
