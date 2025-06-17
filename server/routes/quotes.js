@@ -8,7 +8,8 @@ const {
   finishOptions,
   windowOperables,
   doorOperables,
-  systemBrands 
+  systemBrands,
+  unitCostPerLinearInch
 } = require('../db/metaData');
 const { getGlassByType } = require('../db/glassDatabase');
 
@@ -147,42 +148,89 @@ const calculatePricing = (configuration) => {
       laborRates['Hinged Left Open In']; // Use standard hinge rate for regular doors
     totalLaborCost = laborRate * totalArea;
   } else if (configuration.systemType === 'Windows' && configuration.panels) {
-    // Calculate costs for each panel if it's a window with multiple panels
-    configuration.panels.forEach(panel => {
-      const panelArea = (panel.width * configuration.dimensions.height) / 144;
-      totalArea += panelArea;
+    // --- NEW LOGIC: Linear Inch Pricing for Windows ---
+    const width = Number(configuration.dimensions?.width) || 0;
+    const height = Number(configuration.dimensions?.height) || 0;
+    const perimeter = 2 * (width + height);
 
-      // Safely access system unit cost with fallback values
-      let systemUnitCost = 0;
-      try {
-        const brandCosts = unitCostPerSqft[configuration.brand];
-        if (brandCosts && brandCosts[configuration.systemModel] && typeof brandCosts[configuration.systemModel] === 'object') {
-          systemUnitCost = brandCosts[configuration.systemModel][panel.operationType];
-        }
-      } catch (error) {
-        console.warn('Error accessing system cost for', configuration.brand, configuration.systemModel, panel.operationType);
-      }
+    // Grid/mullion logic
+    let horizontal = configuration.grid?.enabled ? Number(configuration.grid.horizontal) || 0 : 0;
+    let vertical = configuration.grid?.enabled ? Number(configuration.grid.vertical) || 0 : 0;
+    // If no grid but multiple panels, infer mullions
+    if (!configuration.grid?.enabled && configuration.panels.length > 1) {
+      horizontal = configuration.panels.length - 1;
+    }
+    const mullionLength = (horizontal * height) + (vertical * width);
 
-      // Use fallback values if systemUnitCost is not found
-      if (!systemUnitCost) {
-        // Default fallback costs per operation type
-        const fallbackCosts = {
-          'Fixed': 25,
-          'Tilt & Turn': 40,
-          'Casement': 32,
-          'Awning': 30,
-          'Tilt Only': 37
-        };
-        systemUnitCost = fallbackCosts[panel.operationType] || 30;
-        console.warn(`Using fallback cost ${systemUnitCost} for ${configuration.brand} ${configuration.systemModel} ${panel.operationType}`);
-      }
+    // System cost: sum for each panel type
+    let systemCost = 0;
+    const costTable = unitCostPerLinearInch?.[configuration.brand]?.[configuration.systemModel] || {};
+    let panelCostPerInch = 0;
+    let panelTypeSummary = '';
 
-      totalSystemCost += systemUnitCost * panelArea;
-      totalGlassCost += glassUnitCost * panelArea;
-      
-      const laborRate = laborRates[panel.operationType] || 5; // Fallback labor rate
-      totalLaborCost += laborRate * panelArea;
+    if (configuration.panels.every(p => p.operationType === configuration.panels[0].operationType)) {
+      // All panels same type
+      const opType = configuration.panels[0].operationType;
+      panelCostPerInch = costTable[opType] || 0;
+      systemCost = perimeter * panelCostPerInch;
+      panelTypeSummary = `All panels: ${opType} ($${panelCostPerInch}/in)`;
+    } else {
+      // Mixed panel types: use average cost per inch
+      const costs = configuration.panels.map(p => costTable[p.operationType] || 0);
+      panelCostPerInch = costs.reduce((sum, c) => sum + c, 0) / costs.length;
+      systemCost = perimeter * panelCostPerInch;
+      panelTypeSummary = `Mixed panels: avg $${panelCostPerInch.toFixed(2)}/in [${configuration.panels.map(p => p.operationType).join(', ')}]`;
+    }
+
+    // Add grid cost if grid is enabled
+    let gridCost = 0;
+    if (configuration.grid?.enabled) {
+      gridCost = mullionLength * (costTable.grid || 0);
+      systemCost += gridCost;
+    }
+
+    // Glass and labor as before
+    const area = (width * height) / 144;
+    totalSystemCost = systemCost;
+    totalGlassCost = area * glassUnitCost;
+    // Use average labor rate if mixed types
+    const laborRate = configuration.panels.every(p => p.operationType === configuration.panels[0].operationType)
+      ? Number(laborRates?.[configuration.panels[0].operationType]) || 5
+      : (configuration.panels.reduce((sum, p) => sum + (Number(laborRates?.[p.operationType]) || 5), 0) / configuration.panels.length);
+    totalLaborCost = laborRate * area;
+    totalArea = area;
+
+    // Add mosquito net cost for each panel where selected
+    const mosquitoNetPanels = configuration.panels.filter(panel => panel.operationType !== 'Fixed' && panel.hasMosquitoNet);
+    totalSystemCost += mosquitoNetPanels.length * 100;
+
+    // Add opening limiter cost for each panel where selected
+    const openingLimiterPanels = configuration.panels.filter(panel => panel.operationType !== 'Fixed' && panel.hasOpeningLimiter);
+    totalSystemCost += openingLimiterPanels.length * 50;
+
+    // Detailed debug log
+    console.log('[Pricing] Windows:', {
+      width,
+      height,
+      perimeter,
+      horizontalMullions: horizontal,
+      verticalMullions: vertical,
+      mullionLength,
+      panelTypeSummary,
+      panelCostPerInch,
+      perimeterCost: perimeter * panelCostPerInch,
+      gridCost,
+      totalSystemCost,
+      glassUnitCost,
+      totalGlassCost,
+      laborRate,
+      totalLaborCost,
+      totalArea,
+      mosquitoNetCount: mosquitoNetPanels.length,
+      openingLimiterCount: openingLimiterPanels.length,
+      total: totalSystemCost + totalGlassCost + totalLaborCost
     });
+    // --- END NEW LOGIC ---
   } else if (configuration.systemType === 'Sliding Doors') {
     console.log('\nSliding Door Calculation:');
     

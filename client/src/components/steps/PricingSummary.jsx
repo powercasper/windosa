@@ -153,6 +153,40 @@ const getStoredCosts = () => {
   return null;
 };
 
+// Helper function to normalize sliding door operation types
+const normalizeOperationType = (type) => {
+  if (!type) return type;
+  
+  // Create a mapping of equivalent configurations
+  const equivalentTypes = {
+    // 2 panels
+    'OX': 'OX',
+    'XO': 'OX',
+    // 3 panels
+    'OXX': 'OXX',
+    'XXO': 'OXX',
+    // 4 panels
+    'OXXO': 'OXXO',
+    'OXXO': 'OXXO',
+    // Multiple sliding panels
+    'OXXX': 'OXXX',
+    'XXXO': 'OXXX',
+    'XXXX': 'XXXX',
+    // 5 panels
+    'OXXXX': 'OXXXX',
+    'XXXXO': 'OXXXX',
+    'OXXXO': 'OXXXO',
+    'OOXXX': 'OOXXX',
+    'XXXOO': 'OOXXX',
+    // 6 panels
+    'OXXXXO': 'OXXXXO',
+    'XXXXXX': 'XXXXXX',
+    'OOXXOO': 'OOXXOO'
+  };
+
+  return equivalentTypes[type] || type;
+};
+
 // FALLBACK: Item price calculation (server-side preferred via /api/quotes/calculate-item)
 const calculateItemPrice = (item, metadata) => {
   if (!metadata || !item) {
@@ -401,12 +435,15 @@ const calculateItemPrice = (item, metadata) => {
     const height = Number(item.dimensions?.height) || 0;
     const perimeter = 2 * (width + height);
     const area = (width * height) / 144;
-    // Use operationType (e.g., OXXO, OX, etc) for cost lookup
-    let operationType = item.operationType || 'OXXO';
+    
+    // Normalize operation type for consistent pricing
+    const normalizedType = normalizeOperationType(item.operationType || 'OXXO');
+    
     // Use linear inch pricing table
     let costTable = metadata.unitCostPerLinearInch?.[item.brand]?.[item.systemModel] || {};
-    let systemCostPerInch = Number(costTable[operationType]) || 0;
+    let systemCostPerInch = Number(costTable[normalizedType]) || 0;
     let systemCost = perimeter * systemCostPerInch;
+    
     // (Optional) Add grid cost if grid is ever supported for sliding doors
     let gridCost = 0;
     if (item.grid?.enabled && costTable.grid) {
@@ -417,18 +454,22 @@ const calculateItemPrice = (item, metadata) => {
       gridCost = mullionLength * (costTable.grid || 0);
       systemCost += gridCost;
     }
+    
     totalSystemCost = systemCost;
     totalGlassCost = glassUnitCost * area;
+    
     // Use labor rate for sliding doors
     let laborRate = Number(metadata.laborRates?.['Sliding →']) || 5;
     totalLaborCost = laborRate * area;
     totalArea = area;
+    
     // Detailed debug log
     console.log('[Pricing] Sliding Doors (Linear Inch):', {
       width,
       height,
       perimeter,
-      operationType,
+      operationType: item.operationType,
+      normalizedType,
       systemCostPerInch,
       perimeterCost: perimeter * systemCostPerInch,
       gridCost,
@@ -440,6 +481,7 @@ const calculateItemPrice = (item, metadata) => {
       totalArea,
       total: totalSystemCost + totalGlassCost + totalLaborCost
     });
+    
     return {
       totalSystemCost,
       totalGlassCost,

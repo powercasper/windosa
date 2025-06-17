@@ -2,21 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   Stepper,
   Step,
-  StepLabel,
   Button,
   Typography,
   Box,
-  Paper,
   StepButton,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
-  Divider,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
 import ClientInformation from './steps/ClientInformation';
 import BrandSelection from './steps/BrandSelection';
 import SystemTypeSelection from './steps/SystemTypeSelection';
