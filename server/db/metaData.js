@@ -164,6 +164,119 @@ const unitCostPerSqft = {
   }
 };
 
+const unitCostPerLinearInch = {
+  Alumil: {
+    // Windows
+    "S67":            { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    "S67 PHOS":       { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    "S67 Urban":      { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    "S77":            { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    "S77 PHOS":       { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    "M9660":          { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    "M9660 PHOS":     { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    // Entrance Doors
+    SD67:  { 
+      "Single Door": 3.5,
+      "Double Door": 6,
+      grid: 0.35,
+      "Fixed": 0.77 // Keep fixed panel rate for sidelights
+    },
+    SD77:  { 
+      "Single Door": 3.5,
+      "Double Door": 6,
+      grid: 0.35,
+      "Fixed": 0.77, // Keep fixed panel rate for sidelights
+      "Pivot Door": 5.85 // Added higher rate for pivot configuration
+    },
+    SD115: { 
+      grid: 0.35,
+      "Pivot Door": 7, // Main pivot door rate
+      "Fixed": 0.77 // Fixed panel rate for sidelights
+    },
+    // Sliding Doors
+    "SMARTIA M450": {"OX": 2.742, "XX": 2.950, "OXX": 2.869, "XXX": 3.049, "OXXO": 1.859, "OXXX": 2.039, "XXXX": 2.098},
+    "SMARTIA M630": {"OX": 2.742, "XX": 2.950, "OXX": 2.869, "XXX": 3.049, "OXXO": 1.859, "OXXX": 2.039, "XXXX": 2.098},
+    "SUPREME S650": {
+      "OX": 4.062,
+      "XX": 4.333,
+      "OXX": 4.062,
+      "XXX": 4.062,
+      "OXXO": 4.062,
+      "OXXX": 4.062,
+      "XXXX": 4.062,
+      "OXXXX": 4.062,  // 1 fixed + 4 sliding
+      "XXXXO": 4.062,  // 4 sliding + 1 fixed
+      "OXXXO": 4.062,  // 2 fixed + 3 sliding
+      "OOXXX": 4.062,  // 2 fixed + 3 sliding (grouped)
+      "XXXOO": 4.062,  // 3 sliding + 2 fixed (grouped)
+      "OXXXXO": 4.062,
+      "XXXXXX": 4.062,  // 6 sliding panels
+      "OOXXOO": 4.062  // 2 sliding panels with fixed ends and sides
+    }
+  },
+  Reynaers: {
+    // Windows
+    "SlimLine 38 Classic":      { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    "SlimLine 38 Cube":         { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    "SlimLine 38 Ferro":        { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    "SlimLine 68 Window":       { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    // Entrance Doors
+    "SlimLine 38 Door":         { 
+      grid: 0.35,
+      "Single Door": 3.5,
+      "Double Door": 6,
+      "Fixed": 0.77 // Keep fixed panel rate for sidelights
+    },
+    "MasterLine 8":             { 
+      grid: 0.35,
+      "Single Door": 3.5,
+      "Double Door": 6,
+      "Fixed": 0.77 // Keep fixed panel rate for sidelights
+    },
+    "CS 77":                    { 
+      grid: 0.35,
+      "Single Door": 3.5,
+      "Double Door": 6,
+      "Fixed": 0.77 // Keep fixed panel rate for sidelights
+    },
+    // Sliding Doors
+    "Hi-Finity": {
+      "OX": 4.062,
+      "XX": 4.333,
+      "OXX": 4.062,
+      "XXX": 4.062,
+      "OXXO": 4.062,
+      "OXXX": 4.062,
+      "XXXX": 4.062,
+      "OXXXX": 4.062,  // 1 fixed + 4 sliding
+      "XXXXO": 4.062,  // 4 sliding + 1 fixed
+      "OXXXO": 4.062,  // 2 fixed + 3 sliding
+      "OOXXX": 4.062,  // 2 fixed + 3 sliding (grouped)
+      "XXXOO": 4.062,  // 3 sliding + 2 fixed (grouped)
+      "OXXXXO": 4.062,
+      "XXXXXX": 4.062,  // 6 sliding panels
+      "OOXXOO": 4.062  // 2 sliding panels with fixed ends and sides
+    },
+    "SlimPatio 68": {
+      "OX": 4.062,
+      "XX": 4.333,
+      "OXX": 4.062,
+      "XXX": 4.062,
+      "OXXO": 4.062,
+      "OXXX": 4.062,
+      "XXXX": 4.062,
+      "OXXXX": 4.062,  // 1 fixed + 4 sliding
+      "XXXXO": 4.062,  // 4 sliding + 1 fixed
+      "OXXXO": 4.062,  // 2 fixed + 3 sliding
+      "OOXXX": 4.062,  // 2 fixed + 3 sliding (grouped)
+      "XXXOO": 4.062,  // 3 sliding + 2 fixed (grouped)
+      "OXXXXO": 4.062,
+      "XXXXXX": 4.062,  // 6 sliding panels
+      "OOXXOO": 4.062  // 2 sliding panels with fixed ends and sides
+    },
+  }
+};
+
 module.exports = {
   laborRates,
   systemHierarchy,
@@ -173,5 +286,6 @@ module.exports = {
   doorOperables,
   doorModelCapabilities,
   unitCostPerSqft,
-  systemBrands
+  systemBrands,
+  unitCostPerLinearInch
 }; 

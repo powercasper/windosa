@@ -9,7 +9,8 @@ const {
   doorOperables,
   doorModelCapabilities,
   unitCostPerSqft,
-  systemBrands
+  systemBrands,
+  unitCostPerLinearInch
 } = require('../db/metaData');
 
 // GET /api/metadata/labor-rates
@@ -55,6 +56,11 @@ router.get('/door-model-capabilities', (req, res) => {
 // GET /api/metadata/system-brands
 router.get('/system-brands', (req, res) => {
   res.json({ systemBrands });
+});
+
+// GET /api/metadata/unit-costs-linear-inch
+router.get('/unit-costs-linear-inch', (req, res) => {
+  res.json({ unitCostPerLinearInch });
 });
 
 module.exports = router; 

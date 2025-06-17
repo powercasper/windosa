@@ -168,18 +168,14 @@ const calculateItemPrice = (item, metadata) => {
 
   // Get glass pricing from database - CONSISTENT WITH SERVER
   let glassUnitCost = 12.0; // Database default
-  
   if (item.glassDetails?.price) {
-    // Use enhanced glass database pricing
     glassUnitCost = Number(item.glassDetails.price) || 12.0;
   } else {
-    // Use database prices for all premium glass (consistent with server)
     const databaseGlassRates = {
       'Double Pane': 12.5,
       'Triple Pane': 18.0,
       'Security Glass': 22,
       'Acoustic Glass': 25,
-      // Database prices - CONSISTENT WITH SERVER
       'SKN 184 High Performance': 12.00,
       'SKN 154 Balanced Performance': 12.00,
       'XTREME 50-22 Solar Control': 12.00,
@@ -188,6 +184,90 @@ const calculateItemPrice = (item, metadata) => {
     };
     glassUnitCost = Number(databaseGlassRates[item.glassType]) || 12.0;
   }
+
+  // --- EXTENDED LOGIC: Linear Inch Pricing for All Window Types with Grid Support ---
+  if (item.systemType === 'Windows' && item.panels) {
+    const width = Number(item.dimensions?.width) || 0;
+    const height = Number(item.dimensions?.height) || 0;
+    const perimeter = 2 * (width + height);
+
+    // Grid logic
+    let horizontal = item.grid?.enabled ? Number(item.grid.horizontal) || 0 : 0;
+    let vertical = item.grid?.enabled ? Number(item.grid.vertical) || 0 : 0;
+    // If no grid but multiple panels, infer mullions
+    if (!item.grid?.enabled && item.panels.length > 1) {
+      // Assume a single row of panels (side by side)
+      horizontal = item.panels.length - 1;
+    }
+    const mullionLength = (horizontal * height) + (vertical * width);
+
+    // System cost: sum for each panel type
+    let systemCost = 0;
+    const costTable = metadata.unitCostPerLinearInch?.[item.brand]?.[item.systemModel] || {};
+    let panelCostPerInch = 0;
+    let panelTypeSummary = '';
+
+    if (item.panels.every(p => p.operationType === item.panels[0].operationType)) {
+      // All panels same type
+      const opType = item.panels[0].operationType;
+      panelCostPerInch = costTable[opType] || 0;
+      systemCost = perimeter * panelCostPerInch;
+      panelTypeSummary = `All panels: ${opType} ($${panelCostPerInch}/in)`;
+    } else {
+      // Mixed panel types: use average cost per inch
+      const costs = item.panels.map(p => costTable[p.operationType] || 0);
+      panelCostPerInch = costs.reduce((sum, c) => sum + c, 0) / costs.length;
+      systemCost = perimeter * panelCostPerInch;
+      panelTypeSummary = `Mixed panels: avg $${panelCostPerInch.toFixed(2)}/in [${item.panels.map(p => p.operationType).join(', ')}]`;
+    }
+
+    // Add grid cost if grid is enabled
+    let gridCost = 0;
+    if (item.grid?.enabled) {
+      gridCost = mullionLength * (costTable.grid || 0);
+      systemCost += gridCost;
+    }
+
+    // Glass and labor as before
+    const area = (width * height) / 144;
+    totalSystemCost = systemCost;
+    totalGlassCost = area * glassUnitCost;
+    // Use average labor rate if mixed types
+    const laborRate = item.panels.every(p => p.operationType === item.panels[0].operationType)
+      ? Number(metadata.laborRates?.[item.panels[0].operationType]) || 5
+      : (item.panels.reduce((sum, p) => sum + (Number(metadata.laborRates?.[p.operationType]) || 5), 0) / item.panels.length);
+    totalLaborCost = laborRate * area;
+    totalArea = area;
+
+    // Detailed debug log
+    console.log('[Pricing] Windows:', {
+      width,
+      height,
+      perimeter,
+      horizontalMullions: horizontal,
+      verticalMullions: vertical,
+      mullionLength,
+      panelTypeSummary,
+      panelCostPerInch,
+      perimeterCost: perimeter * panelCostPerInch,
+      gridCost,
+      totalSystemCost,
+      glassUnitCost,
+      totalGlassCost,
+      laborRate,
+      totalLaborCost,
+      totalArea,
+      total: totalSystemCost + totalGlassCost + totalLaborCost
+    });
+
+    return {
+      totalSystemCost,
+      totalGlassCost,
+      totalLaborCost,
+      totalArea
+    };
+  }
+  // --- END EXTENDED LOGIC ---
 
   if (item.systemType === 'Entrance Doors') {
     // Calculate door panel area and cost
@@ -239,28 +319,30 @@ const calculateItemPrice = (item, metadata) => {
     }
 
     // Sidelights
+    let sidelightArea = 0;
     if (item.leftSidelight?.enabled) {
       const sidelightWidth = Number(item.leftSidelight?.width) || 0;
-      const sidelightArea = (sidelightWidth * doorHeight) / 144;
+      sidelightArea = (sidelightWidth * doorHeight) / 144;
       totalSystemCost += sidelightArea * fixedUnitCost;
       totalGlassCost += sidelightArea * glassUnitCost;
       totalArea += sidelightArea;
     }
     if (item.rightSidelight?.enabled) {
       const sidelightWidth = Number(item.rightSidelight?.width) || 0;
-      const sidelightArea = (sidelightWidth * doorHeight) / 144;
+      sidelightArea = (sidelightWidth * doorHeight) / 144;
       totalSystemCost += sidelightArea * fixedUnitCost;
       totalGlassCost += sidelightArea * glassUnitCost;
       totalArea += sidelightArea;
     }
 
     // Transom
+    let transomArea = 0;
     if (item.transom?.enabled) {
       const transomWidth = (item.leftSidelight?.enabled ? Number(item.leftSidelight?.width) || 0 : 0) +
                            doorWidth +
                            (item.rightSidelight?.enabled ? Number(item.rightSidelight?.width) || 0 : 0);
       const transomHeight = Number(item.transom?.height) || 0;
-      const transomArea = (transomWidth * transomHeight) / 144;
+      transomArea = (transomWidth * transomHeight) / 144;
       totalSystemCost += transomArea * fixedUnitCost;
       totalGlassCost += transomArea * glassUnitCost;
       totalArea += transomArea;
@@ -271,6 +353,79 @@ const calculateItemPrice = (item, metadata) => {
       metadata.laborRates?.['Pivot'] : 
       metadata.laborRates?.['Hinged Left Open In']) || 5; // Use standard hinge rate for regular doors
     totalLaborCost = laborRate * totalArea;
+
+    // Detailed debug log
+    console.log('[Pricing] Entrance Doors:', {
+      doorWidth,
+      doorHeight,
+      doorArea,
+      doorUnitCost,
+      fixedUnitCost,
+      leftSidelight: item.leftSidelight,
+      rightSidelight: item.rightSidelight,
+      sidelightArea,
+      transom: item.transom,
+      transomArea,
+      totalSystemCost,
+      glassUnitCost,
+      totalGlassCost,
+      laborRate,
+      totalLaborCost,
+      totalArea,
+      total: totalSystemCost + totalGlassCost + totalLaborCost
+    });
+
+    return {
+      totalSystemCost,
+      totalGlassCost,
+      totalLaborCost,
+      totalArea
+    };
+  }
+
+  // Sliding Doors (add detailed debug log)
+  if (item.systemType === 'Sliding Doors') {
+    const width = Number(item.dimensions?.width) || 0;
+    const height = Number(item.dimensions?.height) || 0;
+    const area = (width * height) / 144;
+    let systemUnitCost = 0;
+    let laborRate = 0;
+    let operationType = item.operationType || 'OXXO';
+    let costTable = metadata.unitCostPerSqft?.[item.brand]?.[item.systemModel] || {};
+    if (costTable && typeof costTable === 'object') {
+      systemUnitCost = Number(costTable[operationType]) || 0;
+      laborRate = Number(metadata.laborRates?.['Sliding →']) || 5;
+    }
+    if (!systemUnitCost) {
+      systemUnitCost = 32; // fallback
+    }
+    totalSystemCost = systemUnitCost * area;
+    totalGlassCost = glassUnitCost * area;
+    totalLaborCost = laborRate * area;
+    totalArea = area;
+
+    // Detailed debug log
+    console.log('[Pricing] Sliding Doors:', {
+      width,
+      height,
+      area,
+      operationType,
+      systemUnitCost,
+      glassUnitCost,
+      laborRate,
+      totalSystemCost,
+      totalGlassCost,
+      totalLaborCost,
+      totalArea,
+      total: totalSystemCost + totalGlassCost + totalLaborCost
+    });
+
+    return {
+      totalSystemCost,
+      totalGlassCost,
+      totalLaborCost,
+      totalArea
+    };
   }
 
   // Ensure all values are numbers and not NaN
@@ -381,6 +536,7 @@ const PricingSummary = ({
         total: 0
       };
     }
+    // Always use local calculation for breakdown (per linear inch logic is in calculateItemPrice)
     const price = calculateItemPrice(configuration, metadata);
     const quantity = Number(configuration.quantity) || 1;
     const total = (price.totalSystemCost + price.totalGlassCost + price.totalLaborCost) * quantity;
@@ -649,26 +805,8 @@ const PricingSummary = ({
 
   // MIGRATION: Use server-side quote totals when available, fallback to client calculation
   useEffect(() => {
-    if (serverQuoteTotals?.items) {
-      // Use server-side calculated pricing
-      console.log('🔄 Using SERVER-side quote totals:', serverQuoteTotals);
-      setPricing({
-        items: serverQuoteTotals.items.map(({ item, pricing }) => ({
-          item,
-          systemCost: pricing?.systemCost || 0,
-          glassCost: pricing?.glassCost || 0, 
-          laborCost: pricing?.laborCost || 0,
-          total: pricing?.total || 0,
-          area: pricing?.area || 0
-        })),
-        totalSystemCost: serverQuoteTotals.totals?.totalSystemCost || 0,
-        totalGlassCost: serverQuoteTotals.totals?.totalGlassCost || 0,
-        totalLaborCost: serverQuoteTotals.totals?.totalLaborCost || 0,
-        grandTotal: serverQuoteTotals.totals?.grandTotal || 0
-      });
-    } else if (!quoteTotalsLoading && quoteItems?.length > 0) {
-      // Fallback to client-side calculation
-      console.log('📱 Using CLIENT-side quote pricing fallback');
+    // Always use local calculation for now to ensure consistency with current item
+    if (quoteItems?.length > 0 && metadata) {
       const calculatedPricing = quoteItems.map(item => {
         const price = calculateItemPrice(item, metadata);
         return {
@@ -707,7 +845,7 @@ const PricingSummary = ({
         grandTotal: 0
       });
     }
-  }, [serverQuoteTotals, quoteTotalsLoading, quoteItems, metadata]);
+  }, [quoteItems, metadata]);
 
   const handleGenerateQuote = async () => {
     trackAction('generateQuote', { 
@@ -1499,19 +1637,19 @@ const PricingSummary = ({
                     <Box>
                       <Typography variant="body2" color="text.secondary">System:</Typography>
                       <Typography variant="body2">
-                        ${(currentItemPrice?.systemCost || 0).toFixed(2)}
+                        ${(currentItemPrice?.totalSystemCost || 0).toFixed(2)}
                       </Typography>
                     </Box>
                     <Box>
                       <Typography variant="body2" color="text.secondary">Glass:</Typography>
                       <Typography variant="body2">
-                        ${(currentItemPrice?.glassCost || 0).toFixed(2)}
+                        ${(currentItemPrice?.totalGlassCost || 0).toFixed(2)}
                       </Typography>
                     </Box>
                     <Box>
                       <Typography variant="body2" color="text.secondary">Labor:</Typography>
                       <Typography variant="body2">
-                        ${(currentItemPrice?.laborCost || 0).toFixed(2)}
+                        ${(currentItemPrice?.totalLaborCost || 0).toFixed(2)}
                       </Typography>
                     </Box>
                   </Stack>

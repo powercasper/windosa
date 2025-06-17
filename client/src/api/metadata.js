@@ -13,7 +13,8 @@ export const fetchMetadata = async () => {
       systemArchitectureRes,
       windowOperablesRes,
       doorOperablesRes,
-      doorModelCapabilitiesRes
+      doorModelCapabilitiesRes,
+      unitCostsLinearInchRes
     ] = await Promise.all([
       axios.get(`${API_BASE_URL}/metadata/labor-rates`),
       axios.get(`${API_BASE_URL}/metadata/unit-costs`),
@@ -23,7 +24,8 @@ export const fetchMetadata = async () => {
       axios.get(`${API_BASE_URL}/metadata/system-architecture`),
       axios.get(`${API_BASE_URL}/metadata/window-operables`),
       axios.get(`${API_BASE_URL}/metadata/door-operables`),
-      axios.get(`${API_BASE_URL}/metadata/door-model-capabilities`)
+      axios.get(`${API_BASE_URL}/metadata/door-model-capabilities`),
+      axios.get(`${API_BASE_URL}/metadata/unit-costs-linear-inch`)
     ]);
 
     return {
@@ -35,7 +37,8 @@ export const fetchMetadata = async () => {
       systemArchitecture: systemArchitectureRes.data.systemArchitecture,
       windowOperables: windowOperablesRes.data.windowOperables,
       doorOperables: doorOperablesRes.data.doorOperables,
-      doorModelCapabilities: doorModelCapabilitiesRes.data.doorModelCapabilities
+      doorModelCapabilities: doorModelCapabilitiesRes.data.doorModelCapabilities,
+      unitCostPerLinearInch: unitCostsLinearInchRes.data.unitCostPerLinearInch
     };
   } catch (error) {
     console.error('Error fetching metadata:', error);
