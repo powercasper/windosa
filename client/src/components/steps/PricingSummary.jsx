@@ -239,6 +239,10 @@ const calculateItemPrice = (item, metadata) => {
     totalLaborCost = laborRate * area;
     totalArea = area;
 
+    // Add mosquito net cost for each panel where selected
+    const mosquitoNetPanels = item.panels.filter(panel => panel.operationType !== 'Fixed' && panel.hasMosquitoNet);
+    totalSystemCost += mosquitoNetPanels.length * 100;
+
     // Detailed debug log
     console.log('[Pricing] Windows:', {
       width,
@@ -383,43 +387,51 @@ const calculateItemPrice = (item, metadata) => {
     };
   }
 
-  // Sliding Doors (add detailed debug log)
+  // Sliding Doors (now use linear inch pricing)
   if (item.systemType === 'Sliding Doors') {
     const width = Number(item.dimensions?.width) || 0;
     const height = Number(item.dimensions?.height) || 0;
+    const perimeter = 2 * (width + height);
     const area = (width * height) / 144;
-    let systemUnitCost = 0;
-    let laborRate = 0;
+    // Use operationType (e.g., OXXO, OX, etc) for cost lookup
     let operationType = item.operationType || 'OXXO';
-    let costTable = metadata.unitCostPerSqft?.[item.brand]?.[item.systemModel] || {};
-    if (costTable && typeof costTable === 'object') {
-      systemUnitCost = Number(costTable[operationType]) || 0;
-      laborRate = Number(metadata.laborRates?.['Sliding →']) || 5;
+    // Use linear inch pricing table
+    let costTable = metadata.unitCostPerLinearInch?.[item.brand]?.[item.systemModel] || {};
+    let systemCostPerInch = Number(costTable[operationType]) || 0;
+    let systemCost = perimeter * systemCostPerInch;
+    // (Optional) Add grid cost if grid is ever supported for sliding doors
+    let gridCost = 0;
+    if (item.grid?.enabled && costTable.grid) {
+      // For sliding doors, if grid is ever supported, add grid cost for mullion length
+      let horizontal = Number(item.grid.horizontal) || 0;
+      let vertical = Number(item.grid.vertical) || 0;
+      const mullionLength = (horizontal * height) + (vertical * width);
+      gridCost = mullionLength * (costTable.grid || 0);
+      systemCost += gridCost;
     }
-    if (!systemUnitCost) {
-      systemUnitCost = 32; // fallback
-    }
-    totalSystemCost = systemUnitCost * area;
+    totalSystemCost = systemCost;
     totalGlassCost = glassUnitCost * area;
+    // Use labor rate for sliding doors
+    let laborRate = Number(metadata.laborRates?.['Sliding →']) || 5;
     totalLaborCost = laborRate * area;
     totalArea = area;
-
     // Detailed debug log
-    console.log('[Pricing] Sliding Doors:', {
+    console.log('[Pricing] Sliding Doors (Linear Inch):', {
       width,
       height,
-      area,
+      perimeter,
       operationType,
-      systemUnitCost,
-      glassUnitCost,
-      laborRate,
+      systemCostPerInch,
+      perimeterCost: perimeter * systemCostPerInch,
+      gridCost,
       totalSystemCost,
+      glassUnitCost,
       totalGlassCost,
+      laborRate,
       totalLaborCost,
       totalArea,
       total: totalSystemCost + totalGlassCost + totalLaborCost
     });
-
     return {
       totalSystemCost,
       totalGlassCost,
@@ -1474,22 +1486,30 @@ const PricingSummary = ({
                         </Typography>
                         <Typography variant="body2">
                           {panel.operationType} ({panel.width}")
-                          {panel.operationType !== 'Fixed' && configuration.hasMosquitoNet && ' + Mosquito Net'}
+                          {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
                         </Typography>
                   </Box>
                     ))
                 )}
                   {configuration.systemType === 'Sliding Doors' && configuration.panels && (
-                    configuration.panels.map((panel, idx) => (
-                      <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                          Panel {idx + 1}:
-                                  </Typography>
-                        <Typography variant="body2">
-                          {panel.type} {panel.type === 'Sliding' ? `(${panel.direction === 'left' ? '←' : '→'})` : ''}
-                                  </Typography>
-                                    </Box>
-                    ))
+                    configuration.panels.map((panel, idx) => {
+                      let direction = panel.direction;
+                      // Fallback: if direction is missing, default to right for first, left for second, etc.
+                      if (panel.type === 'Sliding' && !direction) {
+                        direction = idx % 2 === 0 ? 'right' : 'left';
+                      }
+                      return (
+                        <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                            Panel {idx + 1}:
+                          </Typography>
+                          <Typography variant="body2">
+                            {panel.type}
+                            {panel.type === 'Sliding' ? ` (${direction === 'left' ? '←' : '→'})` : ''}
+                          </Typography>
+                        </Box>
+                      );
+                    })
                   )}
                 </Stack>
                                 </Paper>
@@ -1854,7 +1874,7 @@ const PricingSummary = ({
                                           </Typography>
                                           <Typography variant="body2">
                                       {panel.operationType} ({panel.width}")
-                                      {panel.operationType !== 'Fixed' && item.hasMosquitoNet && ' + Mosquito Net'}
+                                      {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
                                           </Typography>
                                         </Box>
                                       ))}
@@ -1871,16 +1891,23 @@ const PricingSummary = ({
                                             </Typography>
                                           </Box>
                                 {/* Sliding doors do not support grid configuration */}
-                                {item.panels?.map((panel, idx) => (
-                                  <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
-                                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                      Panel {idx + 1}:
-                                        </Typography>
-                                            <Typography variant="body2">
-                                      {panel.type} {panel.type === 'Sliding' ? `(${panel.direction === 'left' ? '←' : '→'})` : ''}
-                                            </Typography>
-                                          </Box>
-                                ))}
+                                {item.panels?.map((panel, idx) => {
+                                  let direction = panel.direction;
+                                  if (panel.type === 'Sliding' && !direction) {
+                                    direction = idx % 2 === 0 ? 'right' : 'left';
+                                  }
+                                  return (
+                                    <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
+                                      <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                        Panel {idx + 1}:
+                                      </Typography>
+                                      <Typography variant="body2">
+                                        {panel.type}
+                                        {panel.type === 'Sliding' ? ` (${direction === 'left' ? '←' : '→'})` : ''}
+                                      </Typography>
+                                    </Box>
+                                  );
+                                })}
                               </>
                             )}
                             {item.systemType === 'Entrance Doors' && (
