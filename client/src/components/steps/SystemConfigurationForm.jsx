@@ -19,6 +19,8 @@ import {
   Switch,
   FormControlLabel,
   Checkbox,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -31,135 +33,92 @@ import ViewSidebarIcon from '@mui/icons-material/ViewSidebar';
 import PreviewIcon from '@mui/icons-material/Preview';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
-
-// Import the system architecture data
-import { 
-  systemArchitecture, 
-  windowOperables, 
-  doorOperables,
-  doorModelCapabilities,
-  finishOptions,
-  unitCostPerSqft 
-} from '../../utils/metadata';
+import { useMetadata } from '../../contexts/MetadataContext';
 
 const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
+  const { metadata, loading, error } = useMetadata();
   const [availableModels, setAvailableModels] = useState([]);
-  const [availableOperables, setAvailableOperables] = useState(windowOperables);
+  const [availableOperables, setAvailableOperables] = useState([]);
   const [maxPanels, setMaxPanels] = useState(6);
   const [panelConfigs, setPanelConfigs] = useState([]);
   const [useEqualWidths, setUseEqualWidths] = useState(true);
   const [showGridConfig, setShowGridConfig] = useState(false);
 
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ mt: 2 }}>
+        Error loading configuration options. Please try again later.
+      </Alert>
+    );
+  }
+
+  if (!metadata) {
+    return (
+      <Alert severity="warning" sx={{ mt: 2 }}>
+        Configuration data not available. Please try refreshing the page.
+      </Alert>
+    );
+  }
+
+  if (!configuration?.brand || !configuration?.systemType) {
+    return (
+      <Alert severity="warning" sx={{ mt: 2 }}>
+        Please select a brand and system type first.
+      </Alert>
+    );
+  }
+
   useEffect(() => {
     if (configuration.brand && configuration.systemType) {
-      const models = systemArchitecture[configuration.brand][configuration.systemType] || [];
+      console.log('Loading models for:', {
+        brand: configuration.brand,
+        systemType: configuration.systemType,
+        metadata: metadata,
+        systemArchitecture: metadata?.systemArchitecture
+      });
+      
+      // Safely access systemArchitecture with optional chaining
+      const brandConfig = metadata?.systemArchitecture?.[configuration.brand];
+      console.log('Brand config:', brandConfig);
+      
+      const models = brandConfig?.[configuration.systemType] || [];
+      console.log('Available models:', models);
+      
       setAvailableModels(models);
 
-      // Only set default configurations if there isn't an existing configuration
-      if (configuration.systemType === 'Entrance Doors' && !configuration.openingType) {
-        const defaultOpeningType = configuration.systemModel === 'SD115' ? 'Pivot Door' :
-                                 doorModelCapabilities[configuration.systemModel]?.[0] || 'Single Door';
-        
-        const defaultSwingDirection = defaultOpeningType === 'Pivot Door' ? 'Center Pivot' :
-                                    defaultOpeningType === 'Single Door' ? 'Left Hand In' :
-                                    'Active Left';
-
-        onUpdate({
-          openingType: defaultOpeningType,
-          swingDirection: defaultSwingDirection,
-          handleType: configuration.systemModel === 'SD115' ? 'Pull Handle' : 'Lever Handle',
-          lockType: 'Multi-Point Lock',
-          threshold: 'Standard',
-          hingeType: configuration.systemModel === 'SD115' ? 'Pivot' : 'Standard',
-          dimensions: configuration.dimensions || { width: '', height: '' },
-          hasSidelights: configuration.hasSidelights || false,
-          leftSidelight: configuration.leftSidelight || { enabled: false, width: 12 },
-          rightSidelight: configuration.rightSidelight || { enabled: false, width: 12 },
-          transom: configuration.transom || { enabled: false, height: 12 },
-          doorType: 'glass',
-          grid: { enabled: false, horizontal: 2, vertical: 3 }
-        });
-      } else if (configuration.systemType === 'Windows' && (!configuration.panels || configuration.panels.length === 0)) {
-        onUpdate({
-          panels: [{
-            width: 0,
-            operationType: 'Fixed',
-            handleLocation: 'right'
-          }],
-          dimensions: configuration.dimensions || { width: '', height: '' },
-          grid: {
-            enabled: false,
-            horizontal: 2,
-            vertical: 3
-          }
-        });
-      } else if (configuration.systemType === 'Sliding Doors' && (!configuration.panels || configuration.panels.length === 0)) {
-        const defaultPanels = [
-          {
-            type: 'Fixed',
-            width: 0,
-            direction: null
-          },
-          {
-            type: 'Sliding',
-            width: 0,
-            direction: 'right'
-          }
-        ];
-        
-        onUpdate({
-          panels: defaultPanels,
-          dimensions: configuration.dimensions || { width: '', height: '' },
-          grid: undefined // Remove grid configuration for sliding doors
-        });
+      // If current model is not in available models, clear it
+      if (configuration.systemModel && !models.includes(configuration.systemModel)) {
+        console.log('Clearing invalid model:', configuration.systemModel);
+        onUpdate({ systemModel: '' });
       }
 
-      // Set default finish if not already set
-      if (!configuration.finish?.type) {
-        onUpdate({
-          finish: {
-            type: 'Powder Coated',
-            color: 'Standard',
-            ralColor: '9016'
-          }
-        });
-      }
-    }
-  }, [configuration.brand, configuration.systemType, configuration.systemModel]);
-
-  useEffect(() => {
-    if (configuration.systemType) {
       if (configuration.systemType === 'Windows') {
-        setAvailableOperables(windowOperables);
-      } else if (configuration.systemType === 'Entrance Doors') {
-        setAvailableOperables(doorOperables);
-      } else if (configuration.systemType === 'Sliding Doors') {
-        // For sliding doors, we use typologies
-        setAvailableOperables(['OX', 'XX', 'OXX', 'XXX', 'OXXO', 'OXXX', 'XXXX', 'OXXXX', 'XXXXO', 'OXXXO', 'OOXXX', 'XXXOO', 'OXXXXO', 'XXXXXX', 'OOXXOO']);
+        console.log('Setting window operables:', metadata?.windowOperables);
+        setAvailableOperables(metadata?.windowOperables || []);
         
-        // Initialize default panels if not already set
-        if (!configuration.panels || configuration.panels.length === 0) {
-          const defaultPanels = [
-            {
-              type: 'Fixed',
-              width: 0,
-              direction: null
-            },
-            {
-              type: 'Sliding',
-              width: 0,
-              direction: 'right'
-            }
-          ];
-          
-          onUpdate({
-            panels: defaultPanels,
-            dimensions: configuration.dimensions || { width: '', height: '' }
-          });
+        // Initialize panels with default operation type if not set
+        if (configuration.panels?.length > 0) {
+          const updatedPanels = configuration.panels.map(panel => ({
+            ...panel,
+            operationType: panel.operationType || 'Fixed'
+          }));
+          onUpdate({ panels: updatedPanels });
         }
+      } else if (configuration.systemType === 'Entrance Doors') {
+        setAvailableOperables(metadata?.doorOperables?.openingTypes || []);
+      } else if (configuration.systemType === 'Sliding Doors') {
+        setAvailableOperables(['OX', 'XX', 'OXX', 'XXX', 'OXXO', 'OXXX', 'XXXX', 'OXXXX', 'XXXXO', 'OXXXO', 'OOXXX', 'XXXOO', 'OXXXXO', 'XXXXXX', 'OOXXOO']);
       }
     }
-  }, [configuration.systemType]);
+  }, [metadata, configuration.brand, configuration.systemType]);
 
   useEffect(() => {
     // Initialize panels array if it doesn't exist and we're configuring a window
@@ -223,9 +182,9 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
       
       // If current opening type is not available for the selected model, reset it
       if (configuration.openingType && 
-          doorModelCapabilities[configuration.systemModel] && 
-          !doorModelCapabilities[configuration.systemModel].includes(configuration.openingType)) {
-        const defaultOpeningType = doorModelCapabilities[configuration.systemModel]?.[0] || '';
+          metadata.doorModelCapabilities[configuration.systemModel] && 
+          !metadata.doorModelCapabilities[configuration.systemModel].includes(configuration.openingType)) {
+        const defaultOpeningType = metadata.doorModelCapabilities[configuration.systemModel]?.[0] || '';
         const defaultSwingDirection = defaultOpeningType === 'Pivot Door' ? 'Center Pivot' :
                                     defaultOpeningType === 'Single Door' ? 'Left Hand In' :
                                     defaultOpeningType === 'Double Door' ? 'Active Left' :
@@ -256,6 +215,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   }, [configuration.hasSidelights, configuration.systemType]);
 
   const handleChange = (field) => (event) => {
+    console.log('Handling change:', { field, value: event.target.value });
     onUpdate({ [field]: event.target.value });
   };
 
@@ -464,14 +424,6 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
     });
   };
 
-  if (!configuration.brand || !configuration.systemType) {
-    return (
-      <Typography color="error">
-        Please select a brand and system type first
-      </Typography>
-    );
-  }
-
   return (
     <Box>
       <Typography variant="h5" gutterBottom>
@@ -556,7 +508,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
               >
                 <InputLabel>Model</InputLabel>
                 <Select
-                  value={availableModels.length > 0 ? (configuration.systemModel || '') : ''}
+                  value={configuration.systemModel || ''}
                   onChange={handleChange('systemModel')}
                   label="Model"
                   disabled={availableModels.length === 0}
@@ -579,6 +531,11 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                     </MenuItem>
                   ))}
                 </Select>
+                {availableModels.length === 0 && (
+                  <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                    No models available for the selected brand and system type
+                  </Typography>
+                )}
               </FormControl>
             </Grid>
             <Grid item xs={12}>
@@ -1333,7 +1290,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                         }}
                         label="Opening Type"
                       >
-                        {(doorModelCapabilities[configuration.systemModel] || doorOperables.openingTypes).map((type) => (
+                        {(metadata.doorModelCapabilities[configuration.systemModel] || metadata.doorOperables.openingTypes).map((type) => (
                           <MenuItem key={type} value={type}>
                             {type}
                           </MenuItem>
@@ -1377,11 +1334,12 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                 </Grid>
               </Paper>
 
-              {/* Grid Configuration */}
-              <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
-                <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <GridOnIcon fontSize="small" /> Grid Configuration
-                </Typography>
+              {/* Grid Configuration - Only for glass entrance doors */}
+              {configuration.systemType === 'Entrance Doors' && configuration.doorType === 'glass' && (
+                <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
+                  <Typography variant="subtitle1" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <GridOnIcon fontSize="small" /> Grid Configuration
+                  </Typography>
                 <Stack spacing={2}>
                   <FormControlLabel
                     control={
@@ -1458,6 +1416,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                   )}
                 </Stack>
               </Paper>
+              )}
 
               {/* Hardware Configuration */}
               <Paper sx={{ p: 3, bgcolor: 'background.paper' }}>
@@ -1490,7 +1449,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                             onChange={(e) => onUpdate({ handleType: e.target.value })}
                             label="Handle Type"
                           >
-                            {doorOperables.handleTypes.map((type) => (
+                            {metadata.doorOperables.handleTypes.map((type) => (
                               <MenuItem key={type} value={type}>
                                 {type}
                               </MenuItem>
@@ -1513,7 +1472,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                             onChange={(e) => onUpdate({ lockType: e.target.value })}
                             label="Lock Type"
                           >
-                            {doorOperables.lockTypes.map((type) => (
+                            {metadata.doorOperables.lockTypes.map((type) => (
                               <MenuItem key={type} value={type}>
                                 {type}
                               </MenuItem>
@@ -1529,7 +1488,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                             onChange={(e) => onUpdate({ hingeType: e.target.value })}
                             label="Hinge Type"
                           >
-                            {doorOperables.hingeTypes.map((type) => (
+                            {metadata.doorOperables.hingeTypes.map((type) => (
                               <MenuItem key={type} value={type}>
                                 {type}
                               </MenuItem>
@@ -1552,7 +1511,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                             onChange={(e) => onUpdate({ threshold: e.target.value })}
                             label="Threshold Type"
                           >
-                            {doorOperables.thresholds.map((type) => (
+                            {metadata.doorOperables.thresholds.map((type) => (
                               <MenuItem key={type} value={type}>
                                 {type}
                               </MenuItem>
@@ -2018,7 +1977,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                     }
                   }}
                 >
-                  {Object.keys(finishOptions).map((finish) => (
+                  {Object.keys(metadata.finishOptions).map((finish) => (
                     <MenuItem key={finish} value={finish}>
                       {finish}
                     </MenuItem>
@@ -2061,7 +2020,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                     }
                   }}
                 >
-                  {configuration.finish.type && finishOptions[configuration.finish.type].map((style) => (
+                  {configuration.finish.type && metadata.finishOptions[configuration.finish.type].map((style) => (
                     <MenuItem key={style} value={style}>
                       {style}
                     </MenuItem>

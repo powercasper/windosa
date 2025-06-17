@@ -14,13 +14,15 @@ import {
   Tooltip,
   IconButton,
   Snackbar,
+  CircularProgress,
 } from '@mui/material';
 import ColorLensIcon from '@mui/icons-material/ColorLens';
 import SaveIcon from '@mui/icons-material/Save';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import { finishOptions } from '../utils/metadata';
+import { useMetadata } from '../contexts/MetadataContext';
 
 const DefaultFinishOptions = ({ defaultFinish, onSaveDefaults }) => {
+  const { metadata, loading, error } = useMetadata();
   const [finishValues, setFinishValues] = React.useState(defaultFinish || {
     type: '',
     color: '',
@@ -61,6 +63,22 @@ const DefaultFinishOptions = ({ defaultFinish, onSaveDefaults }) => {
            (!finishValues.ralColor || finishValues.ralColor.length === 4);
   };
 
+  if (loading) {
+    return (
+      <Paper sx={{ p: 2, mb: 2, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress size={24} />
+      </Paper>
+    );
+  }
+
+  if (error) {
+    return (
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography color="error">Error loading finish options. Please try again later.</Typography>
+      </Paper>
+    );
+  }
+
   return (
     <Paper 
       sx={{ 
@@ -91,7 +109,7 @@ const DefaultFinishOptions = ({ defaultFinish, onSaveDefaults }) => {
             onChange={handleFinishChange('type')}
             label="Type"
           >
-            {Object.keys(finishOptions).map((finish) => (
+            {Object.keys(metadata.finishOptions).map((finish) => (
               <MenuItem key={finish} value={finish}>
                 {finish}
               </MenuItem>
@@ -110,7 +128,7 @@ const DefaultFinishOptions = ({ defaultFinish, onSaveDefaults }) => {
             label="Style"
             disabled={!finishValues.type}
           >
-            {finishValues.type && finishOptions[finishValues.type].map((style) => (
+            {finishValues.type && metadata.finishOptions[finishValues.type].map((style) => (
               <MenuItem key={style} value={style}>
                 {style}
               </MenuItem>

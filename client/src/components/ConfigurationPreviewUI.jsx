@@ -473,7 +473,7 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                 position: 'relative',
               }}
             >
-              {configuration.grid?.enabled && renderGrid()}
+              {/* Remove grid rendering for sliding doors - they don't support divided lights */}
               
               <Typography variant="caption" sx={styles.caption}>
                 {panel.type}
