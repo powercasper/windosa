@@ -16,6 +16,17 @@ const getHandleLocation = (swingDirection) => {
   return 'right';
 };
 
+// Helper function to get handle location for doors (prioritizes handleLocation over swing direction)
+const getDoorHandleLocation = (configuration) => {
+  // If handleLocation is explicitly set, use it
+  if (configuration.handleLocation) {
+    return configuration.handleLocation;
+  }
+  
+  // Otherwise, derive from swing direction
+  return getHandleLocation(configuration.swingDirection);
+};
+
 const styles = StyleSheet.create({
   container: {
     border: '1pt solid #ddd',
@@ -455,20 +466,20 @@ const ConfigurationPreview = ({ configuration }) => {
                   {/* Handle based on swing direction */}
                   <View style={[
                     styles.handle, 
-                    { [getHandleLocation(configuration.swingDirection)]: 3 }
+                    { [getDoorHandleLocation(configuration)]: 3 }
                   ]} />
                   {/* Hinges on opposite side to handle */}
                   <View style={[
                     styles.hinge, 
-                    { [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: 1, top: '15%' }
+                    { [getDoorHandleLocation(configuration) === 'left' ? 'right' : 'left']: 1, top: '15%' }
                   ]} />
                   <View style={[
                     styles.hinge, 
-                    { [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: 1, top: '46%' }
+                    { [getDoorHandleLocation(configuration) === 'left' ? 'right' : 'left']: 1, top: '46%' }
                   ]} />
                   <View style={[
                     styles.hinge, 
-                    { [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: 1, top: '77%' }
+                    { [getDoorHandleLocation(configuration) === 'left' ? 'right' : 'left']: 1, top: '77%' }
                   ]} />
                 </View>
               </View>

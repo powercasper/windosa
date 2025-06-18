@@ -1,6 +1,32 @@
 import React from 'react';
 import { View, Text } from '@react-pdf/renderer';
 
+// Helper function to determine handle location from swing direction
+const getHandleLocation = (swingDirection) => {
+  if (!swingDirection) return 'right';
+  
+  // For single doors, handle is on the side opposite to the hinges
+  if (swingDirection.includes('Left Hand')) {
+    return 'left';  // Left hand doors have handle on left side
+  } else if (swingDirection.includes('Right Hand')) {
+    return 'right'; // Right hand doors have handle on right side
+  }
+  
+  // For pivot doors, typically handle is on the right
+  return 'right';
+};
+
+// Helper function to get handle location for doors (prioritizes handleLocation over swing direction)
+const getDoorHandleLocation = (configuration) => {
+  // If handleLocation is explicitly set, use it
+  if (configuration.handleLocation) {
+    return configuration.handleLocation;
+  }
+  
+  // Otherwise, derive from swing direction
+  return getHandleLocation(configuration.swingDirection);
+};
+
 const ConfigurationPreview = ({ configuration, maxHeight = '200px' }) => {
   const styles = {
     container: {
@@ -148,11 +174,11 @@ const ConfigurationPreview = ({ configuration, maxHeight = '200px' }) => {
               <View
                 style={{
                   ...styles.handle,
-                  [configuration.doorSwing]: 0,
+                  [getDoorHandleLocation(configuration)]: 0,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  marginRight: configuration.doorSwing === 'right' ? '1pt' : 'auto',
-                  marginLeft: configuration.doorSwing === 'left' ? '1pt' : 'auto',
+                  marginRight: getDoorHandleLocation(configuration) === 'right' ? '1pt' : 'auto',
+                  marginLeft: getDoorHandleLocation(configuration) === 'left' ? '1pt' : 'auto',
                 }}
               />
             )}

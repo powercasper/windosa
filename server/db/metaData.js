@@ -1,4 +1,4 @@
-// client/src/utils/metadata.js
+// server/db/metaData.js - Single source of truth for all metadata
 
 const systemBrands = [
   "Alumil",

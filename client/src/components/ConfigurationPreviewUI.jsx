@@ -16,6 +16,17 @@ const getHandleLocation = (swingDirection) => {
   return 'right';
 };
 
+// Helper function to get handle location for doors (prioritizes handleLocation over swing direction)
+const getDoorHandleLocation = (configuration) => {
+  // If handleLocation is explicitly set, use it
+  if (configuration.handleLocation) {
+    return configuration.handleLocation;
+  }
+  
+  // Otherwise, derive from swing direction
+  return getHandleLocation(configuration.swingDirection);
+};
+
 const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
   // Calculate total dimensions for better scaling
   const calculateDimensions = () => {
@@ -598,23 +609,23 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                 <Box
                   sx={{
                     ...styles.handle,
-                      [getHandleLocation(configuration.swingDirection)]: '2px',
+                      [getDoorHandleLocation(configuration)]: '2px',
                   }}
                 />
               {/* Hinges on opposite side to handle */}
                   <Box sx={{
                     ...styles.hinge,
-                    [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: '1px',
+                    [getDoorHandleLocation(configuration) === 'left' ? 'right' : 'left']: '1px',
                     top: '15%'
                   }} />
                   <Box sx={{
                     ...styles.hinge,
-                    [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: '1px',
+                    [getDoorHandleLocation(configuration) === 'left' ? 'right' : 'left']: '1px',
                     top: '46%'
                   }} />
                   <Box sx={{
                     ...styles.hinge,
-                    [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: '1px',
+                    [getDoorHandleLocation(configuration) === 'left' ? 'right' : 'left']: '1px',
                     top: '77%'
                   }} />
                 </>
