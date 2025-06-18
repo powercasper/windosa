@@ -25,13 +25,33 @@ const iconMapping = {
 
 const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isEditing }) => {
   const handleTypeSelect = (type) => {
-    onUpdate({ 
+    const baseConfig = {
       systemType: type,
-      // Reset dependent fields when changing system type
       systemModel: '',
-      operationType: '',
-      dimensions: { width: 0, height: 0 },
-      panels: []
+      dimensions: { width: 0, height: 0 }
+    };
+
+    let additionalConfig = {};
+    
+    if (type === 'Sliding Doors') {
+      // Initialize sliding door configuration with default OX configuration
+      additionalConfig = {
+        operationType: 'OX',
+        panels: [
+          { type: 'Fixed', direction: null },
+          { type: 'Sliding', direction: 'right' }
+        ],
+        dimensions: { width: 72, height: 80 }
+      };
+    } else if (type === 'Windows') {
+      additionalConfig = {
+        panels: []
+      };
+    }
+
+    onUpdate({ 
+      ...baseConfig,
+      ...additionalConfig
     });
     onNext();
   };

@@ -13,7 +13,6 @@ import {
   Alert,
   List,
   ListItem,
-  ListItemText,
   IconButton,
   Stack,
   Grid,
@@ -37,15 +36,10 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import WindowIcon from '@mui/icons-material/Window';
-import ColorLensIcon from '@mui/icons-material/ColorLens';
-import SquareFootIcon from '@mui/icons-material/SquareFoot';
-import CommentIcon from '@mui/icons-material/Comment';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import DoorSlidingIcon from '@mui/icons-material/DoorSliding';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import InventoryIcon from '@mui/icons-material/Inventory';
-import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import CalculateIcon from '@mui/icons-material/Calculate';
 import PaidIcon from '@mui/icons-material/Paid';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -60,7 +54,6 @@ import { generateQuote } from '../../api/config';
 import { formatCurrency, saveQuote } from '../../utils/helpers';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
 import { generateHybridPDF } from '../../utils/hybridPdfGenerator';
-import { getGlassByType } from '../../utils/glassDatabase';
 import { useItemPricing, useQuoteTotals, useTypeMetrics } from '../../hooks/usePricing';
 import { performanceMonitor, usePerformanceTracking } from '../../utils/performanceMonitor';
 import { useMetadata } from '../../contexts/MetadataContext';
@@ -153,6 +146,40 @@ const getStoredCosts = () => {
   return null;
 };
 
+// Helper function to normalize sliding door operation types
+const normalizeOperationType = (type) => {
+  if (!type) return type;
+  
+  // Create a mapping of equivalent configurations
+  const equivalentTypes = {
+    // 2 panels
+    'OX': 'OX',
+    'XO': 'OX',
+    // 3 panels
+    'OXX': 'OXX',
+    'XXO': 'OXX',
+    // 4 panels
+    'OXXO': 'OXXO',
+    'OXXO': 'OXXO',
+    // Multiple sliding panels
+    'OXXX': 'OXXX',
+    'XXXO': 'OXXX',
+    'XXXX': 'XXXX',
+    // 5 panels
+    'OXXXX': 'OXXXX',
+    'XXXXO': 'OXXXX',
+    'OXXXO': 'OXXXO',
+    'OOXXX': 'OOXXX',
+    'XXXOO': 'OOXXX',
+    // 6 panels
+    'OXXXXO': 'OXXXXO',
+    'XXXXXX': 'XXXXXX',
+    'OOXXOO': 'OOXXOO'
+  };
+
+  return equivalentTypes[type] || type;
+};
+
 // FALLBACK: Item price calculation (server-side preferred via /api/quotes/calculate-item)
 const calculateItemPrice = (item, metadata) => {
   if (!metadata || !item) {
@@ -164,9 +191,6 @@ const calculateItemPrice = (item, metadata) => {
   let totalGlassCost = 0;
   let totalLaborCost = 0;
   let totalArea = 0;
-
-  // Get quantity (default to 1 if not specified)
-  const quantity = Number(item.quantity) || 1;
 
   // Get glass pricing from database - CONSISTENT WITH SERVER
   let glassUnitCost = 12.0; // Database default
@@ -401,12 +425,15 @@ const calculateItemPrice = (item, metadata) => {
     const height = Number(item.dimensions?.height) || 0;
     const perimeter = 2 * (width + height);
     const area = (width * height) / 144;
-    // Use operationType (e.g., OXXO, OX, etc) for cost lookup
-    let operationType = item.operationType || 'OXXO';
+    
+    // Normalize operation type for consistent pricing
+    const normalizedType = normalizeOperationType(item.operationType || 'OXXO');
+    
     // Use linear inch pricing table
     let costTable = metadata.unitCostPerLinearInch?.[item.brand]?.[item.systemModel] || {};
-    let systemCostPerInch = Number(costTable[operationType]) || 0;
+    let systemCostPerInch = Number(costTable[normalizedType]) || 0;
     let systemCost = perimeter * systemCostPerInch;
+    
     // (Optional) Add grid cost if grid is ever supported for sliding doors
     let gridCost = 0;
     if (item.grid?.enabled && costTable.grid) {
@@ -417,18 +444,22 @@ const calculateItemPrice = (item, metadata) => {
       gridCost = mullionLength * (costTable.grid || 0);
       systemCost += gridCost;
     }
+    
     totalSystemCost = systemCost;
     totalGlassCost = glassUnitCost * area;
+    
     // Use labor rate for sliding doors
     let laborRate = Number(metadata.laborRates?.['Sliding →']) || 5;
     totalLaborCost = laborRate * area;
     totalArea = area;
+    
     // Detailed debug log
     console.log('[Pricing] Sliding Doors (Linear Inch):', {
       width,
       height,
       perimeter,
-      operationType,
+      operationType: item.operationType,
+      normalizedType,
       systemCostPerInch,
       perimeterCost: perimeter * systemCostPerInch,
       gridCost,
@@ -440,6 +471,7 @@ const calculateItemPrice = (item, metadata) => {
       totalArea,
       total: totalSystemCost + totalGlassCost + totalLaborCost
     });
+    
     return {
       totalSystemCost,
       totalGlassCost,
@@ -460,29 +492,6 @@ const calculateItemPrice = (item, metadata) => {
     totalLaborCost,
     totalArea
   };
-};
-
-const calculateBaseCost = (configuration) => {
-  if (!configuration.systemModel) return 0;
-
-  if (configuration.systemType === 'Windows') {
-    const totalWidth = configuration.panels.reduce((sum, panel) => sum + panel.width, 0);
-    const area = (totalWidth * configuration.dimensions.height) / 144; // Convert to square feet
-    let cost = area * unitCostPerSqft[configuration.systemModel];
-
-    // Add mosquito net cost if enabled
-    if (configuration.hasMosquitoNet) {
-      const operationalPanels = configuration.panels.filter(panel => panel.operationType !== 'Fixed').length;
-      cost += operationalPanels * 100; // $100 per operational window
-    }
-
-    return cost;
-  } else if (configuration.systemType === 'Sliding Doors') {
-    // ... existing sliding doors calculation ...
-  } else if (configuration.systemType === 'Entrance Doors') {
-    // ... existing entrance doors calculation ...
-  }
-  return 0;
 };
 
 const PricingSummary = ({ 
@@ -611,11 +620,6 @@ const PricingSummary = ({
         setDelivery(numericValue);
         break;
     }
-  };
-
-  const formatPrice = (value) => {
-    if (value === undefined || value === null) return '0.00';
-    return value.toFixed(2);
   };
 
   // Quantity editing functions

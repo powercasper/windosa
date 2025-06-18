@@ -181,7 +181,8 @@ const QuoteLineItem = ({ item }) => {
                     <Text style={styles.label}>Panel {idx + 1}:</Text>
                     <Text style={styles.value}>
                       {panel.operationType} ({panel.width}")
-                      {panel.operationType !== 'Fixed' && item.hasMosquitoNet && ' + Mosquito Net'}
+                      {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
+                      {panel.operationType !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
                     </Text>
                   </View>
                 ))}
@@ -218,6 +219,8 @@ const QuoteLineItem = ({ item }) => {
                           {panel.type === 'Fixed' ? 'Fixed' : 
                            panel.type === 'Sliding' ? `Sliding (${panel.direction === 'left' ? '←' : '→'})` : 
                            panel.type}
+                          {panel.type !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
+                          {panel.type !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
                         </Text>
                       </View>
                     ))}

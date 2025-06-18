@@ -29,7 +29,11 @@ export const useFormValidation = (configuration) => {
     
     if (configuration.systemType === 'Sliding Doors') {
       const hasValidOperationType = !!configuration.operationType;
-      return hasValidDimensions && hasValidFinish && hasValidModel && hasValidOperationType;
+      const hasValidPanels = configuration.panels?.length > 0 && 
+        configuration.panels.every(panel => 
+          panel.type && (!panel.type || panel.type === 'Fixed' || (panel.type === 'Sliding' && panel.direction))
+        );
+      return hasValidDimensions && hasValidFinish && hasValidModel && hasValidOperationType && hasValidPanels;
     }
 
     return false;
