@@ -188,18 +188,41 @@ const ConfigurationPreview = ({ configuration }) => {
       return 1.6; // Default 16:10 ratio
     }
     
-    const totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                      configuration.dimensions.width + 
-                      (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
-    const totalHeight = configuration.dimensions.height + 
-                       (configuration.transom?.enabled ? configuration.transom.height : 0);
+    let totalWidth, totalHeight;
     
+    if (configuration.systemType === 'Entrance Doors') {
+      if (configuration.dimensions?.totalWidth && configuration.dimensions?.totalHeight) {
+        totalWidth = configuration.dimensions.totalWidth;
+        totalHeight = configuration.dimensions.totalHeight;
+      } else {
+        totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                     configuration.dimensions.width + 
+                     (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+        totalHeight = configuration.dimensions.height + 
+                      (configuration.transom?.enabled ? configuration.transom.height : 0);
+      }
+    } else {
+      totalWidth = configuration.dimensions.width;
+      totalHeight = configuration.dimensions.height;
+    }
+    // Debug log
+    console.log('[PDF Preview] getAspectRatio:', {
+      systemType: configuration.systemType,
+      totalWidth,
+      totalHeight,
+      dimensions: configuration.dimensions,
+      panels: configuration.panels,
+      leftSidelight: configuration.leftSidelight,
+      rightSidelight: configuration.rightSidelight,
+      transom: configuration.transom
+    });
     return totalWidth / totalHeight;
   };
 
   const aspectRatio = getAspectRatio();
   const containerHeight = 150;
   const containerWidth = containerHeight * aspectRatio;
+  console.log('[PDF Preview] FINAL container:', { containerWidth, containerHeight, aspectRatio });
   const renderGridLines = (horizontal, vertical) => {
     const lines = [];
     
@@ -384,12 +407,22 @@ const ConfigurationPreview = ({ configuration }) => {
     }
 
     // Entrance Doors - need to include transom and sidelights
-    const totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                      configuration.dimensions.width + 
-                      (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+    let totalWidth, totalHeight;
+    
+    if (configuration.dimensions?.totalWidth && configuration.dimensions?.totalHeight) {
+      // Use stored total dimensions if available
+      totalWidth = configuration.dimensions.totalWidth;
+      totalHeight = configuration.dimensions.totalHeight;
+    } else {
+      // Calculate on the fly as fallback
+      totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                   configuration.dimensions.width + 
+                   (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+      totalHeight = configuration.dimensions.height + 
+                    (configuration.transom?.enabled ? configuration.transom.height : 0);
+    }
 
     const transomHeight = configuration.transom?.enabled ? configuration.transom.height : 0;
-    const totalHeight = configuration.dimensions.height + transomHeight;
     
     // Calculate width percentages for sidelights and door
     const leftSidelightPercent = configuration.leftSidelight?.enabled ? 

@@ -224,7 +224,9 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         // Dimensions defaults
         dimensions: {
           width: 36,
-          height: 80
+          height: 80,
+          totalWidth: 36, // Initially no sidelights
+          totalHeight: 80 // Initially no transom
         },
         
         // Finish defaults
@@ -321,6 +323,38 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
       });
     }
   }, [configuration.hasSidelights, configuration.systemType]);
+
+  // Add effect to calculate total dimensions for entrance doors
+  useEffect(() => {
+    if (configuration.systemType === 'Entrance Doors') {
+      const totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                        configuration.dimensions.width + 
+                        (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+      const totalHeight = configuration.dimensions.height + 
+                         (configuration.transom?.enabled ? configuration.transom.height : 0);
+      
+      // Only update if the calculated values are different from stored values
+      if (configuration.dimensions.totalWidth !== totalWidth || configuration.dimensions.totalHeight !== totalHeight) {
+        onUpdate({
+          dimensions: {
+            ...configuration.dimensions,
+            totalWidth,
+            totalHeight
+          }
+        });
+      }
+    }
+  }, [
+    configuration.systemType,
+    configuration.dimensions?.width,
+    configuration.dimensions?.height,
+    configuration.leftSidelight?.enabled,
+    configuration.leftSidelight?.width,
+    configuration.rightSidelight?.enabled,
+    configuration.rightSidelight?.width,
+    configuration.transom?.enabled,
+    configuration.transom?.height
+  ]);
 
   const handleChange = (field) => (event) => {
     console.log('Handling change:', { field, value: event.target.value });

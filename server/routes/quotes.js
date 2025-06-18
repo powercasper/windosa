@@ -47,6 +47,7 @@ const getGlassPrice = (glassType) => {
 
 // Helper function to calculate pricing
 const calculatePricing = (configuration) => {
+  const quantity = Number(configuration.quantity) || 1;
   console.log('\n=== PRICING CALCULATION START ===');
   console.log('Configuration:', JSON.stringify({
     brand: configuration.brand,
@@ -54,7 +55,8 @@ const calculatePricing = (configuration) => {
     systemType: configuration.systemType,
     operationType: configuration.operationType,
     dimensions: configuration.dimensions,
-    glassType: configuration.glassType
+    glassType: configuration.glassType,
+    quantity: configuration.quantity
   }, null, 2));
 
   let totalSystemCost = 0;
@@ -415,7 +417,7 @@ const calculatePricing = (configuration) => {
   }
 
   // Ensure all final values are valid numbers
-  const result = {
+  let result = {
     systemCost: Number(totalSystemCost.toFixed(2)) || 0,
     glassCost: Number(totalGlassCost.toFixed(2)) || 0,
     laborCost: Number(totalLaborCost.toFixed(2)) || 0,
@@ -423,7 +425,17 @@ const calculatePricing = (configuration) => {
     area: Number(totalArea.toFixed(2)) || 0
   };
 
-  console.log('\nFinal Result:');
+  // Multiply all by quantity
+  if (quantity > 1) {
+    result = {
+      systemCost: result.systemCost * quantity,
+      glassCost: result.glassCost * quantity,
+      laborCost: result.laborCost * quantity,
+      total: result.total * quantity,
+      area: result.area * quantity
+    };
+  }
+  console.log(`\nFinal Result (quantity: ${quantity}):`);
   console.log(JSON.stringify(result, null, 2));
   console.log('\n=== PRICING CALCULATION END ===\n');
   
