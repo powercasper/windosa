@@ -241,6 +241,9 @@ const styles = StyleSheet.create({
 });
 
 const QuoteDocument = ({ quote }) => {
+  // Debug: log the full quote object
+  console.log('[PDF] Quote data:', JSON.stringify(quote, null, 2));
+
   // Split items into pages (1 item per page to ensure full display)
   const splitIntoPages = (items) => {
     // Each page will have 1 item to ensure no splitting
@@ -549,42 +552,22 @@ const QuoteDocument = ({ quote }) => {
 
             {/* Table Rows */}
             {(() => {
-              // Calculate total area once for all items
-              const totalArea = quote.items.reduce((sum, itm) => {
-                let area = 0;
-                if (itm.systemType === 'Windows') {
-                  area = (itm.panels.reduce((w, p) => w + p.width, 0) * itm.dimensions.height) / 144;
-                } else if (itm.systemType === 'Entrance Doors') {
-                  area = ((itm.leftSidelight?.enabled ? itm.leftSidelight.width : 0) + 
-                         itm.dimensions.width +
-                         (itm.rightSidelight?.enabled ? itm.rightSidelight.width : 0)) * 
-                        (itm.dimensions.height + 
-                         (itm.transom?.enabled ? itm.transom.height : 0)) / 144;
-                } else if (itm.systemType === 'Sliding Doors') {
-                  area = (itm.dimensions.width * itm.dimensions.height) / 144;
-                }
-                return sum + area;
-              }, 0);
-
+              // Calculate total area from pricing.area (already includes quantity)
+              const totalArea = quote.items.reduce((sum, item) => sum + (item.pricing?.area || 0), 0);
+              console.log('[PDF] Itemized Overview - totalArea:', totalArea);
+              quote.items.forEach((item, index) => {
+                console.log(`[PDF] Item ${index + 1}:`, {
+                  id: item.id,
+                  description: item.systemType + ' ' + (item.systemModel || ''),
+                  quantity: item.quantity,
+                  pricing: item.pricing,
+                  area: item.pricing?.area,
+                  finalPrice: item.pricing?.finalPrice
+                });
+              });
               return quote.items.map((item, index) => {
-                const itemArea = (() => {
-                  if (item.systemType === 'Windows') {
-                    return ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
-                  } else if (item.systemType === 'Entrance Doors') {
-                    return (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-                            item.dimensions.width +
-                            (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
-                           (item.dimensions.height + 
-                            (item.transom?.enabled ? item.transom.height : 0)) / 144);
-                  } else if (item.systemType === 'Sliding Doors') {
-                    return ((item.dimensions.width * item.dimensions.height) / 144);
-                  }
-                  return 0;
-                })();
-
-                // Use consistent pricing calculation
-                const finalItemPrice = calculateItemFinalPrice(item, itemArea, totalArea);
-                
+                const itemArea = item.pricing?.area || 0;
+                const finalItemPrice = item.pricing?.finalPrice || 0;
                 const description = (() => {
                   if (item.systemType === 'Windows') {
                     return `${item.brand} ${item.systemModel} - ${item.panels.map(p => p.operationType).join('/')}`;
@@ -595,7 +578,6 @@ const QuoteDocument = ({ quote }) => {
                   }
                   return '';
                 })();
-
                 return (
                   <View key={item.id} style={styles.tableRow}>
                     <View style={[styles.colPosition]}>
@@ -634,7 +616,7 @@ const QuoteDocument = ({ quote }) => {
               <View style={[styles.colLocation]}></View>
               <View style={[styles.colArea]}>
                 <Text style={styles.tableHeaderCellRight}>
-                  {quote.totalArea?.toFixed(1) || '0.0'}
+                  {quote.items.reduce((sum, item) => sum + (item.pricing?.area || 0), 0).toFixed(1)}
                 </Text>
               </View>
               <View style={[styles.colUnitPrice]}></View>
