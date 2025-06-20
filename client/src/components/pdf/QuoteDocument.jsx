@@ -250,227 +250,101 @@ const QuoteDocument = ({ quote }) => {
     return items.map(item => [item]);
   };
 
-  // Calculate total quantity
-  const totalQuantity = quote.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-
-  // Unified pricing calculation function
-  const calculatePricing = () => {
-    // Calculate base costs from individual items
-    const totalSystemCost = quote.items.reduce((sum, item) => sum + (item.pricing?.systemCost || 0), 0);
-    const totalGlassCost = quote.items.reduce((sum, item) => sum + (item.pricing?.glassCost || 0), 0);
-    const totalLaborCost = quote.items.reduce((sum, item) => sum + (item.pricing?.laborCost || 0), 0);
-    const baseItemsCost = totalSystemCost + totalGlassCost + totalLaborCost;
-
-    // Additional costs
-    const tariff = quote.additionalCosts?.tariff || 0;
-    const shipping = quote.additionalCosts?.shipping || 0;
-    const delivery = quote.additionalCosts?.delivery || 0;
-    const margin = quote.additionalCosts?.margin || 0;
-
-    // Calculate totals (delivery is NOT subject to margin - standard business practice)
-    const additionalCostsExceptDelivery = tariff + shipping;
-    const totalWithoutMarginAndDelivery = baseItemsCost + additionalCostsExceptDelivery;
-    const marginPercent = parseFloat(margin || 0);
-    const marginMultiplier = marginPercent > 0 ? 1 / (1 - (marginPercent / 100)) : 1;
-    const subtotal = totalWithoutMarginAndDelivery * marginMultiplier;
-    const grandTotal = subtotal + delivery;
-
-    return {
-      baseItemsCost,
-      totalSystemCost,
-      totalGlassCost,
-      totalLaborCost,
-      tariff,
-      shipping,
-      delivery,
-      margin,
-      subtotal,
-      grandTotal
-    };
-  };
-
-  const pricing = calculatePricing();
-  
-  // Debug logging for consistency check
-  console.log('=== PDF PRICING DEBUG ===');
-  console.log('Base items cost:', pricing.baseItemsCost);
-  console.log('Tariff:', pricing.tariff);
-  console.log('Shipping:', pricing.shipping);
-  console.log('Delivery:', pricing.delivery);
-  console.log('Margin:', pricing.margin);
-  console.log('Subtotal:', pricing.subtotal);
-  console.log('Grand Total:', pricing.grandTotal);
-  console.log('=========================');
-
-  // Simplified item calculation - CONSISTENT WITH SERVER/FRONTEND
-  const calculateItemFinalPrice = (item, itemArea, totalArea) => {
-    // Use the same base cost from server calculation (already includes quantity)
-    const baseItemCost = (item.pricing?.systemCost || 0) + (item.pricing?.glassCost || 0) + (item.pricing?.laborCost || 0);
-    
-    // Calculate proportional additional costs (tariff + shipping, excluding delivery)
-    const proportionalTariffShipping = totalArea > 0 ? 
-      (itemArea / totalArea) * (pricing.tariff + pricing.shipping) : 0;
-    
-    // Apply margin to (base + tariff + shipping)
-    const costBeforeMargin = baseItemCost + proportionalTariffShipping;
-    const marginMultiplier = pricing.margin > 0 ? 1 / (1 - (pricing.margin / 100)) : 1;
-    const costAfterMargin = costBeforeMargin * marginMultiplier;
-    
-    // Add proportional delivery (not subject to margin)
-    const proportionalDelivery = totalArea > 0 ? 
-      (itemArea / totalArea) * pricing.delivery : 0;
-    
-    const finalItemPrice = costAfterMargin + proportionalDelivery;
-    
-    return finalItemPrice;
-  };
-
   const itemPages = splitIntoPages(quote.items);
-  const totalPages = 1 + itemPages.length + 1; // 1 header page + item pages + 1 itemized overview page
+  const totalPages = itemPages.length + 1; // +1 for the summary page
+
+  const {
+    baseCost,
+    totalAdditionalCost,
+    delivery,
+    subtotal,
+    grandTotal,
+    totalArea
+  } = quote.pricing;
+
+  const renderItemizedTable = () => {
+    return (
+      <View style={styles.itemizedSection}>
+        <Text style={styles.itemizedTitle}>Itemized Overview</Text>
+        <View style={styles.tableContainer}>
+          {/* Table Header */}
+          <View style={styles.tableHeader}>
+            <Text style={{ ...styles.tableHeaderCell, ...styles.colPosition }}>Pos.</Text>
+            <Text style={{ ...styles.tableHeaderCell, ...styles.colQuantity }}>Qty</Text>
+            <Text style={{ ...styles.tableHeaderCellLeft, ...styles.colDescription }}>Description</Text>
+            <Text style={{ ...styles.tableHeaderCell, ...styles.colLocation }}>Location</Text>
+            <Text style={{ ...styles.tableHeaderCellRight, ...styles.colArea }}>Area (ft²)</Text>
+            <Text style={{ ...styles.tableHeaderCellRight, ...styles.colUnitPrice }}>Unit Price*</Text>
+            <Text style={{ ...styles.tableHeaderCellRight, ...styles.colTotal }}>Total</Text>
+          </View>
+          
+          {/* Table Body */}
+          {quote.items.map((item, index) => {
+            const description = item.systemType === 'Windows'
+              ? `${item.brand} ${item.systemModel} - ${item.panels.map(p => p.operationType).join('/')}`
+              : `${item.brand} ${item.systemModel} - ${item.openingType || item.operationType}`;
+            
+            return (
+              <View key={item.id || index} style={styles.tableRow}>
+                <Text style={{ ...styles.tableCell, ...styles.colPosition }}>{String(index + 1).padStart(3, '0')}</Text>
+                <Text style={{ ...styles.tableCell, ...styles.colQuantity }}>{item.quantity || 1}</Text>
+                <Text style={{ ...styles.tableCellLeft, ...styles.colDescription }}>{description}</Text>
+                <Text style={{ ...styles.tableCell, ...styles.colLocation }}>{item.location || '-'}</Text>
+                <Text style={{ ...styles.tableCellRight, ...styles.colArea }}>{item.pricing.area.toFixed(1)}</Text>
+                <Text style={{ ...styles.tableCellRight, ...styles.colUnitPrice }}>${item.pricing.unitPrice.toFixed(2)}</Text>
+                <Text style={{ ...styles.tableCellRight, ...styles.colTotal }}>${item.pricing.finalPrice.toFixed(2)}</Text>
+              </View>
+            );
+          })}
+          
+          {/* Table Totals */}
+          <View style={styles.tableTotalRow}>
+            <Text style={{ ...styles.tableCellLeft, width: '30%', fontWeight: 'bold' }}>{quote.items.length} Positions</Text>
+            <Text style={{ ...styles.tableCell, width: '38%' }}></Text>
+            <Text style={{ ...styles.tableHeaderCellRight, ...styles.colArea }}>{totalArea.toFixed(1)}</Text>
+            <Text style={{ ...styles.tableCell, ...styles.colUnitPrice }}></Text>
+            <Text style={{ ...styles.tableHeaderCellRight, ...styles.colTotal }}>${subtotal.toFixed(2)}</Text>
+          </View>
+        </View>
+        <Text style={styles.tableNote}>
+          * Unit Price includes proportionally distributed additional costs (tariff, shipping) with a 5% fee and product margin. Delivery is separate.
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <Document>
-      {/* Page 1: Header and Project Information Only */}
-      <Page size="A4" orientation="landscape" style={styles.page}>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Image src={logo} style={styles.logo} />
-            <View>
-              <Text style={styles.projectTitle}>Project Quote #{quote.quoteNumber}</Text>
-              <Text style={styles.projectValue}>
-                Date: {new Date().toLocaleDateString()}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.companyInfo}>
-            <Text style={styles.companyName}>{COMPANY_INFO.name}</Text>
-            <Text style={styles.companyDetail}>{COMPANY_INFO.specialty}</Text>
-            <Text style={styles.companyDetail}>{COMPANY_INFO.address}</Text>
-            <Text style={styles.companyDetail}>Phone: {COMPANY_INFO.phone}</Text>
-            <Text style={styles.companyDetail}>Email: {COMPANY_INFO.email}</Text>
-            <Text style={styles.companyDetail}>{COMPANY_INFO.website}</Text>
-          </View>
-        </View>
+      {/* Page 1: Summary Page */}
+      <Page size="LETTER" style={styles.page}>
+        <Header quote={quote} />
+        
+        {/* Itemized Table on First Page */}
+        {renderItemizedTable()}
 
-        <View style={styles.projectInfo}>
-          <View style={styles.projectSection}>
-            <Text style={styles.projectTitle}>Client Information</Text>
-            {quote.clientInfo && (
-              <>
-                <View style={styles.projectDetail}>
-                  <Text style={styles.projectLabel}>Client:</Text>
-                  <Text style={styles.projectValue}>
-                    {quote.clientInfo.isCompany && quote.clientInfo.companyName ? 
-                      quote.clientInfo.companyName : 
-                      `${quote.clientInfo.firstName} ${quote.clientInfo.lastName}`.trim()
-                    }
-                  </Text>
-                </View>
-                {quote.clientInfo.isCompany && quote.clientInfo.jobTitle && (
-                  <View style={styles.projectDetail}>
-                    <Text style={styles.projectLabel}>Contact:</Text>
-                    <Text style={styles.projectValue}>
-                      {`${quote.clientInfo.firstName} ${quote.clientInfo.lastName}`.trim()}, {quote.clientInfo.jobTitle}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.projectDetail}>
-                  <Text style={styles.projectLabel}>Email:</Text>
-                  <Text style={styles.projectValue}>{quote.clientInfo.email}</Text>
-                </View>
-                <View style={styles.projectDetail}>
-                  <Text style={styles.projectLabel}>Phone:</Text>
-                  <Text style={styles.projectValue}>{quote.clientInfo.phone}</Text>
-                </View>
-                {quote.clientInfo.address?.street && (
-                  <View style={styles.projectDetail}>
-                    <Text style={styles.projectLabel}>Address:</Text>
-                    <Text style={styles.projectValue}>
-                      {quote.clientInfo.address.street}
-                      {quote.clientInfo.address.city && `, ${quote.clientInfo.address.city}`}
-                      {quote.clientInfo.address.state && `, ${quote.clientInfo.address.state}`}
-                      {quote.clientInfo.address.zipCode && ` ${quote.clientInfo.address.zipCode}`}
-                    </Text>
-                  </View>
-                )}
-              </>
-            )}
-            {/* Fallback for legacy quotes */}
-            {!quote.clientInfo && quote.customerName && (
-              <View style={styles.projectDetail}>
-                <Text style={styles.projectLabel}>Customer:</Text>
-                <Text style={styles.projectValue}>{quote.customerName}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.projectSection}>
-            <Text style={styles.projectTitle}>Project Details</Text>
-            <View style={styles.projectDetail}>
-              <Text style={styles.projectLabel}>Project Name:</Text>
-              <Text style={styles.projectValue}>
-                {quote.clientInfo?.projectName || quote.projectName || 'Untitled Project'}
-              </Text>
-            </View>
-            {quote.clientInfo?.projectType && (
-              <View style={styles.projectDetail}>
-                <Text style={styles.projectLabel}>Project Type:</Text>
-                <Text style={styles.projectValue}>{quote.clientInfo.projectType}</Text>
-              </View>
-            )}
-            <View style={styles.projectDetail}>
-              <Text style={styles.projectLabel}>Total Items:</Text>
-              <Text style={styles.projectValue}>{quote.items.length}</Text>
-            </View>
-            {totalQuantity > quote.items.length && (
-              <View style={styles.projectDetail}>
-                <Text style={styles.projectLabel}>Total Quantity:</Text>
-                <Text style={styles.projectValue}>{totalQuantity}</Text>
-              </View>
-            )}
-            <View style={styles.projectDetail}>
-              <Text style={styles.projectLabel}>Total Area:</Text>
-              <Text style={styles.projectValue}>
-                {quote.totalArea ? `${quote.totalArea.toFixed(1)} sq ft` : 'N/A'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Order Summary Section */}
+        {/* Order Summary */}
         <View style={styles.summarySection}>
           <Text style={styles.summaryTitle}>Order Summary</Text>
           <View style={styles.summaryGrid}>
             <View style={styles.summaryColumn}>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Quote #:</Text>
-                <Text style={styles.summaryValue}>{quote.quoteNumber}</Text>
+                <Text style={styles.summaryLabel}>Subtotal (Products + Margin):</Text>
+                <Text style={styles.summaryValue}>${(baseCost * (1 + (quote.margin / 100))).toFixed(2)}</Text>
               </View>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Quote Date:</Text>
-                <Text style={styles.summaryValue}>{new Date().toLocaleDateString()}</Text>
-              </View>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Valid Until:</Text>
-                <Text style={styles.summaryValue}>
-                  {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                </Text>
+                <Text style={styles.summaryLabel}>Additional Costs (Tariff + Shipping + 5% Fee):</Text>
+                <Text style={styles.summaryValue}>${(totalAdditionalCost * 1.05).toFixed(2)}</Text>
               </View>
             </View>
             <View style={styles.summaryColumn}>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Subtotal:</Text>
-                <Text style={styles.summaryValue}>
-                  ${pricing.subtotal.toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Delivery Costs:</Text>
-                <Text style={styles.summaryValue}>${pricing.delivery.toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>${delivery.toFixed(2)}</Text>
               </View>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>GRAND TOTAL:</Text>
                 <Text style={styles.totalValue}>
-                  ${pricing.grandTotal.toFixed(2)}
+                  ${grandTotal.toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -484,178 +358,44 @@ const QuoteDocument = ({ quote }) => {
 
       {/* Item Pages: Starting from page 2 */}
       {itemPages.map((pageItems, pageIndex) => (
-        <Page key={pageIndex + 1} size="A4" orientation="landscape" style={styles.itemPage}>
+        <Page key={pageIndex} size="LETTER" style={styles.itemPage}>
+          <Header quote={quote} />
           <View style={styles.itemsContainer}>
-            {pageItems.map((item) => (
-              <View key={item.id} style={styles.itemWrapper}>
-                <QuoteLineItem item={item} />
+            {pageItems.map((item, itemIndex) => (
+              <View key={item.id || itemIndex} style={styles.itemWrapper}>
+                <QuoteLineItem item={item} position={pageIndex + 1} />
               </View>
             ))}
           </View>
-
           <Text style={styles.pageNumber}>
             Page {pageIndex + 2} of {totalPages}
           </Text>
         </Page>
       ))}
-
-      {/* Last Page: Itemized Overview Table */}
-      <Page size="A4" orientation="landscape" style={styles.page}>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Image src={logo} style={styles.logo} />
-            <View>
-              <Text style={styles.projectTitle}>Itemized Overview - Quote #{quote.quoteNumber}</Text>
-              <Text style={styles.projectValue}>
-                Date: {new Date().toLocaleDateString()}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.companyInfo}>
-            <Text style={styles.companyName}>{COMPANY_INFO.name}</Text>
-            <Text style={styles.companyDetail}>{COMPANY_INFO.specialty}</Text>
-            <Text style={styles.companyDetail}>{COMPANY_INFO.address}</Text>
-            <Text style={styles.companyDetail}>Phone: {COMPANY_INFO.phone}</Text>
-            <Text style={styles.companyDetail}>Email: {COMPANY_INFO.email}</Text>
-            <Text style={styles.companyDetail}>{COMPANY_INFO.website}</Text>
-          </View>
-        </View>
-
-        {/* Itemized Overview Table */}
-        <View style={[styles.itemizedSection, { marginTop: 10 }]}>
-          <Text style={styles.itemizedTitle}>Itemized Overview</Text>
-          <View style={styles.tableContainer}>
-            {/* Table Header */}
-            <View style={styles.tableHeader}>
-              <View style={[styles.colPosition]}>
-                <Text style={styles.tableHeaderCell}>Position</Text>
-              </View>
-              <View style={[styles.colQuantity]}>
-                <Text style={styles.tableHeaderCell}>Quantity [Pcs.]</Text>
-              </View>
-              <View style={[styles.colDescription]}>
-                <Text style={styles.tableHeaderCellLeft}>Description</Text>
-              </View>
-              <View style={[styles.colLocation]}>
-                <Text style={styles.tableHeaderCell}>Location</Text>
-              </View>
-              <View style={[styles.colArea]}>
-                <Text style={styles.tableHeaderCellRight}>Area [ft²]</Text>
-              </View>
-              <View style={[styles.colUnitPrice]}>
-                <Text style={styles.tableHeaderCellRight}>Unit Price*</Text>
-              </View>
-              <View style={[styles.colTotal]}>
-                <Text style={styles.tableHeaderCellRight}>Total</Text>
-              </View>
-            </View>
-
-            {/* Table Rows */}
-            {(() => {
-              // Calculate total area from pricing.area (already includes quantity)
-              const totalArea = quote.items.reduce((sum, item) => sum + (item.pricing?.area || 0), 0);
-              console.log('[PDF] Itemized Overview - totalArea:', totalArea);
-              quote.items.forEach((item, index) => {
-                console.log(`[PDF] Item ${index + 1}:`, {
-                  id: item.id,
-                  description: item.systemType + ' ' + (item.systemModel || ''),
-                  quantity: item.quantity,
-                  pricing: item.pricing,
-                  area: item.pricing?.area,
-                  finalPrice: item.pricing?.finalPrice
-                });
-              });
-              return quote.items.map((item, index) => {
-                const itemArea = item.pricing?.area || 0;
-                const finalItemPrice = item.pricing?.finalPrice || 0;
-                const description = (() => {
-                  if (item.systemType === 'Windows') {
-                    return `${item.brand} ${item.systemModel} - ${item.panels.map(p => p.operationType).join('/')}`;
-                  } else if (item.systemType === 'Entrance Doors') {
-                    return `${item.brand} ${item.systemModel} - ${item.openingType}`;
-                  } else if (item.systemType === 'Sliding Doors') {
-                    return `${item.brand} ${item.systemModel} - ${item.operationType}`;
-                  }
-                  return '';
-                })();
-                return (
-                  <View key={item.id} style={styles.tableRow}>
-                    <View style={[styles.colPosition]}>
-                      <Text style={styles.tableCell}>{String(index + 1).padStart(3, '0')}</Text>
-                    </View>
-                    <View style={[styles.colQuantity]}>
-                      <Text style={styles.tableCell}>{item.quantity || 1}</Text>
-                    </View>
-                    <View style={[styles.colDescription]}>
-                      <Text style={styles.tableCellLeft}>{description}</Text>
-                    </View>
-                    <View style={[styles.colLocation]}>
-                      <Text style={styles.tableCell}>{item.location || '-'}</Text>
-                    </View>
-                    <View style={[styles.colArea]}>
-                      <Text style={styles.tableCellRight}>{itemArea.toFixed(1)}</Text>
-                    </View>
-                    <View style={[styles.colUnitPrice]}>
-                      <Text style={styles.tableCellRight}>${(finalItemPrice / (item.quantity || 1)).toFixed(2)}</Text>
-                    </View>
-                    <View style={[styles.colTotal]}>
-                      <Text style={styles.tableCellRight}>${finalItemPrice.toFixed(2)}</Text>
-                    </View>
-                  </View>
-                );
-              });
-            })()}
-
-            {/* Total Row */}
-            <View style={styles.tableTotalRow}>
-              <View style={[styles.colPosition]}>
-                <Text style={styles.tableHeaderCell}>{quote.items.length} Positions</Text>
-              </View>
-              <View style={[styles.colQuantity]}></View>
-              <View style={[styles.colDescription]}></View>
-              <View style={[styles.colLocation]}></View>
-              <View style={[styles.colArea]}>
-                <Text style={styles.tableHeaderCellRight}>
-                  {quote.items.reduce((sum, item) => sum + (item.pricing?.area || 0), 0).toFixed(1)}
-                </Text>
-              </View>
-              <View style={[styles.colUnitPrice]}></View>
-              <View style={[styles.colTotal]}>
-                <Text style={styles.tableHeaderCellRight}>
-                  ${pricing.subtotal.toFixed(2)}
-                </Text>
-              </View>
-            </View>
-
-            {/* GRAND TOTAL Row */}
-            <View style={styles.tableGrandTotalRow}>
-              <View style={[styles.colPosition]}></View>
-              <View style={[styles.colQuantity]}></View>
-              <View style={[styles.colDescription]}></View>
-              <View style={[styles.colLocation]}></View>
-              <View style={[styles.colArea]}></View>
-              <View style={[styles.colUnitPrice]}>
-                <Text style={[styles.tableHeaderCellRight, { fontSize: 9, fontWeight: 'bold' }]}>GRAND TOTAL</Text>
-              </View>
-              <View style={[styles.colTotal]}>
-                <Text style={[styles.tableHeaderCellRight, { fontSize: 9, fontWeight: 'bold' }]}>
-                  ${pricing.grandTotal.toFixed(2)}
-                </Text>
-              </View>
-            </View>
-          </View>
-          
-          <Text style={styles.tableNote}>
-            * Unit Price includes proportionally distributed additional costs (tariff, shipping, delivery) and margin
-          </Text>
-        </View>
-
-        <Text style={styles.pageNumber}>
-          Page {totalPages} of {totalPages}
-        </Text>
-      </Page>
     </Document>
   );
 };
+
+const Header = ({ quote }) => (
+  <View style={styles.header}>
+    <View style={styles.headerLeft}>
+      <Image src={logo} style={styles.logo} />
+      <View>
+        <Text style={styles.projectTitle}>Project Quote #{quote.quoteNumber}</Text>
+        <Text style={styles.projectValue}>
+          Date: {new Date().toLocaleDateString()}
+        </Text>
+      </View>
+    </View>
+    <View style={styles.companyInfo}>
+      <Text style={styles.companyName}>{COMPANY_INFO.name}</Text>
+      <Text style={styles.companyDetail}>{COMPANY_INFO.specialty}</Text>
+      <Text style={styles.companyDetail}>{COMPANY_INFO.address}</Text>
+      <Text style={styles.companyDetail}>Phone: {COMPANY_INFO.phone}</Text>
+      <Text style={styles.companyDetail}>Email: {COMPANY_INFO.email}</Text>
+      <Text style={styles.companyDetail}>{COMPANY_INFO.website}</Text>
+    </View>
+  </View>
+);
 
 export default QuoteDocument; 
