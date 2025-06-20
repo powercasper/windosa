@@ -2978,19 +2978,19 @@ const PricingSummary = ({
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                               <Typography variant="body2" color="text.secondary">System Cost:</Typography>
                               <Typography variant="body2" fontWeight={500}>
-                                ${pricing.items.reduce((sum, { systemCost }) => sum + systemCost, 0).toFixed(2)}
+                                ${pricing.items.reduce((sum, { systemCost, item }) => sum + (systemCost * (item.quantity || 1)), 0).toFixed(2)}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                               <Typography variant="body2" color="text.secondary">Glass Cost:</Typography>
                               <Typography variant="body2" fontWeight={500}>
-                                ${pricing.items.reduce((sum, { glassCost }) => sum + glassCost, 0).toFixed(2)}
+                                ${pricing.items.reduce((sum, { glassCost, item }) => sum + (glassCost * (item.quantity || 1)), 0).toFixed(2)}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                               <Typography variant="body2" color="text.secondary">Labor Cost:</Typography>
                               <Typography variant="body2" fontWeight={500}>
-                                ${pricing.items.reduce((sum, { laborCost }) => sum + laborCost, 0).toFixed(2)}
+                                ${pricing.items.reduce((sum, { laborCost, item }) => sum + (laborCost * (item.quantity || 1)), 0).toFixed(2)}
                               </Typography>
                             </Box>
                             <Box sx={{ 
