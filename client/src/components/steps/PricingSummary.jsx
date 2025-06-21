@@ -1030,6 +1030,20 @@ const PricingSummary = ({
             finalPrice: itemFinalPrice,
             area: itemArea,
           },
+          // Ensure total dimensions are explicitly passed for PDF rendering
+          dimensions: {
+            ...item.dimensions,
+            totalWidth: item.systemType === 'Windows' 
+              ? item.panels.reduce((sum, panel) => sum + panel.width, 0)
+              : item.systemType === 'Sliding Doors'
+              ? item.dimensions.width
+              : (item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                item.dimensions.width +
+                (item.rightSidelight?.enabled ? item.rightSidelight.width : 0),
+            totalHeight: item.systemType === 'Entrance Doors'
+              ? item.dimensions.height + (item.transom?.enabled ? item.transom.height : 0)
+              : item.dimensions.height,
+          },
         };
       });
 
