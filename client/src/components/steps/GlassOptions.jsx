@@ -16,7 +16,15 @@ import {
   Collapse,
   Alert,
   CircularProgress,
-  Skeleton
+  Skeleton,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Select,
+  MenuItem,
+  InputLabel,
+  TextField
 } from '@mui/material';
 import {
   CompareArrows as CompareIcon,
@@ -24,7 +32,8 @@ import {
   ExpandLess as CollapseIcon,
   TrendingUp as SavingsIcon,
   Science as AdvancedIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
 import { 
   performanceLevels 
@@ -288,16 +297,107 @@ const EnhancedGlassCard = ({ glass, isSelected, onSelect }) => {
 const GlassOptions = ({ configuration, onUpdate, onNext }) => {
   // State management for server-side data
   const [glassOptions, setGlassOptions] = useState([]);
+  const [selectedGlass, setSelectedGlass] = useState(configuration.glassType || '');
+  const [comparisonList, setComparisonList] = useState([]);
+  const [showComparison, setShowComparison] = useState(false);
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
   
   // State for comparison and energy savings
-  const [showComparison, setShowComparison] = useState(false);
   const [showEnergySavings, setShowEnergySavings] = useState(false);
-  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
   const [showRecommendationWizard, setShowRecommendationWizard] = useState(false);
   
+  // State for the new IGU configurator
+  const [showIguConfigurator, setShowIguConfigurator] = useState(false);
+  const [calculatedIguPrice, setCalculatedIguPrice] = useState(null);
+  const [iguConfig, setIguConfig] = useState(configuration.iguConfig || {
+    type: 'Double',
+    composition: 'sgg CLIMAPLUS ECLAZ',
+    exteriorThickness: 6,
+    exteriorCoating: 'None',
+    spacer: 'SWISSPACER_AD_GREY',
+    interiorGlass: 'PLANITHERM_XN_4MM'
+  });
+
+  const iguOptions = {
+    exteriorCoatings: [
+      { id: 'None', name: 'None', surcharge: 0 },
+      { id: 'SKN_165', name: 'Cool-Lite SKN 165', surcharge: 36.35 },
+      { id: 'SKN_176', name: 'Cool-Lite SKN 176', surcharge: 36.35 },
+      { id: 'SKN_183', name: 'Cool-Lite SKN 183', surcharge: 36.35 },
+      { id: 'XTREME_61_29', name: 'Cool-Lite XTREME 61/29', surcharge: 37.85 },
+      { id: 'XTREME_70_33', name: 'Cool-Lite XTREME 70/33', surcharge: 37.85 },
+    ],
+    spacers: [
+      { id: 'SWISSPACER_AD_GREY', name: 'SWISSPACER AD: titan-grey; black', surcharge: 1.50 },
+      { id: 'SWISSPACER_AD_BROWN', name: 'SWISSPACER AD: light brown, dark brown, white', surcharge: 2.50 },
+      { id: 'SWISSPACER_ULTIMATE_GREY', name: 'SWISSPACER ULTIMATE: titan-grey; black', surcharge: 2.50 },
+    ],
+    interiorGlass: [
+      { id: 'PLANITHERM_XN_4MM', name: 'PLANITHERM XN 4mm (Ug=1.1)', surcharge: 20.72 },
+      { id: 'PLANITHERM_XN_6MM', name: 'PLANITHERM XN 6mm (Ug=1.1)', surcharge: 28.34 },
+      { id: 'PLANITHERM_XN_8MM', name: 'PLANITHERM XN 8mm (Ug=1.1)', surcharge: 38.86 },
+      { id: 'PLANITHERM_XN_10MM', name: 'PLANITHERM XN 10mm (Ug=1.1)', surcharge: 38.48 },
+      { id: 'PLANITHERM_ONE_4MM', name: 'PLANITHERM ONE 4mm (Ug=1.0)', surcharge: 39.99 },
+      { id: 'PLANITHERM_ONE_6MM', name: 'PLANITHERM ONE 6mm (Ug=1.0)', surcharge: 43.32 },
+    ]
+  };
+
+  // Effect to handle IGU config changes and log them
+  useEffect(() => {
+    const basePrice = 27.98;
+    const coatingSurcharge = iguOptions.exteriorCoatings.find(c => c.id === iguConfig.exteriorCoating)?.surcharge || 0;
+    const spacerSurcharge = iguOptions.spacers.find(s => s.id === iguConfig.spacer)?.surcharge || 0;
+    const interiorSurcharge = iguOptions.interiorGlass.find(g => g.id === iguConfig.interiorGlass)?.surcharge || 0;
+    
+    const totalSqmPrice = basePrice + coatingSurcharge + spacerSurcharge + interiorSurcharge;
+
+    console.group('IGU Configuration Update');
+    console.log('Timestamp:', new Date().toLocaleTimeString());
+    console.log('Current Selections:', iguConfig);
+    console.log('--- Price Calculation ---');
+    console.log(`Base Price: €${basePrice.toFixed(2)}`);
+    console.log(`Coating Surcharge: €${coatingSurcharge.toFixed(2)}`);
+    console.log(`Spacer Surcharge: €${spacerSurcharge.toFixed(2)}`);
+    console.log(`Interior Glass Surcharge: €${interiorSurcharge.toFixed(2)}`);
+    console.log('-------------------------');
+    console.log(`Total Price per sqm: €${totalSqmPrice.toFixed(2)}`);
+    console.groupEnd();
+
+    onUpdate({ iguConfig: { ...iguConfig, calculatedPrice: totalSqmPrice } });
+
+    // Calculate price in USD
+    if (configuration.dimensions && configuration.dimensions.width > 0 && configuration.dimensions.height > 0) {
+      const { width, height } = configuration.dimensions;
+      // Dimensions are in inches, convert to sqm
+      const areaSqIn = width * height;
+      const areaSqm = areaSqIn * 0.00064516; // 1 sq inch = 0.00064516 sqm
+      
+      const totalEurPrice = areaSqm * totalSqmPrice;
+      const totalUsdPrice = totalEurPrice * 1.18; // Exchange rate: 1 EUR = 1.18 USD
+      
+      console.log('--- USD Price Calculation ---');
+      console.log(`Exchange Rate: 1 EUR = 1.18 USD`);
+      console.log(`Total Square Feet: ${(areaSqIn / 144).toFixed(2)} sq ft`);
+      console.log(`Total Square Meters: ${areaSqm.toFixed(4)} sqm`);
+      console.log(`Total EUR Price: €${totalEurPrice.toFixed(2)}`);
+      console.log(`Total USD Price: $${totalUsdPrice.toFixed(2)}`);
+      console.log(`Price per sq ft: $${(totalUsdPrice / (areaSqIn / 144)).toFixed(2)} USD/sq ft`);
+      console.log('---------------------------');
+      
+      setCalculatedIguPrice(totalUsdPrice);
+    } else {
+      setCalculatedIguPrice(null);
+    }
+
+  }, [iguConfig, configuration.dimensions]);
+
+  const handleIguChange = (event) => {
+    const { name, value } = event.target;
+    setIguConfig(prev => ({ ...prev, [name]: value }));
+  };
+
   // Load glass options from server
   const loadGlassOptions = async () => {
     try {
@@ -326,12 +426,6 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
   useEffect(() => {
     loadGlassOptions();
   }, []);
-
-  // Retry loading data
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
-    loadGlassOptions();
-  };
 
   // Get glass by type for detailed information
   const getGlassByType = async (glassType) => {
@@ -403,15 +497,9 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
         
         <Alert 
           severity="error" 
-          action={
-            <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={handleRetry}>
-              Retry
-            </Button>
-          }
           sx={{ mb: 2 }}
         >
           Failed to load glass options: {error}
-          {retryCount > 0 && ` (Attempt ${retryCount + 1})`}
         </Alert>
       </Box>
     );
@@ -444,11 +532,6 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
         <Alert 
           severity="warning" 
           sx={{ mb: 2 }}
-          action={
-            <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={handleRetry}>
-              Refresh
-            </Button>
-          }
         >
           Using cached data. Server connection issue: {error}
         </Alert>
@@ -593,6 +676,121 @@ const GlassOptions = ({ configuration, onUpdate, onNext }) => {
         onSelectGlass={handleGlassSelect}
         systemType={configuration.systemType}
       />
+
+      {/* NEW IGU Configurator */}
+      <Paper elevation={3} sx={{ p: 3, mt: 4 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6" color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <SettingsIcon />
+            Custom IGU Configurator
+          </Typography>
+          <Button 
+            onClick={() => setShowIguConfigurator(!showIguConfigurator)}
+            endIcon={showIguConfigurator ? <CollapseIcon /> : <ExpandIcon />}
+          >
+            {showIguConfigurator ? 'Hide' : 'Show'}
+          </Button>
+        </Stack>
+        <Collapse in={showIguConfigurator}>
+          <Divider sx={{ my: 2 }} />
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            {/* Column 1: IGU Type and Composition */}
+            <Grid item xs={12} md={4}>
+              <Stack spacing={3}>
+                <FormControl component="fieldset">
+                  <FormLabel component="legend">1. IGU Type</FormLabel>
+                  <RadioGroup row name="type" value={iguConfig.type} onChange={handleIguChange}>
+                    <FormControlLabel value="Double" control={<Radio />} label="Double Unit" />
+                    <FormControlLabel value="Triple" control={<Radio />} label="Triple Unit" />
+                  </RadioGroup>
+                </FormControl>
+                <TextField
+                  label="2. Base Composition"
+                  value={iguConfig.composition}
+                  InputProps={{ readOnly: true }}
+                  variant="filled"
+                  helperText="Base price: €27.98 / sqm"
+                />
+                <TextField
+                  label="3. Exterior Glass Thickness"
+                  value={`${iguConfig.exteriorThickness}mm`}
+                  InputProps={{ readOnly: true }}
+                  variant="filled"
+                  helperText="Auto-calculated based on dimensions"
+                />
+              </Stack>
+            </Grid>
+            {/* Column 2: Selections */}
+            <Grid item xs={12} md={4}>
+              <Stack spacing={3}>
+                <FormControl fullWidth>
+                  <InputLabel id="exterior-coating-label">4. Exterior Coating</InputLabel>
+                  <Select
+                    labelId="exterior-coating-label"
+                    name="exteriorCoating"
+                    value={iguConfig.exteriorCoating}
+                    label="4. Exterior Coating"
+                    onChange={handleIguChange}
+                  >
+                    {iguOptions.exteriorCoatings.map(option => (
+                      <MenuItem key={option.id} value={option.id}>
+                        {option.name} (+€{option.surcharge.toFixed(2)})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel id="spacer-label">5. Spacer</InputLabel>
+                  <Select
+                    labelId="spacer-label"
+                    name="spacer"
+                    value={iguConfig.spacer}
+                    label="5. Spacer"
+                    onChange={handleIguChange}
+                  >
+                    {iguOptions.spacers.map(option => (
+                      <MenuItem key={option.id} value={option.id}>
+                        {option.name} (+€{option.surcharge.toFixed(2)})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Grid>
+            {/* Column 3: Interior Glass */}
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel id="interior-glass-label">6. Interior Glass</InputLabel>
+                <Select
+                  labelId="interior-glass-label"
+                  name="interiorGlass"
+                  value={iguConfig.interiorGlass}
+                  label="6. Interior Glass"
+                  onChange={handleIguChange}
+                >
+                  {iguOptions.interiorGlass.map(option => (
+                    <MenuItem key={option.id} value={option.id}>
+                      {option.name} (+€{option.surcharge.toFixed(2)})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+          
+          {calculatedIguPrice !== null && (
+            <Box sx={{ mt: 3, p: 2, border: '1px solid', borderColor: 'primary.main', borderRadius: 1, backgroundColor: 'grey.100' }}>
+              <Typography variant="h6" color="primary.dark" sx={{ fontWeight: 'bold' }}>
+                Estimated Custom IGU Cost: ${calculatedIguPrice.toFixed(2)} USD
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                This price is an estimate for the custom IGU based on your configuration and system dimensions ({configuration.dimensions.width}" x {configuration.dimensions.height}"). Final price may vary.
+              </Typography>
+            </Box>
+          )}
+
+        </Collapse>
+      </Paper>
     </Box>
   );
 };
