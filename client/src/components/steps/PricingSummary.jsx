@@ -202,11 +202,11 @@ const calculateItemPrice = (item, metadata) => {
       'Triple Pane': 18.0,
       'Security Glass': 22,
       'Acoustic Glass': 25,
-      'SKN 184 High Performance': 12.00,
-      'SKN 154 Balanced Performance': 12.00,
-      'XTREME 50-22 Solar Control': 12.00,
-      'XTREME 61-29 Balanced': 12.00,
-      'XTREME 70/33 Maximum Light': 12.00
+      'SKN 183 High Performance': 13.25, // Updated to match factory pricing (supplier $10.60 + 25% markup)
+      'SKN 154 Balanced Performance': 13.25, // Updated to match factory pricing
+      'XTREME 50-22 Solar Control': 13.25, // Updated to match factory pricing
+      'XTREME 61-29 Balanced': 13.25, // Updated to match factory pricing
+      'XTREME 70/33 Maximum Light': 13.25 // Updated to match factory pricing
     };
     glassUnitCost = Number(databaseGlassRates[item.glassType]) || 12.0;
   }
@@ -992,43 +992,61 @@ const PricingSummary = ({
       
       const totalArea = (windowsMetrics?.totalArea || 0) + (doorsMetrics?.totalArea || 0) + (slidingMetrics?.totalArea || 0);
 
-      // --- Prepare Item-Specific Pricing ---
-      const itemsWithPricing = pricing.items.map(({ item, total }) => {
+      // --- Prepare Item-Specific Pricing (EXACTLY matching UI table logic) ---
+      const itemsWithPricing = pricing.items.map(({ item, total }, index) => {
+        // Calculate item area (EXACTLY as in UI table)
         const itemArea = (() => {
           if (item.systemType === 'Windows') {
-            return ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144) * (item.quantity || 1);
+            return ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
           } else if (item.systemType === 'Entrance Doors') {
             return (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
                     item.dimensions.width +
                     (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
                    (item.dimensions.height + 
-                    (item.transom?.enabled ? item.transom.height : 0)) / 144) * (item.quantity || 1);
+                    (item.transom?.enabled ? item.transom.height : 0)) / 144);
           } else if (item.systemType === 'Sliding Doors') {
-            return ((item.dimensions.width * item.dimensions.height) / 144) * (item.quantity || 1);
+            return ((item.dimensions.width * item.dimensions.height) / 144);
           }
           return 0;
         })();
 
-        // Distribute costs proportionally for unit price calculation
-        const itemBaseCost = total;
-        const itemPortionOfBase = totalArea > 0 ? (itemArea / totalArea) : 0;
+        // Calculate total area for all items (EXACTLY as in UI table)
+        const totalArea = pricing.items.reduce((sum, { item }) => {
+          let area = 0;
+          if (item.systemType === 'Windows') {
+            area = (item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144;
+          } else if (item.systemType === 'Entrance Doors') {
+            area = ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                   item.dimensions.width +
+                   (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                  (item.dimensions.height + 
+                   (item.transom?.enabled ? item.transom.height : 0)) / 144;
+          } else if (item.systemType === 'Sliding Doors') {
+            area = (item.dimensions.width * item.dimensions.height) / 144;
+          }
+          return sum + area;
+        }, 0);
 
-        const itemAdditionalCost = itemPortionOfBase * totalAdditionalCost;
-        const itemDeliveryCost = itemPortionOfBase * deliveryValue;
-
-        const itemCostWithMargin = itemBaseCost * marginMultiplier;
-        const itemAdditionalCostWithFee = itemAdditionalCost * 1.05;
-
-        const itemFinalPrice = itemCostWithMargin + itemAdditionalCostWithFee + itemDeliveryCost;
-        const unitPrice = (item.quantity || 1) > 0 ? itemFinalPrice / (item.quantity || 1) : 0;
+        // Calculate proportional additional costs for this item (EXACTLY as in UI table)
+        const additionalCostsForMargin = parseFloat(margin || 0) + parseFloat(shipping || 0);
+        const deliveryValue = parseFloat(delivery || 0);
+        const itemAdditionalCostsForMargin = (itemArea / totalArea) * additionalCostsForMargin;
+        const itemDeliveryCost = (itemArea / totalArea) * deliveryValue;
+        
+        // Calculate unit price with consistent logic (EXACTLY as in UI table)
+        const baseUnitPrice = total;
+        const costBeforeMargin = baseUnitPrice + itemAdditionalCostsForMargin;
+        const marginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;
+        const subtotalPrice = costBeforeMargin * marginMultiplier;
+        const finalUnitPrice = subtotalPrice + itemDeliveryCost;
 
         return {
           ...item,
           pricing: {
-            basePrice: itemBaseCost,
-            unitPrice: unitPrice,
-            finalPrice: itemFinalPrice,
-            area: itemArea,
+            basePrice: baseUnitPrice,
+            unitPrice: finalUnitPrice / (item.quantity || 1),
+            finalPrice: finalUnitPrice,
+            area: itemArea * (item.quantity || 1), // Total area including quantity
           },
           // Ensure total dimensions are explicitly passed for PDF rendering
           dimensions: {
@@ -1047,12 +1065,19 @@ const PricingSummary = ({
         };
       });
 
+      // Calculate grand total exactly as in UI table
+      const additionalCostsForMargin = parseFloat(margin || 0) + parseFloat(shipping || 0);
+      const costBeforeMargin = baseCost + additionalCostsForMargin;
+      const uiMarginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;
+      const uiSubtotal = costBeforeMargin * uiMarginMultiplier;
+      const uiGrandTotal = uiSubtotal + deliveryValue;
+
       const finalPricingPayload = {
         baseCost: baseCost,
         totalAdditionalCost: totalAdditionalCost,
         delivery: deliveryValue,
-        subtotal: subtotal,
-        grandTotal: finalPrice,
+        subtotal: uiSubtotal,
+        grandTotal: uiGrandTotal,
         totalArea: totalArea,
       };
 
@@ -2173,7 +2198,15 @@ const PricingSummary = ({
                                 >
                                   <Typography variant="subtitle2" color="success.dark" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <WbSunny sx={{ fontSize: 16 }} />
-                                    Glass Performance - {item.glassDetails.productCode || item.glassType}
+                                    {
+                                      `Glass Performance - ${
+                                        item.glassDetails.isCustom
+                                        ? 'Custom IGU' + (item.glassDetails.iguConfiguration?.exteriorCoating && item.glassDetails.iguConfiguration?.exteriorCoating !== 'None'
+                                          ? ` ${item.glassDetails.iguConfiguration.exteriorCoating.replace(/_/g, ' ')}`
+                                          : '')
+                                        : item.glassDetails.productCode || item.glassType
+                                      }`
+                                    }
                                   </Typography>
                                   
                                   <Grid container spacing={2}>

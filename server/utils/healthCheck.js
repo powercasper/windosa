@@ -90,14 +90,23 @@ healthCheck.addCheck('database-glass-pricing', async () => {
     throw new Error(`Glass database lookup failed for ${testGlass}`);
   }
   
-  if (glassData.price !== 12) {
-    throw new Error(`Expected price $12, got $${glassData.price}`);
+  // Updated expected price based on new dynamic pricing logic
+  // XTREME 70/33: Base €27.98 + XTREME_70_33 €37.85 + SWISSPACER_ULTIMATE_GREY €2.50 + PLANITHERM_XN_6MM €28.34 = €96.67/sqm
+  // Convert to USD/sqft: €96.67 × 1.18 ÷ 10.764 = $10.60 (supplier price)
+  // Add 25% factory markup: $10.60 × 1.25 = $13.25 (factory price)
+  const expectedPrice = 13.25;
+  const tolerance = 0.01; // Allow small rounding differences
+  
+  if (Math.abs(glassData.price - expectedPrice) > tolerance) {
+    throw new Error(`Expected price $${expectedPrice}, got $${glassData.price.toFixed(2)}`);
   }
   
   return { 
     glassType: testGlass, 
     price: glassData.price,
-    status: 'database_lookup_successful' 
+    expectedPrice: expectedPrice,
+    composition: glassData.composition,
+    status: 'dynamic_pricing_calculation_successful' 
   };
 }, 60000); // Every minute
 

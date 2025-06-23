@@ -6,20 +6,32 @@ const path = require('path');
 
 // Glass product code to PDF file mapping (server-side paths)
 const GLASS_SPEC_MAPPING = {
-  'SKN 184': 'SKN-184-spec.pdf',
-  'SKN184': 'SKN-184-spec.pdf',
-  'SKN 154': 'SKN-154-spec.pdf', 
+  'SKN 183': 'SKN-183-spec.pdf',
+  'SKN183': 'SKN-183-spec.pdf',
+  'SKN 154': 'SKN-154-spec.pdf',
   'SKN154': 'SKN-154-spec.pdf',
   '70/33': '70-33-spec.pdf',
   '70-33': '70-33-spec.pdf',
   '61-29': '61-29-spec.pdf',
   '61/29': '61-29-spec.pdf',
+  '50-22': '50-22-spec.pdf',
   // Alternative mappings for glass database entries
-  'SKN 184 High Performance': 'SKN-184-spec.pdf',
+  'SKN 183 High Performance': 'SKN-183-spec.pdf',
   'SKN 154 Balanced Performance': 'SKN-154-spec.pdf',
   'XTREME 70/33 Maximum Light': '70-33-spec.pdf',
   'XTREME 61-29 Balanced': '61-29-spec.pdf',
-  'XTREME 50-22 Solar Control': '50-22-spec.pdf' // Add when available
+  'XTREME 50-22 Solar Control': '50-22-spec.pdf',
+  // Additional mappings for product codes with construction details
+  'SKN 183 (6-16-6)': 'SKN-183-spec.pdf',
+  'SKN 154 (6-16-6)': 'SKN-154-spec.pdf',
+  '70/33 (6-16-6)': '70-33-spec.pdf',
+  '61-29 (6-16-6)': '61-29-spec.pdf',
+  '50-22 (6-16-6)': '50-22-spec.pdf',
+  // Lightweight variants
+  'SKN 183 (6-16-4)': 'SKN-183-lightweight-spec.pdf',
+  'SKN 154 (6-16-4)': 'SKN-154-lightweight-spec.pdf',
+  '61-29 (6-16-4)': '61-29-lightweight-spec.pdf',
+  '50-22 (6-16-4)': '50-22-lightweight-spec.pdf'
 };
 
 // Pre-qualification PDF mapping (brand-systemmodel format)

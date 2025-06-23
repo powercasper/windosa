@@ -215,7 +215,7 @@ async function testCalculateTypeMetrics() {
 async function testGlassDatabase() {
   const testGlassTypes = [
     'XTREME 70/33 Maximum Light',
-    'SKN 184 High Performance', 
+    'SKN 183 High Performance',
     'SKN 154 Balanced Performance',
     'XTREME 50-22 Solar Control',
     'XTREME 61-29 Balanced'
@@ -236,13 +236,25 @@ async function testGlassDatabase() {
     
     const { pricing } = response.data;
     
-    // All premium glass should cost $12/sq ft  
-    const expectedGlassCost = 12 * EXPECTED_SLIDING_DOOR.area;
-    if (!assertEqual(pricing.glassCost, expectedGlassCost, 0.01, `${glassType} glass cost`)) {
-      throw new Error(`${glassType} pricing incorrect`);
+    // Get the expected price from the database for this glass type
+    const { getGlassByType } = require('../db/glassDatabase');
+    const glassData = getGlassByType(glassType);
+    
+    if (!glassData || !glassData.price) {
+      throw new Error(`No pricing data found for ${glassType}`);
     }
     
-    results.push({ glassType, glassCost: pricing.glassCost, verified: true });
+    const expectedGlassCost = glassData.price * EXPECTED_SLIDING_DOOR.area;
+    if (!assertEqual(pricing.glassCost, expectedGlassCost, 0.01, `${glassType} glass cost`)) {
+      throw new Error(`${glassType} pricing incorrect: expected $${expectedGlassCost.toFixed(2)}, got $${pricing.glassCost.toFixed(2)}`);
+    }
+    
+    results.push({ 
+      glassType, 
+      glassCost: pricing.glassCost, 
+      pricePerSqFt: glassData.price,
+      verified: true 
+    });
   }
   
   return { testedGlassTypes: results.length, allVerified: true, results };

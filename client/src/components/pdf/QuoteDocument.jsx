@@ -280,9 +280,17 @@ const QuoteDocument = ({ quote }) => {
           
           {/* Table Body */}
           {quote.items.map((item, index) => {
-            const description = item.systemType === 'Windows'
-              ? `${item.brand} ${item.systemModel} - ${item.panels.map(p => p.operationType).join('/')}`
-              : `${item.brand} ${item.systemModel} - ${item.openingType || item.operationType}`;
+            let description;
+            
+            if (item.systemType === 'Windows') {
+              description = `${item.brand} ${item.systemModel} - ${item.panels.map(p => p.operationType).join('/')}`;
+            } else if (item.systemType === 'Sliding Doors') {
+              description = `${item.brand} ${item.systemModel} - ${item.operationType}`;
+            } else if (item.systemType === 'Entrance Doors') {
+              description = `${item.brand} ${item.systemModel} - ${item.openingType}`;
+            } else {
+              description = `${item.brand} ${item.systemModel}`;
+            }
             
             return (
               <View key={item.id || index} style={styles.tableRow}>
