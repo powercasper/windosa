@@ -4,107 +4,100 @@ import ConfigurationPreview from './ConfigurationPreview';
 
 const styles = StyleSheet.create({
   container: {
-    border: '1pt solid #ddd',
+    border: '1pt solid #eee',
     borderRadius: 3,
-    padding: 10,
+    padding: 12,
     backgroundColor: '#fff',
+    flexDirection: 'column',
+    gap: 10,
   },
-  header: {
+  // Main header for the item
+  titleBlock: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-    paddingBottom: 5,
-    borderBottom: '1pt solid #eee',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  quantityBadge: {
-    backgroundColor: '#1976d2',
-    color: '#fff',
-    padding: '2pt 6pt',
-    borderRadius: 2,
-    fontSize: 8,
-    fontWeight: 'bold',
+    alignItems: 'flex-start',
+    borderBottom: '1.5pt solid #1976d2',
+    paddingBottom: 8,
   },
   title: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#1976d2',
   },
-  priceSection: {
-    textAlign: 'right',
+  subtitle: {
+    fontSize: 9,
+    color: '#333',
+    marginTop: 2,
   },
   price: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#1976d2',
+    textAlign: 'right',
   },
   unitPrice: {
     fontSize: 8,
     color: '#666',
+    textAlign: 'right',
+    marginTop: 2,
   },
-  location: {
-    fontSize: 9,
-    color: '#666',
-    marginBottom: 8,
-  },
+  // Main content area
   content: {
     flexDirection: 'row',
     gap: 15,
   },
+  // Left side: Preview
   previewSection: {
     width: '40%',
+    padding: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 3,
   },
-  previewTitle: {
-    fontSize: 9,
-    color: '#666',
-    marginBottom: 4,
-  },
+  // Right side: All details
   detailsSection: {
     flex: 1,
+    flexDirection: 'column',
+    gap: 10,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 15,
+  // A single section of details (e.g., Configuration, Dimensions)
+  specSection: {
+    
   },
-  column: {
-    flex: 1,
-    minWidth: '45%',
-  },
-  section: {
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 9,
+  specTitle: {
+    fontSize: 10,
     fontWeight: 'bold',
-    marginBottom: 3,
-    color: '#1976d2',
-    borderBottom: '0.5pt solid #eee',
-    paddingBottom: 2,
+    color: '#34495e',
+    borderBottom: '1pt solid #e0e0e0',
+    paddingBottom: 3,
+    marginBottom: 5,
   },
-  row: {
+  specRow: {
     flexDirection: 'row',
     marginBottom: 2,
   },
-  label: {
-    width: 70,
+  specLabel: {
+    width: 90,
     fontSize: 8,
     color: '#666',
   },
-  value: {
+  specValue: {
     flex: 1,
     fontSize: 8,
+    color: '#000',
   },
-  notes: {
-    marginTop: 8,
-    padding: 5,
+  // Notes at the bottom
+  notesSection: {
+    marginTop: 5,
+    padding: 8,
     backgroundColor: '#f5f5f5',
     borderRadius: 2,
+    borderTop: '1pt solid #eee'
+  },
+  notesTitle: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 3,
   },
   notesText: {
     fontSize: 8,
@@ -113,268 +106,136 @@ const styles = StyleSheet.create({
   }
 });
 
-const QuoteLineItem = ({ item }) => {
+const Spec = ({ label, children }) => (
+  <View style={styles.specRow}>
+    <Text style={styles.specLabel}>{label}:</Text>
+    <Text style={styles.specValue}>{children}</Text>
+  </View>
+);
+
+const QuoteLineItem = ({ item, position }) => {
   const formatDimension = (value) => `${value}"`;
   const formatArea = (value) => `${value.toFixed(1)} sq ft`;
   const formatPrice = (value) => `$${value.toFixed(2)}`;
 
   const quantity = item.quantity || 1;
   const unitPrice = item.pricing.finalPrice / quantity;
+  
+  const description = item.systemType === 'Windows'
+    ? `Window - ${item.panels.map(p => p.operationType).join('/')}`
+    : item.systemType === 'Entrance Doors'
+    ? `Entrance Door - ${item.openingType}`
+    : `Sliding Door - ${item.operationType}`;
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.title}>
-            Item {item.itemNumber} - {item.brand} {item.systemModel}
-          </Text>
-          {quantity > 1 && (
-            <Text style={styles.quantityBadge}>
-              Qty: {quantity}
-            </Text>
-          )}
+      {/* --- Main Title Block --- */}
+      <View style={styles.titleBlock}>
+        <View>
+          <Text style={styles.title}>{`Item ${String(position).padStart(3, '0')}: ${item.brand} ${item.systemModel}`}</Text>
+          <Text style={styles.subtitle}>{description}</Text>
+          {item.location && <Text style={styles.subtitle}>Location: {item.location}</Text>}
         </View>
-        <View style={styles.priceSection}>
-          <Text style={styles.price}>
-            {formatPrice(item.pricing.finalPrice)}
-          </Text>
-          {quantity > 1 && (
-            <Text style={styles.unitPrice}>
-              {formatPrice(unitPrice)} per unit
-            </Text>
-          )}
+        <View>
+          <Text style={styles.price}>{formatPrice(item.pricing.finalPrice)}</Text>
+          {quantity > 1 && <Text style={styles.unitPrice}>({formatPrice(unitPrice)}/unit)</Text>}
         </View>
       </View>
 
-      {/* Location */}
-      {item.location && (
-        <Text style={styles.location}>Location: {item.location}</Text>
-      )}
-
+      {/* --- Main Content --- */}
       <View style={styles.content}>
-        {/* Configuration Preview */}
+        {/* Left: Preview */}
         <View style={styles.previewSection}>
-          <Text style={styles.previewTitle}>Configuration Preview</Text>
           <ConfigurationPreview configuration={item} />
         </View>
 
-        {/* Details Section */}
+        {/* Right: Details */}
         <View style={styles.detailsSection}>
-          <View style={styles.grid}>
-            {/* Configuration Details */}
-            <View style={styles.column}>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Configuration Details</Text>
-                {quantity > 1 && (
-                  <View style={styles.row}>
-                    <Text style={styles.label}>Quantity:</Text>
-                    <Text style={styles.value}>{quantity} units</Text>
-                  </View>
-                )}
-                <View style={styles.row}>
-                  <Text style={styles.label}>Type:</Text>
-                  <Text style={styles.value}>{item.systemType}</Text>
-                </View>
-                {item.systemType === 'Windows' && item.panels && item.panels.map((panel, idx) => (
-                  <View key={idx} style={styles.row}>
-                    <Text style={styles.label}>Panel {idx + 1}:</Text>
-                    <Text style={styles.value}>
-                      {panel.operationType} ({panel.width}")
-                      {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
-                      {panel.operationType !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
-                    </Text>
-                  </View>
-                ))}
-                {item.systemType === 'Entrance Doors' && (
-                  <>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Opening:</Text>
-                      <Text style={styles.value}>{item.openingType}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Swing:</Text>
-                      <Text style={styles.value}>{item.swingDirection}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Handle:</Text>
-                      <Text style={styles.value}>{item.handleType}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Lock:</Text>
-                      <Text style={styles.value}>{item.lockType}</Text>
-                    </View>
-                  </>
-                )}
-                {item.systemType === 'Sliding Doors' && (
-                  <>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Configuration:</Text>
-                      <Text style={styles.value}>{item.operationType}</Text>
-                    </View>
-                    {item.panels && item.panels.map((panel, idx) => (
-                      <View key={idx} style={styles.row}>
-                        <Text style={styles.label}>Panel {idx + 1}:</Text>
-                        <Text style={styles.value}>
-                          {panel.type === 'Fixed' ? 'Fixed' : 
-                           panel.type === 'Sliding' ? `Sliding (${panel.direction === 'left' ? '←' : '→'})` : 
-                           panel.type}
-                          {panel.type !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
-                          {panel.type !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
-                        </Text>
-                      </View>
-                    ))}
-                    {item.operationType && !item.panels && (
-                      // Fallback: decode operation type if panels array is not available
-                      item.operationType.split('').map((operation, idx) => (
-                        <View key={idx} style={styles.row}>
-                          <Text style={styles.label}>Panel {idx + 1}:</Text>
-                          <Text style={styles.value}>
-                            {operation === 'O' ? 'Fixed' : 
-                             operation === 'X' ? 'Sliding' : 
-                             operation}
-                          </Text>
-                        </View>
-                      ))
-                    )}
-                  </>
-                )}
-              </View>
-            </View>
-
-            {/* System Dimensions */}
-            <View style={styles.column}>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>System Dimensions</Text>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Width:</Text>
-                  <Text style={styles.value}>{formatDimension(item.dimensions.totalWidth)}</Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Height:</Text>
-                  <Text style={styles.value}>{formatDimension(item.dimensions.totalHeight)}</Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Area:</Text>
-                  <Text style={styles.value}>{formatArea(item.pricing.area)}</Text>
-                </View>
-              </View>
-
-              {/* Finish Details */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Finish Details</Text>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Type:</Text>
-                  <Text style={styles.value}>{item.finish.type}</Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Style:</Text>
-                  <Text style={styles.value}>{item.finish.color}</Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.label}>RAL:</Text>
-                  <Text style={styles.value}>{item.finish.ralColor}</Text>
-                </View>
-              </View>
-
-              {/* Glass Specifications */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Glass Specifications</Text>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Type:</Text>
-                  <Text style={styles.value}>{item.glassType || 'Standard'}</Text>
-                </View>
-                
-                {/* Enhanced glass specifications if available */}
-                {item.glassDetails?.specifications ? (
-                  <>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Product:</Text>
-                      <Text style={styles.value}>{item.glassDetails.productCode || item.glassDetails.type}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Construction:</Text>
-                      <Text style={styles.value}>{item.glassDetails.specifications.construction}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Light Trans.:</Text>
-                      <Text style={styles.value}>{item.glassDetails.specifications.lightTransmittance}% (Bright, natural lighting)</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Solar Factor:</Text>
-                      <Text style={styles.value}>{item.glassDetails.specifications.solarHeatGainCoefficient} (Energy efficient solar control)</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Thermal U:</Text>
-                      <Text style={styles.value}>{item.glassDetails.specifications.thermalTransmission} (Superior insulation)</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Acoustic:</Text>
-                      <Text style={styles.value}>{item.glassDetails.specifications.acousticRating} (Excellent sound reduction)</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Gas Fill:</Text>
-                      <Text style={styles.value}>{item.glassDetails.specifications.gasFill}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Spacer:</Text>
-                      <Text style={styles.value}>{item.glassDetails.specifications.spacer}</Text>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    {/* Basic glass info for legacy items */}
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Description:</Text>
-                      <Text style={styles.value}>
-                        {item.glassDetails?.description || 'Standard insulated glass unit'}
-                      </Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Specs:</Text>
-                      <Text style={styles.value}>
-                        {item.glassDetails?.specs || 'Standard IGU specifications'}
-                      </Text>
-                    </View>
-                  </>
-                )}
-              </View>
-
-              {/* Glass Performance Highlights */}
-              {item.glassDetails?.specifications && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Performance Highlights</Text>
-                  <View style={styles.row}>
-                    <Text style={styles.label}>Energy Rating:</Text>
-                    <Text style={styles.value}>{item.glassDetails.specifications.energyRating || 'A+'}</Text>
-                  </View>
-                  <View style={styles.row}>
-                    <Text style={styles.label}>Category:</Text>
-                    <Text style={styles.value}>{item.glassDetails.category}</Text>
-                  </View>
-                  <View style={styles.row}>
-                    <Text style={styles.label}>Applications:</Text>
-                    <Text style={styles.value}>{item.glassDetails.specifications.applications?.join(', ') || 'Residential, Commercial'}</Text>
-                  </View>
-                  <View style={styles.row}>
-                    <Text style={styles.label}>Climate Zones:</Text>
-                    <Text style={styles.value}>{item.glassDetails.specifications.climateZones?.join(', ') || 'All Climates'}</Text>
-                  </View>
-                  <View style={styles.row}>
-                    <Text style={styles.label}>Benefits:</Text>
-                    <Text style={styles.value}>Enhanced comfort, energy savings, superior performance</Text>
-                  </View>
-                </View>
-              )}
-
-            </View>
+          {/* Dimensions Section */}
+          <View style={styles.specSection}>
+            <Text style={styles.specTitle}>Dimensions & Quantity</Text>
+            <Spec label="Quantity">{quantity} unit(s)</Spec>
+            <Spec label="Total Width">{formatDimension(item.dimensions.totalWidth)}</Spec>
+            <Spec label="Total Height">{formatDimension(item.dimensions.totalHeight)}</Spec>
+            <Spec label="Total Area">{formatArea(item.pricing.area)}</Spec>
           </View>
+          
+          {/* Configuration Section */}
+          <View style={styles.specSection}>
+            <Text style={styles.specTitle}>Configuration</Text>
+            {item.systemType === 'Windows' && item.panels.map((panel, idx) => (
+              <Spec key={idx} label={`Panel ${idx + 1}`}>
+                {panel.operationType} ({formatDimension(panel.width)})
+                {panel.hasMosquitoNet && " + Mosquito Net"}
+                {panel.hasOpeningLimiter && " + Opening Limiter"}
+              </Spec>
+            ))}
+            {item.systemType === 'Sliding Doors' && item.panels?.map((panel, idx) => (
+               <Spec key={idx} label={`Panel ${idx + 1}`}>
+                {panel.type} ({panel.direction ? (panel.direction === 'left' ? '←' : '→') : ''})
+              </Spec>
+            ))}
+            {item.systemType === 'Entrance Doors' && (
+              <>
+                <Spec label="Swing">{item.swingDirection}</Spec>
+                {item.leftSidelight?.enabled && <Spec label="Left Sidelight">{formatDimension(item.leftSidelight.width)}</Spec>}
+                {item.rightSidelight?.enabled && <Spec label="Right Sidelight">{formatDimension(item.rightSidelight.width)}</Spec>}
+                {item.transom?.enabled && <Spec label="Transom">{formatDimension(item.transom.height)}</Spec>}
+              </>
+            )}
+          </View>
+          
+          {/* Details Section */}
+          <View style={styles.specSection}>
+            <Text style={styles.specTitle}>Details</Text>
+            <Spec label="Finish">{item.finish.type} - {item.finish.color} {item.finish.type === 'RAL' ? `(${item.finish.ralColor})` : ''}</Spec>
+            <Spec label="Glass Type">{item.glassType}</Spec>
+            {item.grid?.enabled && <Spec label="Grid">{item.grid.horizontal}H x {item.grid.vertical}V</Spec>}
+            {item.systemType === 'Entrance Doors' && (
+              <>
+                <Spec label="Handle">{item.handleType}</Spec>
+                <Spec label="Lock">{item.lockType}</Spec>
+                <Spec label="Hinge">{item.hingeType}</Spec>
+                <Spec label="Threshold">{item.threshold}</Spec>
+              </>
+            )}
+          </View>
+
+          {/* Glass Specifications Section */}
+          {item.glassDetails?.specifications ? (
+            <View style={styles.specSection}>
+              <Text style={styles.specTitle}>Glass Specifications</Text>
+              <Spec label="Product">{item.glassDetails.productCode || item.glassDetails.type}</Spec>
+              <Spec label="Construction">{item.glassDetails.specifications.construction}</Spec>
+              <Spec label="Light Trans.">{item.glassDetails.specifications.lightTransmittance}%</Spec>
+              <Spec label="Solar Factor">{item.glassDetails.specifications.solarHeatGainCoefficient}</Spec>
+              <Spec label="Thermal U">{item.glassDetails.specifications.thermalTransmission}</Spec>
+              <Spec label="Acoustic">{item.glassDetails.specifications.acousticRating}</Spec>
+            </View>
+          ) : (
+            <View style={styles.specSection}>
+              <Text style={styles.specTitle}>Glass</Text>
+              <Spec label="Type">{item.glassType || 'Standard'}</Spec>
+              <Spec label="Description">{item.glassDetails?.description || 'Standard insulated glass unit'}</Spec>
+            </View>
+          )}
+
+          {/* Performance Highlights Section */}
+          {item.glassDetails?.specifications && (
+            <View style={styles.specSection}>
+              <Text style={styles.specTitle}>Performance Highlights</Text>
+              <Spec label="Energy Rating">{item.glassDetails.specifications.energyRating || 'A+'}</Spec>
+              <Spec label="Category">{item.glassDetails.category}</Spec>
+              <Spec label="Benefits">Enhanced comfort, energy savings, superior performance</Spec>
+            </View>
+          )}
         </View>
       </View>
 
-      {/* Notes if any */}
+      {/* --- Notes Section --- */}
       {item.notes && (
-        <View style={styles.notes}>
+        <View style={styles.notesSection}>
+          <Text style={styles.notesTitle}>Notes</Text>
           <Text style={styles.notesText}>{item.notes}</Text>
         </View>
       )}

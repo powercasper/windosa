@@ -5,19 +5,31 @@ import QuoteDocument from '../components/pdf/QuoteDocument';
 
 // Glass product code to PDF file mapping (served through Express server)
 const GLASS_SPEC_MAPPING = {
-  'SKN 184': 'http://localhost:5001/glass-specs/SKN-184-spec.pdf',
-  'SKN184': 'http://localhost:5001/glass-specs/SKN-184-spec.pdf',
+  'SKN 183': 'http://localhost:5001/glass-specs/SKN-183-spec.pdf',
+  'SKN183': 'http://localhost:5001/glass-specs/SKN-183-spec.pdf',
   'SKN 154': 'http://localhost:5001/glass-specs/SKN-154-spec.pdf',
   'SKN154': 'http://localhost:5001/glass-specs/SKN-154-spec.pdf',
   '70/33': 'http://localhost:5001/glass-specs/70-33-spec.pdf',
   '70-33': 'http://localhost:5001/glass-specs/70-33-spec.pdf',
   '61-29': 'http://localhost:5001/glass-specs/61-29-spec.pdf',
   '61/29': 'http://localhost:5001/glass-specs/61-29-spec.pdf',
+  '50-22': 'http://localhost:5001/glass-specs/50-22-spec.pdf',
   // Alternative mappings for glass database entries
-  'SKN 184 High Performance': 'http://localhost:5001/glass-specs/SKN-184-spec.pdf',
+  'SKN 183 High Performance': 'http://localhost:5001/glass-specs/SKN-183-spec.pdf',
   'SKN 154 Balanced Performance': 'http://localhost:5001/glass-specs/SKN-154-spec.pdf',
   'XTREME 70/33 Maximum Light': 'http://localhost:5001/glass-specs/70-33-spec.pdf',
-  'XTREME 61-29 Balanced': 'http://localhost:5001/glass-specs/61-29-spec.pdf'
+  'XTREME 61-29 Balanced': 'http://localhost:5001/glass-specs/61-29-spec.pdf',
+  // Additional mappings for product codes with construction details
+  'SKN 183 (6-16-6)': 'http://localhost:5001/glass-specs/SKN-183-spec.pdf',
+  'SKN 154 (6-16-6)': 'http://localhost:5001/glass-specs/SKN-154-spec.pdf',
+  '70/33 (6-16-6)': 'http://localhost:5001/glass-specs/70-33-spec.pdf',
+  '61-29 (6-16-6)': 'http://localhost:5001/glass-specs/61-29-spec.pdf',
+  '50-22 (6-16-6)': 'http://localhost:5001/glass-specs/50-22-spec.pdf',
+  // Lightweight variants
+  'SKN 183 (6-16-4)': 'http://localhost:5001/glass-specs/SKN-183-lightweight-spec.pdf',
+  'SKN 154 (6-16-4)': 'http://localhost:5001/glass-specs/SKN-154-lightweight-spec.pdf',
+  '61-29 (6-16-4)': 'http://localhost:5001/glass-specs/61-29-lightweight-spec.pdf',
+  '50-22 (6-16-4)': 'http://localhost:5001/glass-specs/50-22-lightweight-spec.pdf'
 };
 
 // Simple Buffer polyfill for browser environment

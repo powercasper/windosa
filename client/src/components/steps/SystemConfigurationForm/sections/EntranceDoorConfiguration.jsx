@@ -3,7 +3,7 @@ import { Box, Typography, Stack, Paper, Grid, FormControl, InputLabel, Select, M
 import ViewSidebarIcon from '@mui/icons-material/ViewSidebar';
 import BuildIcon from '@mui/icons-material/Build';
 import StraightIcon from '@mui/icons-material/Straight';
-import { doorOperables } from '../../../../utils/metadata';
+import { useMetadata } from '../../../../contexts/MetadataContext';
 import DimensionsInput from '../components/DimensionsInput';
 import GridConfiguration from '../components/GridConfiguration';
 import SidelightConfiguration from '../components/SidelightConfiguration';
@@ -12,6 +12,8 @@ import SelectField from '../components/SelectField';
 import HardwareConfiguration from '../components/HardwareConfiguration';
 
 const EntranceDoorConfiguration = ({ configuration, onUpdate }) => {
+  const { metadata } = useMetadata();
+  
   const handleDimensionsChange = (dimensions) => {
     onUpdate({ dimensions });
   };
@@ -26,6 +28,12 @@ const EntranceDoorConfiguration = ({ configuration, onUpdate }) => {
 
   const handleSidelightChange = (type, config) => {
     onUpdate({ [type === 'left' ? 'leftSidelight' : type === 'right' ? 'rightSidelight' : 'transom']: config });
+  };
+
+  // Get swing direction options based on opening type
+  const getSwingDirectionOptions = () => {
+    if (!configuration.openingType || !metadata?.doorOperables) return [];
+    return metadata.doorOperables.swingDirections[configuration.openingType] || [];
   };
 
   return (
@@ -66,7 +74,7 @@ const EntranceDoorConfiguration = ({ configuration, onUpdate }) => {
               label="Opening Type"
               value={configuration.openingType || ''}
               onChange={handleChange('openingType')}
-              options={doorOperables.openingTypes}
+              options={metadata?.doorOperables.openingTypes}
               inputProps={{ 'data-testid': 'opening-type-select' }}
               error={!configuration.openingType}
               helperText={!configuration.openingType ? 'Opening type is required' : ''}
@@ -74,11 +82,14 @@ const EntranceDoorConfiguration = ({ configuration, onUpdate }) => {
           </Grid>
           <Grid item xs={12} sm={6}>
             <SelectField
-              label="Hand"
-              value={configuration.hand || ''}
-              onChange={handleChange('hand')}
-              options={doorOperables.hands}
-              inputProps={{ 'data-testid': 'hand-select' }}
+              label="Swing Direction"
+              value={configuration.swingDirection || ''}
+              onChange={handleChange('swingDirection')}
+              options={getSwingDirectionOptions()}
+              inputProps={{ 'data-testid': 'swing-direction-select' }}
+              error={!configuration.swingDirection}
+              helperText={!configuration.swingDirection ? 'Swing direction is required' : ''}
+              disabled={!configuration.openingType}
             />
           </Grid>
         </Grid>
@@ -88,7 +99,7 @@ const EntranceDoorConfiguration = ({ configuration, onUpdate }) => {
       <HardwareConfiguration
         configuration={configuration}
         onUpdate={onUpdate}
-        options={doorOperables}
+        options={metadata?.doorOperables}
         testIds={{
           handleType: 'handle-type-select',
           lockType: 'lock-type-select',

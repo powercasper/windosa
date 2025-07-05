@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getAllGlassOptions,
+  getAllGlassOptionsWithArea,
   getGlassByCategory,
   getGlassByType,
   getPremiumGlassOptions,
@@ -9,7 +10,9 @@ const {
   getGlassCategories,
   searchGlass,
   filterGlassByPrice,
-  filterGlassByClimate
+  filterGlassByClimate,
+  iguConfigurationData,
+  calculateIguPrice
 } = require('../db/glassDatabase');
 
 // GET /api/glass - Get all glass options
@@ -26,6 +29,86 @@ router.get('/', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch glass options'
+    });
+  }
+});
+
+// GET /api/glass/with-area - Get all glass options with area-based pricing
+router.get('/with-area', (req, res) => {
+  try {
+    const { areaSqm, panelInfo } = req.query;
+    
+    if (!areaSqm || isNaN(areaSqm)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid areaSqm parameter is required'
+      });
+    }
+    
+    const area = parseFloat(areaSqm);
+    let panelData = null;
+    
+    // Parse panel info if provided (for sliding doors)
+    if (panelInfo) {
+      try {
+        panelData = JSON.parse(panelInfo);
+      } catch (e) {
+        console.warn('Invalid panelInfo JSON:', panelInfo);
+      }
+    }
+    
+    const allGlass = getAllGlassOptionsWithArea(area, panelData);
+    
+    // Calculate surcharge info based on panel data or total area
+    let surchargeInfo = {
+      applied: false,
+      percentage: 0,
+      reason: null
+    };
+    
+    if (panelData && panelData.panels && panelData.panels.length > 0) {
+      // For sliding doors and windows: check each panel size individually
+      const maxPanelAreaSqm = Math.max(...panelData.panels.map(panel => {
+        const panelWidthInches = panel.width || (panelData.totalWidth / panelData.panels.length);
+        const panelHeightInches = panelData.totalHeight;
+        const panelAreaSqIn = panelWidthInches * panelHeightInches;
+        return panelAreaSqIn * 0.00064516; // Convert to sqm
+      }));
+      
+      if (maxPanelAreaSqm > 6) {
+        surchargeInfo = {
+          applied: true,
+          percentage: 50,
+          reason: `Panel over 6 sqm (${maxPanelAreaSqm.toFixed(2)} sqm)`
+        };
+      } else if (maxPanelAreaSqm > 4) {
+        surchargeInfo = {
+          applied: true,
+          percentage: 30,
+          reason: `Panel over 4 sqm (${maxPanelAreaSqm.toFixed(2)} sqm)`
+        };
+      }
+    } else {
+      // For other systems: use total area
+      surchargeInfo = {
+        applied: area > 4,
+        percentage: area > 6 ? 50 : area > 4 ? 30 : 0,
+        reason: area > 6 ? 'Glass over 6 sqm' : area > 4 ? 'Glass over 4 sqm' : null
+      };
+    }
+    
+    res.json({
+      success: true,
+      data: allGlass,
+      count: Object.keys(allGlass).length,
+      areaSqm: area,
+      largeIguSurcharge: surchargeInfo
+    });
+  } catch (error) {
+    console.error('Error fetching glass options with area:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch glass options with area'
     });
   }
 });
@@ -279,6 +362,56 @@ router.get('/health', (req, res) => {
       success: false,
       status: 'unhealthy',
       error: 'Glass API health check failed'
+    });
+  }
+});
+
+// GET /api/glass/igu-config - Get IGU configuration data
+router.get('/igu-config', (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: iguConfigurationData
+    });
+  } catch (error) {
+    console.error('Error fetching IGU configuration data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch IGU configuration data'
+    });
+  }
+});
+
+// POST /api/glass/igu-price - Calculate IGU price
+router.post('/igu-price', (req, res) => {
+  try {
+    const { configuration, dimensions } = req.body;
+    
+    if (!configuration || !dimensions) {
+      return res.status(400).json({
+        success: false,
+        error: 'Configuration and dimensions are required'
+      });
+    }
+    
+    const priceCalculation = calculateIguPrice(configuration, dimensions);
+    
+    if (!priceCalculation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid dimensions provided'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: priceCalculation
+    });
+  } catch (error) {
+    console.error('Error calculating IGU price:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to calculate IGU price'
     });
   }
 });

@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, FormControl, InputLabel, Select, MenuItem, Paper } from '@mui/material';
 import WindowIcon from '@mui/icons-material/Window';
-import { systemArchitecture } from '../../../../utils/metadata';
+import { useMetadata } from '../../../../contexts/MetadataContext';
 
 const SystemDetails = ({ configuration, onUpdate }) => {
+  const { metadata } = useMetadata();
   const [availableModels, setAvailableModels] = useState([]);
 
   useEffect(() => {
-    if (configuration.brand && configuration.systemType) {
-      const models = systemArchitecture[configuration.brand][configuration.systemType] || [];
+    if (configuration.brand && configuration.systemType && metadata?.systemArchitecture) {
+      const models = metadata.systemArchitecture[configuration.brand]?.[configuration.systemType] || [];
       setAvailableModels(models);
     }
-  }, [configuration.brand, configuration.systemType]);
+  }, [configuration.brand, configuration.systemType, metadata]);
 
   const handleChange = (field) => (event) => {
     onUpdate({ [field]: event.target.value });

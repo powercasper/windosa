@@ -45,6 +45,8 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   const [panelConfigs, setPanelConfigs] = useState([]);
   const [useEqualWidths, setUseEqualWidths] = useState(true);
   const [showGridConfig, setShowGridConfig] = useState(false);
+  const [currentConfiguration, setCurrentConfiguration] = useState(configuration);
+  let validationCallCount = 0; // Add counter for validation calls
 
   if (loading) {
     return (
@@ -190,7 +192,7 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         const defaultSwingDirection = defaultOpeningType === 'Pivot Door' ? 'Center Pivot' :
                                     defaultOpeningType === 'Single Door' ? 'Left Hand In' :
                                     defaultOpeningType === 'Double Door' ? 'Active Left' :
-                                    'Left Active + Right Fixed';
+                                    'Left Hand In'; // Fallback to a valid default
         
         onUpdate({
           openingType: defaultOpeningType,
@@ -204,6 +206,112 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
     }
   }, [configuration.systemModel]);
 
+  // Add effect to set default values for entrance doors
+  useEffect(() => {
+    if (configuration.systemType === 'Entrance Doors' && !configuration.openingType) {
+      console.log('Setting default values for entrance doors');
+      onUpdate({
+        // Door configuration defaults
+        openingType: 'Single Door',
+        swingDirection: 'Left Hand In',
+        handleType: 'Lever Handle',
+        lockType: 'Multi-Point Lock',
+        threshold: 'Standard',
+        hingeType: 'Standard',
+        doorType: 'glass',
+        handleLocation: 'right', // Add default handle location
+        
+        // Dimensions defaults
+        dimensions: {
+          width: 36,
+          height: 80,
+          totalWidth: 36, // Initially no sidelights
+          totalHeight: 80 // Initially no transom
+        },
+        
+        // Finish defaults
+        finish: {
+          type: 'Powder Coated',
+          color: 'Standard',
+          ralColor: '7016'
+        },
+        
+        // Grid defaults for glass doors
+        grid: {
+          enabled: false,
+          horizontal: 2,
+          vertical: 3
+        },
+        
+        // Sidelight defaults
+        leftSidelight: { enabled: false, width: 12 },
+        rightSidelight: { enabled: false, width: 12 },
+        transom: { enabled: false, height: 12 }
+      });
+    } else if (configuration.systemType === 'Windows' && !configuration.panels?.length) {
+      console.log('Setting default values for windows');
+      onUpdate({
+        // Panel defaults
+        panels: [
+          { width: 36, type: 'Fixed' }
+        ],
+        
+        // Dimensions defaults
+        dimensions: {
+          width: 36,
+          height: 48
+        },
+        
+        // Finish defaults
+        finish: {
+          type: 'Powder Coated',
+          color: 'Standard',
+          ralColor: '7016'
+        }
+      });
+    } else if (configuration.systemType === 'Sliding Doors' && !configuration.operationType) {
+      console.log('Setting default values for sliding doors');
+      onUpdate({
+        // Operation defaults
+        operationType: 'OX',
+        panels: [
+          { type: 'Fixed', direction: null },
+          { type: 'Sliding', direction: 'right' }
+        ],
+        
+        // Dimensions defaults
+        dimensions: {
+          width: 72,
+          height: 80
+        },
+        
+        // Finish defaults
+        finish: {
+          type: 'Powder Coated',
+          color: 'Standard',
+          ralColor: '7016'
+        }
+      });
+    }
+  }, [configuration.systemType]);
+
+  // Add effect to handle swing direction reset when opening type changes
+  useEffect(() => {
+    if (configuration.openingType) {
+      const availableSwingDirections = metadata.doorOperables?.swingDirections[configuration.openingType] || [];
+      console.log('Swing direction effect - openingType:', configuration.openingType);
+      console.log('Swing direction effect - current swingDirection:', configuration.swingDirection);
+      console.log('Swing direction effect - available options:', availableSwingDirections);
+      
+      // If swing direction is undefined or not valid for current opening type, set default
+      if (!configuration.swingDirection || !availableSwingDirections.includes(configuration.swingDirection)) {
+        const defaultSwingDirection = availableSwingDirections[0] || '';
+        console.log('Swing direction effect - setting default:', defaultSwingDirection);
+        onUpdate({ swingDirection: defaultSwingDirection });
+      }
+    }
+  }, [configuration.openingType]);
+
   // Add new effect to handle sidelights toggle
   useEffect(() => {
     if (configuration.systemType === 'Entrance Doors' && configuration.hasSidelights === false) {
@@ -216,8 +324,48 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
     }
   }, [configuration.hasSidelights, configuration.systemType]);
 
+  // Add effect to calculate total dimensions for entrance doors
+  useEffect(() => {
+    if (configuration.systemType === 'Entrance Doors') {
+      const totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                        configuration.dimensions.width + 
+                        (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+      const totalHeight = configuration.dimensions.height + 
+                         (configuration.transom?.enabled ? configuration.transom.height : 0);
+      
+      // Only update if the calculated values are different from stored values
+      if (configuration.dimensions.totalWidth !== totalWidth || configuration.dimensions.totalHeight !== totalHeight) {
+        onUpdate({
+          dimensions: {
+            ...configuration.dimensions,
+            totalWidth,
+            totalHeight
+          }
+        });
+      }
+    }
+  }, [
+    configuration.systemType,
+    configuration.dimensions?.width,
+    configuration.dimensions?.height,
+    configuration.leftSidelight?.enabled,
+    configuration.leftSidelight?.width,
+    configuration.rightSidelight?.enabled,
+    configuration.rightSidelight?.width,
+    configuration.transom?.enabled,
+    configuration.transom?.height
+  ]);
+
   const handleChange = (field) => (event) => {
     console.log('Handling change:', { field, value: event.target.value });
+    console.log('Current configuration before change:', configuration);
+    
+    // Special handling for opening type changes
+    if (field === 'openingType') {
+      console.log('Opening type is being changed to:', event.target.value);
+      console.log('Current swing direction:', configuration.swingDirection);
+    }
+    
     onUpdate({ [field]: event.target.value });
   };
 
@@ -372,6 +520,9 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   };
 
   const isFormValid = () => {
+    validationCallCount++;
+    console.log(`=== FORM VALIDATION CALL #${validationCallCount} ===`);
+    
     const hasValidDimensions = configuration.dimensions?.height > 0 && configuration.dimensions?.width > 0;
     const hasValidFinish = configuration.finish?.type && 
                           configuration.finish?.color && 
@@ -379,12 +530,26 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                           configuration.finish?.ralColor.length === 4;
     const hasValidModel = !!configuration.systemModel;
 
+    // Debug logging for form validation
+    console.log('System Type:', configuration.systemType);
+    console.log('Configuration:', configuration);
+    console.log('Dimensions:', configuration.dimensions);
+    console.log('Finish:', configuration.finish);
+    console.log('System Model:', configuration.systemModel);
+    console.log('hasValidDimensions:', hasValidDimensions);
+    console.log('hasValidFinish:', hasValidFinish);
+    console.log('hasValidModel:', hasValidModel);
+
     if (configuration.systemType === 'Windows') {
       const hasValidPanels = configuration.panels?.length > 0 && 
         configuration.panels.every(panel => 
           panel.width > 0 && panel.operationType
         );
-      return hasValidDimensions && hasValidFinish && hasValidModel && hasValidPanels;
+      console.log('Windows - hasValidPanels:', hasValidPanels);
+      console.log('Windows - panels:', configuration.panels);
+      const isValid = hasValidDimensions && hasValidFinish && hasValidModel && hasValidPanels;
+      console.log('Windows - Form Valid:', isValid);
+      return isValid;
     } else if (configuration.systemType === 'Entrance Doors') {
       const hasValidDoorConfig = configuration.openingType && 
                                 configuration.swingDirection && 
@@ -392,12 +557,27 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
                                 configuration.lockType && 
                                 configuration.threshold && 
                                 configuration.hingeType;
-      return hasValidDimensions && hasValidFinish && hasValidModel && hasValidDoorConfig;
+      console.log('Entrance Doors - Door Config Fields:');
+      console.log('  openingType:', configuration.openingType);
+      console.log('  swingDirection:', configuration.swingDirection);
+      console.log('  handleType:', configuration.handleType);
+      console.log('  lockType:', configuration.lockType);
+      console.log('  threshold:', configuration.threshold);
+      console.log('  hingeType:', configuration.hingeType);
+      console.log('Entrance Doors - hasValidDoorConfig:', hasValidDoorConfig);
+      const isValid = hasValidDimensions && hasValidFinish && hasValidModel && hasValidDoorConfig;
+      console.log('Entrance Doors - Form Valid:', isValid);
+      return isValid;
     } else if (configuration.systemType === 'Sliding Doors') {
       const hasValidOperationType = !!configuration.operationType;
-      return hasValidDimensions && hasValidFinish && hasValidModel && hasValidOperationType;
+      console.log('Sliding Doors - operationType:', configuration.operationType);
+      console.log('Sliding Doors - hasValidOperationType:', hasValidOperationType);
+      const isValid = hasValidDimensions && hasValidFinish && hasValidModel && hasValidOperationType;
+      console.log('Sliding Doors - Form Valid:', isValid);
+      return isValid;
     }
 
+    console.log('No system type matched - Form Valid: false');
     return false;
   };
 
@@ -2131,13 +2311,58 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
           pt: 2, 
           borderTop: '1px solid rgba(0, 0, 0, 0.12)', 
           display: 'flex', 
-          justifyContent: 'flex-end' 
+          justifyContent: 'flex-end',
+          flexDirection: 'column',
+          alignItems: 'flex-end'
         }}>
+          {/* Debug Info */}
+          <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1, fontSize: '0.875rem' }}>
+            <Typography variant="caption" color="text.secondary">
+              Debug: Form Valid = {(() => {
+                try {
+                  return (isFormValid() || false).toString();
+                } catch (error) {
+                  console.error('Error in form validation:', error);
+                  return 'error';
+                }
+              })()}
+            </Typography>
+            <br />
+            <Typography variant="caption" color="text.secondary">
+              System Type: {configuration.systemType || 'none'}
+            </Typography>
+            <br />
+            <Typography variant="caption" color="text.secondary">
+              Model: {configuration.systemModel || 'none'}
+            </Typography>
+            <br />
+            <Typography variant="caption" color="text.secondary">
+              Dimensions: {configuration.dimensions?.width || 0}" × {configuration.dimensions?.height || 0}"
+            </Typography>
+            <br />
+            <Typography variant="caption" color="text.secondary">
+              Finish: {configuration.finish?.type || 'none'} / {configuration.finish?.color || 'none'} / {configuration.finish?.ralColor || 'none'}
+            </Typography>
+            {configuration.systemType === 'Entrance Doors' && (
+              <>
+                <br />
+                <Typography variant="caption" color="text.secondary">
+                  Door Config: {configuration.openingType || 'none'} / {configuration.swingDirection || 'none'} / {configuration.handleType || 'none'} / {configuration.lockType || 'none'} / {configuration.threshold || 'none'} / {configuration.hingeType || 'none'}
+                </Typography>
+              </>
+            )}
+          </Box>
+          
           <Button
             variant="contained"
             color="primary"
-            onClick={onNext}
-            disabled={!isFormValid()}
+            onClick={() => {
+              console.log('=== NEXT BUTTON CLICKED ===');
+              console.log('Form valid:', isFormValid());
+              console.log('Configuration at click:', configuration);
+              onNext();
+            }}
+            disabled={!isFormValid() || false}
             size="large"
           >
             Next

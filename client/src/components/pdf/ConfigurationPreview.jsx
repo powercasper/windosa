@@ -16,6 +16,17 @@ const getHandleLocation = (swingDirection) => {
   return 'right';
 };
 
+// Helper function to get handle location for doors (prioritizes handleLocation over swing direction)
+const getDoorHandleLocation = (configuration) => {
+  // If handleLocation is explicitly set, use it
+  if (configuration.handleLocation) {
+    return configuration.handleLocation;
+  }
+  
+  // Otherwise, derive from swing direction
+  return getHandleLocation(configuration.swingDirection);
+};
+
 const styles = StyleSheet.create({
   container: {
     border: '1pt solid #ddd',
@@ -24,22 +35,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f8f8',
     height: 150,
     width: '100%',
-  },
-  preview: {
-    flex: 1,
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
-    position: 'relative',
-  },
-  mainPreview: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    width: '100%',
   },
   panel: {
     height: '100%',
@@ -69,12 +66,13 @@ const styles = StyleSheet.create({
   widthLabel: {
     top: -10,
     left: '50%',
+    transform: 'translateX(-50%)',
   },
   heightLabel: {
-    transform: 'rotate(-90)',
-    transformOrigin: 'left bottom',
-    left: -10,
-    bottom: '50%',
+    transform: 'rotate(-90deg)',
+    transformOrigin: 'center center',
+    left: -15,
+    top: '50%',
   },
   fixedPanel: {
     backgroundColor: '#f5f5f5',
@@ -171,339 +169,180 @@ const styles = StyleSheet.create({
 });
 
 const ConfigurationPreview = ({ configuration }) => {
-  // Calculate dynamic aspect ratio based on actual dimensions
-  const getAspectRatio = () => {
-    if (!configuration.dimensions?.width || !configuration.dimensions?.height) {
-      return 1.6; // Default 16:10 ratio
+  // --- Define Max Dimensions for the Preview Area ---
+  const MAX_WIDTH = 200;  // Corresponds to '40%' of the page width in QuoteLineItem
+  const MAX_HEIGHT = 140; // Fixed height in the container style, with some padding
+
+  // Calculate the aspect ratio of the actual system
+  const getSystemDimensions = () => {
+    if (!configuration.dimensions) {
+      return { totalWidth: 16, totalHeight: 10 }; // Default 16:10 ratio
     }
     
-    const totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                      configuration.dimensions.width + 
-                      (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
-    const totalHeight = configuration.dimensions.height + 
-                       (configuration.transom?.enabled ? configuration.transom.height : 0);
+    let totalWidth, totalHeight;
+
+    if (configuration.systemType === 'Entrance Doors') {
+      if (configuration.dimensions.totalWidth && configuration.dimensions.totalHeight) {
+        totalWidth = configuration.dimensions.totalWidth;
+        totalHeight = configuration.dimensions.totalHeight;
+      } else {
+        totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                     configuration.dimensions.width + 
+                     (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+        totalHeight = configuration.dimensions.height + 
+                      (configuration.transom?.enabled ? configuration.transom.height : 0);
+      }
+    } else if (configuration.systemType === 'Windows' && configuration.panels) {
+      totalWidth = configuration.panels.reduce((sum, panel) => sum + panel.width, 0);
+      totalHeight = configuration.dimensions.height;
+    } else {
+      totalWidth = configuration.dimensions.width;
+      totalHeight = configuration.dimensions.height;
+    }
     
-    return totalWidth / totalHeight;
+    return { totalWidth, totalHeight };
   };
 
-  const aspectRatio = getAspectRatio();
-  const containerHeight = 150;
-  const containerWidth = containerHeight * aspectRatio;
+  const { totalWidth, totalHeight } = getSystemDimensions();
+  const aspectRatio = totalWidth > 0 && totalHeight > 0 ? totalWidth / totalHeight : 1;
+
+  // --- Calculate Scaled Dimensions to Fit Max Area ---
+  let scaledWidth = MAX_WIDTH;
+  let scaledHeight = MAX_WIDTH / aspectRatio;
+
+  if (scaledHeight > MAX_HEIGHT) {
+    scaledHeight = MAX_HEIGHT;
+    scaledWidth = MAX_HEIGHT * aspectRatio;
+  }
+  
+  if (scaledWidth > MAX_WIDTH) {
+    scaledWidth = MAX_WIDTH;
+    scaledHeight = MAX_WIDTH / aspectRatio;
+  }
+
+  // --- Dynamic Styling for the Scaled Preview ---
+  const dynamicPreviewStyle = {
+    width: scaledWidth,
+    height: scaledHeight,
+    position: 'relative',
+  };
+
+  const mainPreviewStyle = {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    justifyContent: 'center',
+    gap: 2,
+  };
+
   const renderGridLines = (horizontal, vertical) => {
     const lines = [];
-    
-    // Vertical lines (based on horizontal divisions)
     for (let i = 1; i < horizontal; i++) {
-      lines.push(
-        <View
-          key={`v${i}`}
-          style={[
-            styles.gridLine,
-            styles.verticalGrid,
-            { left: `${(i / horizontal) * 100}%` }
-          ]}
-        />
-      );
+      lines.push(<View key={`v${i}`} style={[styles.gridLine, styles.verticalGrid, { left: `${(i / horizontal) * 100}%` }]} />);
     }
-    
-    // Horizontal lines (based on vertical divisions)
     for (let i = 1; i < vertical; i++) {
-      lines.push(
-        <View
-          key={`h${i}`}
-          style={[
-            styles.gridLine,
-            styles.horizontalGrid,
-            { top: `${(i / vertical) * 100}%` }
-          ]}
-        />
-      );
+      lines.push(<View key={`h${i}`} style={[styles.gridLine, styles.horizontalGrid, { top: `${(i / vertical) * 100}%` }]} />);
     }
-    
     return <View style={styles.gridLines}>{lines}</View>;
   };
 
-  // Render grid for sidelights with their own grid configuration
   const renderSidelightGrid = (sidelightConfig) => {
-    if (!sidelightConfig?.grid?.enabled) return null;
-    return renderGridLines(sidelightConfig.grid.horizontal, sidelightConfig.grid.vertical);
+    if (sidelightConfig?.grid?.enabled) {
+      return renderGridLines(sidelightConfig.grid.horizontal, sidelightConfig.grid.vertical);
+    }
+    return null;
   };
-
+  
   const renderPanels = () => {
-    if (configuration.systemType === 'Windows') {
-      return (
-        <View style={styles.mainPreview}>
-          {configuration.panels.map((panel, index) => {
-            const width = (panel.width / configuration.panels.reduce((sum, p) => sum + p.width, 0)) * 100;
-            return (
-              <View
-                key={index}
-                style={[
-                  styles.panel,
-                  panel.operationType === 'Fixed' ? styles.fixedPanel : styles.slidingPanel,
-                  { width: `${width}%` }
-                ]}
-              >
-                <View style={styles.panelContent}>
-                  <Text style={styles.panelLabel}>{panel.operationType}</Text>
-                  {/* Add operation description for clarity */}
-                  {panel.operationType !== 'Fixed' && (
-                    <Text style={[styles.panelLabel, { fontSize: 5, color: '#888' }]}>
-                      {panel.operationType === 'Casement' && '(open out)'}
-                      {panel.operationType === 'Awning' && '(open out)'}
-                      {panel.operationType === 'Tilt Only' && '(open in)'}
-                      {panel.operationType === 'Tilt & Turn' && '(open in)'}
-                    </Text>
-                  )}
-                  <Text style={styles.panelLabel}>{Math.round(panel.width)}"</Text>
-                  {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-                  {/* Add handle for non-fixed windows */}
-                  {panel.operationType !== 'Fixed' && (
-                    <View style={[
-                      styles.handle, 
-                      panel.operationType === 'Awning' 
-                        ? { left: '45%', top: '85%' }  // Bottom center for awning
-                        : { [panel.handleLocation || 'right']: 3 }  // Side position for others
-                    ]} />
-                  )}
-                  {/* Add hinges for non-fixed windows */}
-                  {panel.operationType !== 'Fixed' && (
-                    <>
-                      {panel.operationType === 'Awning' ? (
-                        // Top hinges for awning windows
-                        <>
-                          <View style={[styles.hinge, { left: '20%', top: 1 }]} />
-                          <View style={[styles.hinge, { left: '45%', top: 1 }]} />
-                          <View style={[styles.hinge, { left: '70%', top: 1 }]} />
-                        </>
-                      ) : panel.operationType === 'Tilt Only' ? (
-                        // Bottom hinges for tilt-only windows
-                        <>
-                          <View style={[styles.hinge, { left: '20%', bottom: 1 }]} />
-                          <View style={[styles.hinge, { left: '45%', bottom: 1 }]} />
-                          <View style={[styles.hinge, { left: '70%', bottom: 1 }]} />
-                        </>
-                      ) : panel.operationType === 'Tilt & Turn' ? (
-                        // Side hinges for tilt and turn windows (opposite side to handle)
-                        <>
-                          <View style={[
-                            styles.hinge, 
-                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '20%' }
-                          ]} />
-                          <View style={[
-                            styles.hinge, 
-                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '50%' }
-                          ]} />
-                          <View style={[
-                            styles.hinge, 
-                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '80%' }
-                          ]} />
-                        </>
-                      ) : (
-                        // Side hinges for other window types
-                        <>
-                          <View style={[
-                            styles.hinge, 
-                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '20%' }
-                          ]} />
-                          <View style={[
-                            styles.hinge, 
-                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '50%' }
-                          ]} />
-                          <View style={[
-                            styles.hinge, 
-                            { [panel.handleLocation === 'left' ? 'right' : 'left']: 1, top: '80%' }
-                          ]} />
-                        </>
-                      )}
-                    </>
-                  )}
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      );
+    const isWindows = configuration.systemType === 'Windows';
+    const totalPanelWidth = isWindows ? configuration.panels.reduce((sum, p) => sum + (p.width || 0), 0) : null;
+    if (!configuration.panels || configuration.panels.length === 0) {
+      return <View style={mainPreviewStyle}><Text style={styles.panelLabel}>No Panel Data</Text></View>;
     }
-
-    if (configuration.systemType === 'Sliding Doors') {
-      return (
-        <View style={styles.mainPreview}>
-          {configuration.panels.map((panel, index) => {
-            const width = 100 / configuration.panels.length;
-            return (
-              <View
-                key={index}
-                style={[
-                  styles.panel,
-                  panel.type === 'Fixed' ? styles.fixedPanel : styles.slidingPanel,
-                  { width: `${width}%` }
-                ]}
-              >
-                <View style={styles.panelContent}>
-                  <Text style={styles.panelLabel}>{panel.type}</Text>
-                  {panel.type === 'Sliding' && (
-                    <>
-                      {/* Direction Text - Shows sliding direction */}
-                      <Text style={{
-                        fontSize: 8, 
-                        fontWeight: 'bold',
-                        color: '#1976d2',
-                        position: 'absolute',
-                        top: '70%',
-                        left: '40%',
-                      }}>
-                        {panel.direction === 'left' ? 'LEFT' : 'RIGHT'}
-                      </Text>
-
-                      {/* Handle for sliding door - positioned opposite to sliding direction */}
-                      <View style={[
-                        styles.handle, 
-                        { [panel.direction === 'left' ? 'right' : 'left']: 3 }
-                      ]} />
-                    </>
-                  )}
-                  {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      );
+    if (isWindows && totalPanelWidth === 0) {
+      return <View style={mainPreviewStyle}><Text style={styles.panelLabel}>Invalid Panel Data</Text></View>;
     }
-
-    // Entrance Doors - need to include transom and sidelights
-    const totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                      configuration.dimensions.width + 
-                      (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
-
-    const transomHeight = configuration.transom?.enabled ? configuration.transom.height : 0;
-    const totalHeight = configuration.dimensions.height + transomHeight;
-    
-    // Calculate width percentages for sidelights and door
-    const leftSidelightPercent = configuration.leftSidelight?.enabled ? 
-      (configuration.leftSidelight.width / totalWidth) * 100 : 0;
-    const rightSidelightPercent = configuration.rightSidelight?.enabled ? 
-      (configuration.rightSidelight.width / totalWidth) * 100 : 0;
-    const doorPercent = (configuration.dimensions.width / totalWidth) * 100;
-
     return (
-      <>
-        {/* Transom Section */}
-        {configuration.transom?.enabled && (
-          <View style={[styles.transom, { height: (transomHeight / totalHeight) * 100 + '%' }]}>
-            {renderSidelightGrid(configuration.transom)}
-            <Text style={styles.panelLabel}>Transom ({configuration.transom.height}")</Text>
+      <View style={mainPreviewStyle}>
+        {configuration.panels.map((panel, index) => {
+          const panelWidthPercent = isWindows ? (panel.width / totalPanelWidth) * 100 : 100 / configuration.panels.length;
+          return (
+            <View key={index} style={[styles.panel, panel.type === 'Fixed' || panel.operationType === 'Fixed' ? styles.fixedPanel : styles.slidingPanel, { width: `${panelWidthPercent}%` }]}>
+              <View style={styles.panelContent}>
+                <Text style={styles.panelLabel}>{panel.type || panel.operationType}</Text>
+                {panel.direction && <Text style={styles.arrow}>{panel.direction === 'left' ? '←' : '→'}</Text>}
+                {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+  
+  const renderEntranceDoor = () => {
+    const { leftSidelight, rightSidelight, transom, dimensions, openingType, grid } = configuration;
+    const mainDoorWidth = dimensions.width;
+    const { totalWidth: doorTotalWidth, totalHeight: doorTotalHeight } = getSystemDimensions();
+    return (
+      <View style={{ width: '100%', height: '100%', flexDirection: 'column' }}>
+        {transom?.enabled && (
+          <View style={[styles.transom, { height: (transom.height / doorTotalHeight) * 100 + '%' }]}>
+            {renderSidelightGrid(transom)}
+            <Text style={styles.panelLabel}>Transom</Text>
           </View>
         )}
-
-        {/* Main Door Section */}
-        <View style={[styles.mainPreview, { height: configuration.transom?.enabled ? 
-          (configuration.dimensions.height / totalHeight) * 100 + '%' : '100%' }]}>
-          
-          {/* Left Sidelight */}
-          {configuration.leftSidelight?.enabled && (
-            <View style={[styles.sidelight, { width: leftSidelightPercent + '%' }]}>
-              {renderSidelightGrid(configuration.leftSidelight)}
+        <View style={[mainPreviewStyle, { height: (dimensions.height / doorTotalHeight) * 100 + '%' }]}>
+          {leftSidelight?.enabled && (
+            <View style={[styles.sidelight, { width: (leftSidelight.width / doorTotalWidth) * 100 + '%' }]}>
+              {renderSidelightGrid(leftSidelight)}
               <Text style={styles.panelLabel}>Left</Text>
-              <Text style={styles.panelLabel}>({configuration.leftSidelight.width}")</Text>
             </View>
           )}
-
-          {/* Door Panel(s) */}
-          <View style={{ width: doorPercent + '%', height: '100%' }}>
-            {configuration.openingType === 'Double Door' ? (
-              // Double Door Configuration
+          <View style={{ width: (mainDoorWidth / doorTotalWidth) * 100 + '%', height: '100%' }}>
+            {openingType === 'Double Door' ? (
               <View style={styles.doubleDoorContainer}>
-                {/* Left Door Panel */}
                 <View style={[styles.panel, styles.doorPanel, styles.leftDoorPanel]}>
-                  <View style={styles.panelContent}>
-                    <Text style={styles.panelLabel}>Left Panel</Text>
-                    <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width / 2)}"</Text>
-                    {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-                    {/* Right handle for left panel */}
-                    <View style={[styles.handle, { right: 3 }]} />
-                    {/* Hinges for left panel - on left side (opposite to handle) */}
-                    <View style={[styles.hinge, { left: 1, top: '15%' }]} />
-                    <View style={[styles.hinge, { left: 1, top: '46%' }]} />
-                    <View style={[styles.hinge, { left: 1, top: '77%' }]} />
-                  </View>
+                  <Text style={styles.panelLabel}>Left</Text>
+                  {grid?.enabled && renderGridLines(grid.horizontal, grid.vertical)}
                 </View>
-
-                {/* Right Door Panel */}
                 <View style={[styles.panel, styles.doorPanel, styles.rightDoorPanel]}>
-                  <View style={styles.panelContent}>
-                    <Text style={styles.panelLabel}>Right Panel</Text>
-                    <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width / 2)}"</Text>
-                    {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-                    {/* Left handle for right panel */}
-                    <View style={[styles.handle, { left: 3 }]} />
-                    {/* Hinges for right panel - on right side (opposite to handle) */}
-                    <View style={[styles.hinge, { right: 1, top: '15%' }]} />
-                    <View style={[styles.hinge, { right: 1, top: '46%' }]} />
-                    <View style={[styles.hinge, { right: 1, top: '77%' }]} />
-                  </View>
+                  <Text style={styles.panelLabel}>Right</Text>
+                  {grid?.enabled && renderGridLines(grid.horizontal, grid.vertical)}
                 </View>
               </View>
             ) : (
-              // Single Door Configuration
-              <View style={[styles.panel, styles.doorPanel, { width: '100%' }]}>
-                <View style={styles.panelContent}>
-                  <Text style={styles.panelLabel}>{configuration.openingType}</Text>
-                  <Text style={styles.panelLabel}>{Math.round(configuration.dimensions.width)}"</Text>
-                  {configuration.grid?.enabled && renderGridLines(configuration.grid.horizontal, configuration.grid.vertical)}
-                  {/* Handle based on swing direction */}
-                  <View style={[
-                    styles.handle, 
-                    { [getHandleLocation(configuration.swingDirection)]: 3 }
-                  ]} />
-                  {/* Hinges on opposite side to handle */}
-                  <View style={[
-                    styles.hinge, 
-                    { [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: 1, top: '15%' }
-                  ]} />
-                  <View style={[
-                    styles.hinge, 
-                    { [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: 1, top: '46%' }
-                  ]} />
-                  <View style={[
-                    styles.hinge, 
-                    { [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: 1, top: '77%' }
-                  ]} />
-                </View>
+              <View style={[styles.panel, styles.doorPanel]}>
+                <Text style={styles.panelLabel}>{openingType}</Text>
+                {grid?.enabled && renderGridLines(grid.horizontal, grid.vertical)}
               </View>
             )}
           </View>
-
-          {/* Right Sidelight */}
-          {configuration.rightSidelight?.enabled && (
-            <View style={[styles.sidelight, { width: rightSidelightPercent + '%' }]}>
-              {renderSidelightGrid(configuration.rightSidelight)}
+          {rightSidelight?.enabled && (
+            <View style={[styles.sidelight, { width: (rightSidelight.width / doorTotalWidth) * 100 + '%' }]}>
+              {renderSidelightGrid(rightSidelight)}
               <Text style={styles.panelLabel}>Right</Text>
-              <Text style={styles.panelLabel}>({configuration.rightSidelight.width}")</Text>
             </View>
           )}
         </View>
-      </>
+      </View>
     );
   };
-
+  
   return (
-    <View style={[styles.container, { width: Math.min(containerWidth, 300) }]}>
-      <View style={styles.preview}>
-        {/* Dimension Labels */}
-        {configuration.dimensions?.totalWidth && (
-          <Text style={[styles.dimensionLabel, styles.widthLabel]}>
-            {Math.round(configuration.dimensions.totalWidth)}"
-          </Text>
-        )}
-        {configuration.dimensions?.totalHeight && (
-          <Text style={[styles.dimensionLabel, styles.heightLabel]}>
-            {Math.round(configuration.dimensions.totalHeight)}"
-          </Text>
-        )}
-        
-        {renderPanels()}
+    <View style={styles.container}>
+      <View style={dynamicPreviewStyle}>
+        {configuration.systemType === 'Sliding Doors' && renderPanels()}
+        {configuration.systemType === 'Windows' && renderPanels()}
+        {configuration.systemType === 'Entrance Doors' && renderEntranceDoor()}
+
+        <Text style={[styles.dimensionLabel, styles.widthLabel]}>
+          {`${Math.round(totalWidth)}"`}
+        </Text>
+        <Text style={[styles.dimensionLabel, styles.heightLabel]}>
+          {`${Math.round(totalHeight)}"`}
+        </Text>
       </View>
     </View>
   );

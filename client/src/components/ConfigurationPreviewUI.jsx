@@ -16,6 +16,17 @@ const getHandleLocation = (swingDirection) => {
   return 'right';
 };
 
+// Helper function to get handle location for doors (prioritizes handleLocation over swing direction)
+const getDoorHandleLocation = (configuration) => {
+  // If handleLocation is explicitly set, use it
+  if (configuration.handleLocation) {
+    return configuration.handleLocation;
+  }
+  
+  // Otherwise, derive from swing direction
+  return getHandleLocation(configuration.swingDirection);
+};
+
 const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
   // Calculate total dimensions for better scaling
   const calculateDimensions = () => {
@@ -29,73 +40,91 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
       totalWidth = configuration.dimensions?.width || 72;
       totalHeight = configuration.dimensions?.height || 80;
     } else if (configuration.systemType === 'Entrance Doors') {
-      totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
-                   configuration.dimensions.width + 
-                   (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
-      totalHeight = configuration.dimensions.height + 
-                    (configuration.transom?.enabled ? configuration.transom.height : 0);
+      // Use stored total dimensions if available, otherwise calculate on the fly
+      if (configuration.dimensions?.totalWidth && configuration.dimensions?.totalHeight) {
+        totalWidth = configuration.dimensions.totalWidth;
+        totalHeight = configuration.dimensions.totalHeight;
+      } else {
+        totalWidth = (configuration.leftSidelight?.enabled ? configuration.leftSidelight.width : 0) + 
+                     configuration.dimensions.width + 
+                     (configuration.rightSidelight?.enabled ? configuration.rightSidelight.width : 0);
+        totalHeight = configuration.dimensions.height + 
+                      (configuration.transom?.enabled ? configuration.transom.height : 0);
+      }
     }
     
+    // Debug log
+    console.log('[PreviewUI] calculateDimensions:', {
+      systemType: configuration.systemType,
+      totalWidth,
+      totalHeight,
+      dimensions: configuration.dimensions,
+      panels: configuration.panels,
+      leftSidelight: configuration.leftSidelight,
+      rightSidelight: configuration.rightSidelight,
+      transom: configuration.transom
+    });
     return { totalWidth, totalHeight };
   };
 
   const { totalWidth, totalHeight } = calculateDimensions();
   
-  // Calculate constrained aspect ratio to prevent extreme ratios
-  const rawAspectRatio = totalWidth && totalHeight ? totalWidth / totalHeight : 1.5;
-  const constrainedAspectRatio = Math.max(0.4, Math.min(3.5, rawAspectRatio));
-  
-  // Calculate responsive dimensions based on constraints
-  const getOptimalDimensions = () => {
-    const baseMaxHeight = parseInt(maxHeight) || 200;
-    
-    if (rawAspectRatio < 0.5) {
-      // Very tall/narrow - ensure minimum width while respecting height
-      const minWidth = 120;
-      const optimalHeight = Math.min(baseMaxHeight * 1.3, 300);
-      return {
-        width: Math.max(minWidth, optimalHeight * constrainedAspectRatio),
-        height: optimalHeight,
-        aspectRatio: constrainedAspectRatio
-      };
-    } else if (rawAspectRatio > 2.5) {
-      // Very wide - ensure reasonable height while respecting width
-      const minHeight = 80;
-      const optimalHeight = Math.max(minHeight, baseMaxHeight * 0.8);
-      return {
-        width: optimalHeight * constrainedAspectRatio,
-        height: optimalHeight,
-        aspectRatio: constrainedAspectRatio
-      };
-    } else {
-      // Normal proportions
-      return {
-        width: baseMaxHeight * constrainedAspectRatio,
-        height: baseMaxHeight,
-        aspectRatio: constrainedAspectRatio
-      };
-    }
-  };
+  // Outer container size
+  const containerWidth = 260;
+  const containerHeight = 180;
 
-  const { width: containerWidth, height: containerHeight, aspectRatio } = getOptimalDimensions();
+  // Inner drawing area
+  const drawWidthMax = containerWidth;
+  const drawHeightMax = containerHeight;
+
+  // Calculate the real aspect ratio
+  const systemAspect = totalWidth && totalHeight ? totalWidth / totalHeight : 1;
+  const drawAreaAspect = drawWidthMax / drawHeightMax;
+
+  // Calculate drawing area to fit system inside drawing area, preserving aspect ratio
+  let drawWidth, drawHeight;
+  if (systemAspect > drawAreaAspect) {
+    // System is wider than drawing area: fit width
+    drawWidth = drawWidthMax;
+    drawHeight = drawWidthMax / systemAspect;
+  } else {
+    // System is taller (or same): fit height
+    drawHeight = drawHeightMax;
+    drawWidth = drawHeightMax * systemAspect;
+  }
+
+  // Debug log
+  console.log('[PreviewUI] SCALED DRAWING:', {
+    totalWidth, totalHeight, systemAspect, containerWidth, containerHeight, drawWidth, drawHeight
+  });
 
   const styles = {
     container: {
+      width: `${containerWidth}px`,
+      height: `${containerHeight}px`,
+      boxSizing: 'border-box',
       display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       flexDirection: 'column',
       gap: '4px',
       border: '2px solid #ccc',
       borderRadius: '4px',
-      padding: '4px',
-      bgcolor: '#fff',
-      width: `${containerWidth}px`,
-      height: `${containerHeight}px`,
-      minWidth: '120px',
-      minHeight: '80px',
-      maxWidth: '500px',
-      maxHeight: `${Math.min(containerHeight, 350)}px`,
+      backgroundColor: '#fff',
       position: 'relative',
-      margin: '0 auto', // Center the preview
+      margin: '0 auto',
+    },
+    drawingArea: {
+      maxWidth: '100%',
+      maxHeight: '100%',
+      width: `${drawWidth}px`,
+      height: `${drawHeight}px`,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      padding: '10px',
     },
     transom: {
       display: 'flex',
@@ -104,10 +133,11 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
         `${Math.max(15, (configuration.transom.height / totalHeight) * 100)}%` : 'auto',
       width: '100%',
       minHeight: configuration.transom?.enabled ? '20px' : 'auto',
+      marginBottom: '4px',
     },
     transomPanel: {
       padding: '2px',
-      flex: 1,
+      width: '100%',
       bgcolor: '#f5f5f5',
       color: '#000',
       textAlign: 'center',
@@ -598,23 +628,23 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
                 <Box
                   sx={{
                     ...styles.handle,
-                      [getHandleLocation(configuration.swingDirection)]: '2px',
+                      [getDoorHandleLocation(configuration)]: '2px',
                   }}
                 />
               {/* Hinges on opposite side to handle */}
                   <Box sx={{
                     ...styles.hinge,
-                    [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: '1px',
+                    [getDoorHandleLocation(configuration) === 'left' ? 'right' : 'left']: '1px',
                     top: '15%'
                   }} />
                   <Box sx={{
                     ...styles.hinge,
-                    [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: '1px',
+                    [getDoorHandleLocation(configuration) === 'left' ? 'right' : 'left']: '1px',
                     top: '46%'
                   }} />
                   <Box sx={{
                     ...styles.hinge,
-                    [getHandleLocation(configuration.swingDirection) === 'left' ? 'right' : 'left']: '1px',
+                    [getDoorHandleLocation(configuration) === 'left' ? 'right' : 'left']: '1px',
                     top: '77%'
                   }} />
                 </>
@@ -647,17 +677,19 @@ const ConfigurationPreviewUI = ({ configuration, maxHeight = '200px' }) => {
 
   return (
     <Box sx={styles.container}>
-      {configuration.transom?.enabled && (
-        <Box sx={styles.transom}>
-          <Box sx={{ ...styles.transomPanel, position: 'relative' }}>
-            {renderTransomGrid(configuration.transom)}
-            <Typography variant="caption" sx={styles.caption}>
-              Transom ({configuration.transom.height}")
-            </Typography>
+      <Box sx={styles.drawingArea}>
+        {configuration.transom?.enabled && (
+          <Box sx={styles.transom}>
+            <Box sx={{ ...styles.transomPanel, position: 'relative' }}>
+              {renderTransomGrid(configuration.transom)}
+              <Typography variant="caption" sx={styles.caption}>
+                Transom ({configuration.transom.height}")
+              </Typography>
+            </Box>
           </Box>
-        </Box>
-      )}
-      {renderPanels()}
+        )}
+        {renderPanels()}
+      </Box>
     </Box>
   );
 };

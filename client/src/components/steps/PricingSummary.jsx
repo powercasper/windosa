@@ -202,11 +202,11 @@ const calculateItemPrice = (item, metadata) => {
       'Triple Pane': 18.0,
       'Security Glass': 22,
       'Acoustic Glass': 25,
-      'SKN 184 High Performance': 12.00,
-      'SKN 154 Balanced Performance': 12.00,
-      'XTREME 50-22 Solar Control': 12.00,
-      'XTREME 61-29 Balanced': 12.00,
-      'XTREME 70/33 Maximum Light': 12.00
+      'SKN 183 High Performance': 13.25, // Updated to match factory pricing (supplier $10.60 + 25% markup)
+      'SKN 154 Balanced Performance': 13.25, // Updated to match factory pricing
+      'XTREME 50-22 Solar Control': 13.25, // Updated to match factory pricing
+      'XTREME 61-29 Balanced': 13.25, // Updated to match factory pricing
+      'XTREME 70/33 Maximum Light': 13.25 // Updated to match factory pricing
     };
     glassUnitCost = Number(databaseGlassRates[item.glassType]) || 12.0;
   }
@@ -532,9 +532,8 @@ const PricingSummary = ({
   
   // Initialize costs from storage or defaults
   const storedCosts = getStoredCosts();
-  const [tariff, setTariff] = useState(storedCosts?.tariff || savedQuote?.tariff || '0');
   const [margin, setMargin] = useState(storedCosts?.margin || savedQuote?.margin || '30');
-  const [shipping, setShipping] = useState(storedCosts?.shipping || savedQuote?.shipping || '0');
+  const [shipping, setShipping] = useState(storedCosts?.shipping || savedQuote?.delivery || '0');
   const [delivery, setDelivery] = useState(storedCosts?.delivery || savedQuote?.delivery || '0');
   
   const [totalCost, setTotalCost] = useState(0);
@@ -577,11 +576,10 @@ const PricingSummary = ({
 
   // MIGRATION: Server-side quote totals calculation
   const additionalCosts = useMemo(() => ({
-    tariff: parseFloat(tariff || 0),
     shipping: parseFloat(shipping || 0), 
     delivery: parseFloat(delivery || 0),
     margin: parseFloat(margin || 0)
-  }), [tariff, shipping, delivery, margin]);
+  }), [shipping, delivery, margin]);
 
   const { totals: serverQuoteTotals, loading: quoteTotalsLoading } = useQuoteTotals(quoteItems, additionalCosts);
 
@@ -590,11 +588,25 @@ const PricingSummary = ({
   const { metrics: doorsMetrics, loading: doorsLoading } = useTypeMetrics(quoteItems, 'Entrance Doors', additionalCosts);
   const { metrics: slidingMetrics, loading: slidingLoading } = useTypeMetrics(quoteItems, 'Sliding Doors', additionalCosts);
 
+  // --- Tariff Calculation ---
+  const totalSystemCost = pricing.items.reduce((sum, { systemCost, item }) => sum + (systemCost * (item.quantity || 1)), 0);
+  const totalGlassCost = pricing.items.reduce((sum, { glassCost, item }) => sum + (glassCost * (item.quantity || 1)), 0);
+  const totalLaborCost = pricing.items.reduce((sum, { laborCost, item }) => sum + (laborCost * (item.quantity || 1)), 0);
+
+  const totalProductCostForTariff = totalSystemCost + totalGlassCost;
+  const systemLaborShare = totalProductCostForTariff > 0 ? (totalSystemCost / totalProductCostForTariff) * totalLaborCost : 0;
+  const glassLaborShare = totalProductCostForTariff > 0 ? (totalGlassCost / totalProductCostForTariff) * totalLaborCost : 0;
+
+  const systemTariff = (totalSystemCost + systemLaborShare) * 0.658;
+  const glassTariff = (totalGlassCost + glassLaborShare) * 0.138;
+  const totalCalculatedTariff = systemTariff + glassTariff;
+  // --- End Tariff Calculation ---
+
   // Store costs whenever they change
   useEffect(() => {
-    const costs = { tariff, margin, shipping, delivery };
+    const costs = { margin, shipping, delivery };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(costs));
-  }, [tariff, margin, shipping, delivery]);
+  }, [margin, shipping, delivery]);
 
   const handleNumericInput = (value, type) => {
     // Allow only numbers and decimal point
@@ -607,9 +619,6 @@ const PricingSummary = ({
 
     // Update the appropriate state based on type
     switch(type) {
-      case 'tariff':
-        setTariff(numericValue);
-        break;
       case 'margin':
         setMargin(numericValue);
         break;
@@ -935,7 +944,6 @@ const PricingSummary = ({
           `${clientInfo.firstName} ${clientInfo.lastName}`,
         projectName: clientInfo.projectName,
         // Include additional costs
-        tariff,
         margin,
         shipping,
         delivery
@@ -967,35 +975,26 @@ const PricingSummary = ({
     try {
       setIsGeneratingPDF(true);
 
-      // Calculate total area for cost distribution
-      const totalArea = pricing.items.reduce((sum, { item }) => {
-        if (item.systemType === 'Windows') {
-          return sum + ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
-        } else if (item.systemType === 'Entrance Doors') {
-          return sum + (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-                      item.dimensions.width +
-                      (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
-                     (item.dimensions.height + 
-                      (item.transom?.enabled ? item.transom.height : 0)) / 144);
-        } else if (item.systemType === 'Sliding Doors') {
-          return sum + ((item.dimensions.width * item.dimensions.height) / 144);
-        }
-        return sum;
-      }, 0);
-
-      // Calculate additional costs per sq ft
-      const additionalCosts = {
-        tariff: parseFloat(tariff || 0),
-        shipping: parseFloat(shipping || 0),
-        delivery: parseFloat(delivery || 0),
-        margin: parseFloat(margin || 0)
-      };
+      // --- Prepare All Final Pricing Data ---
+      const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
       
-      const totalAdditionalCosts = additionalCosts.tariff + additionalCosts.shipping + additionalCosts.delivery;
-      const additionalCostPerSqFt = totalArea > 0 ? totalAdditionalCosts / totalArea : 0;
+      const marginPercent = parseFloat(margin || 0);
+      const marginMultiplier = marginPercent > 0 ? 1 / (1 - (marginPercent / 100)) : 1;
+      const costWithMargin = baseCost * marginMultiplier;
+      
+      const totalAdditionalCost = totalCalculatedTariff + parseFloat(shipping || 0);
+      const additionalCostWithFee = totalAdditionalCost * 1.05;
 
-      // Prepare items with all necessary data
-      const itemsWithPricing = pricing.items.map(({ item, systemCost, glassCost, laborCost, total, area }) => {
+      const deliveryValue = parseFloat(delivery || 0);
+      
+      const subtotal = costWithMargin + additionalCostWithFee;
+      const finalPrice = subtotal + deliveryValue;
+      
+      const totalArea = (windowsMetrics?.totalArea || 0) + (doorsMetrics?.totalArea || 0) + (slidingMetrics?.totalArea || 0);
+
+      // --- Prepare Item-Specific Pricing (EXACTLY matching UI table logic) ---
+      const itemsWithPricing = pricing.items.map(({ item, total }, index) => {
+        // Calculate item area (EXACTLY as in UI table)
         const itemArea = (() => {
           if (item.systemType === 'Windows') {
             return ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
@@ -1011,59 +1010,90 @@ const PricingSummary = ({
           return 0;
         })();
 
-        // Calculate item's proportional additional costs - CONSISTENT LOGIC
-        const itemAdditionalCostsForMargin = itemArea * (additionalCosts.tariff + additionalCosts.shipping) / totalArea;
-        const itemDeliveryCost = itemArea * additionalCosts.delivery / totalArea;
-        const costBeforeMargin = total + itemAdditionalCostsForMargin;
-        const marginMultiplier = additionalCosts.margin > 0 ? 1 / (1 - (additionalCosts.margin / 100)) : 1;
+        // Calculate total area for all items (EXACTLY as in UI table)
+        const totalArea = pricing.items.reduce((sum, { item }) => {
+          let area = 0;
+          if (item.systemType === 'Windows') {
+            area = (item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144;
+          } else if (item.systemType === 'Entrance Doors') {
+            area = ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                   item.dimensions.width +
+                   (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
+                  (item.dimensions.height + 
+                   (item.transom?.enabled ? item.transom.height : 0)) / 144;
+          } else if (item.systemType === 'Sliding Doors') {
+            area = (item.dimensions.width * item.dimensions.height) / 144;
+          }
+          return sum + area;
+        }, 0);
+
+        // Calculate proportional additional costs for this item (EXACTLY as in UI table)
+        const additionalCostsForMargin = parseFloat(margin || 0) + parseFloat(shipping || 0);
+        const deliveryValue = parseFloat(delivery || 0);
+        const itemAdditionalCostsForMargin = (itemArea / totalArea) * additionalCostsForMargin;
+        const itemDeliveryCost = (itemArea / totalArea) * deliveryValue;
+        
+        // Calculate unit price with consistent logic (EXACTLY as in UI table)
+        const baseUnitPrice = total;
+        const costBeforeMargin = baseUnitPrice + itemAdditionalCostsForMargin;
+        const marginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;
         const subtotalPrice = costBeforeMargin * marginMultiplier;
-        const finalPrice = subtotalPrice + itemDeliveryCost;
+        const finalUnitPrice = subtotalPrice + itemDeliveryCost;
 
         return {
           ...item,
           pricing: {
-            systemCost,
-            glassCost,
-            laborCost,
-            baseTotal: total,
-            additionalCosts: itemAdditionalCostsForMargin + itemDeliveryCost,
-            finalPrice,
-            area: itemArea
+            basePrice: baseUnitPrice,
+            unitPrice: finalUnitPrice / (item.quantity || 1),
+            finalPrice: finalUnitPrice,
+            area: itemArea * (item.quantity || 1), // Total area including quantity
           },
+          // Ensure total dimensions are explicitly passed for PDF rendering
           dimensions: {
             ...item.dimensions,
-            totalWidth: item.systemType === 'Windows' ?
-              item.panels.reduce((sum, panel) => sum + panel.width, 0) :
-              ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-               item.dimensions.width +
-               (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)),
-            totalHeight: item.dimensions.height +
-              (item.systemType === 'Entrance Doors' && item.transom?.enabled ? 
-               item.transom.height : 0)
-          }
+            totalWidth: item.systemType === 'Windows' 
+              ? item.panels.reduce((sum, panel) => sum + panel.width, 0)
+              : item.systemType === 'Sliding Doors'
+              ? item.dimensions.width
+              : (item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
+                item.dimensions.width +
+                (item.rightSidelight?.enabled ? item.rightSidelight.width : 0),
+            totalHeight: item.systemType === 'Entrance Doors'
+              ? item.dimensions.height + (item.transom?.enabled ? item.transom.height : 0)
+              : item.dimensions.height,
+          },
         };
       });
+
+      // Calculate grand total exactly as in UI table
+      const additionalCostsForMargin = parseFloat(margin || 0) + parseFloat(shipping || 0);
+      const costBeforeMargin = baseCost + additionalCostsForMargin;
+      const uiMarginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;
+      const uiSubtotal = costBeforeMargin * uiMarginMultiplier;
+      const uiGrandTotal = uiSubtotal + deliveryValue;
+
+      const finalPricingPayload = {
+        baseCost: baseCost,
+        totalAdditionalCost: totalAdditionalCost,
+        delivery: deliveryValue,
+        subtotal: uiSubtotal,
+        grandTotal: uiGrandTotal,
+        totalArea: totalArea,
+      };
 
       await generateHybridPDF({
         ...quoteDialog.quote,
         items: itemsWithPricing,
-        totalAmount: pricing.grandTotal,
         clientInfo,
-        customerName: clientInfo.isCompany ? 
-          `${clientInfo.companyName} (${clientInfo.firstName} ${clientInfo.lastName})` :
-          `${clientInfo.firstName} ${clientInfo.lastName}`,
+        customerName: clientInfo.isCompany 
+          ? `${clientInfo.companyName} (${clientInfo.firstName} ${clientInfo.lastName})` 
+          : `${clientInfo.firstName} ${clientInfo.lastName}`,
         projectName: clientInfo.projectName,
-        additionalCosts,
-        totalArea,
-        pricing: {
-          totalSystemCost: pricing.totalSystemCost,
-          totalGlassCost: pricing.totalGlassCost,
-          totalLaborCost: pricing.totalLaborCost,
-          grandTotal: pricing.grandTotal
-        },
+        pricing: finalPricingPayload, // Pass the single, correct pricing object
         includePreQ: opts.includePreQ,
-        includeGlassSpecs: opts.includeGlassSpecs
+        includeGlassSpecs: opts.includeGlassSpecs,
       });
+
       setIsGeneratingPDF(false);
     } catch (error) {
       console.error('Error downloading PDF:', error);
@@ -1307,7 +1337,7 @@ const PricingSummary = ({
               <Typography variant="h6" color="primary">
                 ${(() => {
                   const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
-                  const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
+                  const additionalCostsForMargin = parseFloat(margin || 0) + parseFloat(shipping || 0);
                   const deliveryValue = parseFloat(delivery || 0);
                   const costBeforeMargin = baseCost + additionalCostsForMargin;
                   const marginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;
@@ -2168,7 +2198,15 @@ const PricingSummary = ({
                                 >
                                   <Typography variant="subtitle2" color="success.dark" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <WbSunny sx={{ fontSize: 16 }} />
-                                    Glass Performance - {item.glassDetails.productCode || item.glassType}
+                                    {
+                                      `Glass Performance - ${
+                                        item.glassDetails.isCustom
+                                        ? 'Custom IGU' + (item.glassDetails.iguConfiguration?.exteriorCoating && item.glassDetails.iguConfiguration?.exteriorCoating !== 'None'
+                                          ? ` ${item.glassDetails.iguConfiguration.exteriorCoating.replace(/_/g, ' ')}`
+                                          : '')
+                                        : item.glassDetails.productCode || item.glassType
+                                      }`
+                                    }
                                   </Typography>
                                   
                                   <Grid container spacing={2}>
@@ -2535,20 +2573,6 @@ const PricingSummary = ({
               <TextField
                 required
                 fullWidth
-                label="Tariff (USD)"
-                value={tariff}
-                onChange={(e) => handleNumericInput(e.target.value, 'tariff')}
-                size="small"
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                }}
-                helperText="Total Value (Aluminum Tariff, Glass, Rubber Gaskets)"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                required
-                fullWidth
                 label="Margin"
                 value={margin}
                 onChange={(e) => handleNumericInput(e.target.value, 'margin')}
@@ -2627,7 +2651,7 @@ const PricingSummary = ({
                       <Stack spacing={1}>
                         {(() => {
                           // MIGRATION: Use server-side metrics when available, fallback to client calculation
-                          const metrics = windowsMetrics || calculateTypeMetrics(pricing.items, 'Windows', { tariff, shipping }, margin, delivery);
+                          const metrics = windowsMetrics || calculateTypeMetrics(pricing.items, 'Windows', { shipping, delivery }, margin, delivery);
                           const isServerCalculated = !!windowsMetrics;
                           
                           if (windowsLoading) {
@@ -2690,7 +2714,7 @@ const PricingSummary = ({
                       <Stack spacing={1}>
                         {(() => {
                           // MIGRATION: Use server-side metrics when available, fallback to client calculation
-                          const metrics = doorsMetrics || calculateTypeMetrics(pricing.items, 'Entrance Doors', { tariff, shipping }, margin, delivery);
+                          const metrics = doorsMetrics || calculateTypeMetrics(pricing.items, 'Entrance Doors', { shipping, delivery }, margin, delivery);
                           const isServerCalculated = !!doorsMetrics;
                           
                           if (doorsLoading) {
@@ -2753,7 +2777,7 @@ const PricingSummary = ({
                       <Stack spacing={1}>
                         {(() => {
                           // MIGRATION: Use server-side metrics when available, fallback to client calculation
-                          const metrics = slidingMetrics || calculateTypeMetrics(pricing.items, 'Sliding Doors', { tariff, shipping }, margin, delivery);
+                          const metrics = slidingMetrics || calculateTypeMetrics(pricing.items, 'Sliding Doors', { shipping, delivery }, margin, delivery);
                           const isServerCalculated = !!slidingMetrics;
                           
                           if (slidingLoading) {
@@ -2804,74 +2828,136 @@ const PricingSummary = ({
                     <Paper
                       variant="outlined"
                       sx={{
-                        p: 2,
+                        p: 2.5,
                         height: '100%',
                         bgcolor: 'background.default',
                         borderColor: 'primary.main',
-                        borderWidth: 2
+                        borderWidth: 2,
+                        position: 'relative',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '4px',
+                          background: (theme) => theme.palette.primary.main,
+                        }
                       }}
                     >
-                      <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography 
+                        variant="subtitle1" 
+                        gutterBottom 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 1,
+                          color: 'primary.main',
+                          fontWeight: 600,
+                          mb: 2
+                        }}
+                      >
                         <SummarizeIcon fontSize="small" />
                         Total Order
                       </Typography>
-                      <Stack spacing={1}>
+                      <Stack spacing={2}>
                         {(() => {
-                          const totalArea = pricing.items.reduce((sum, { item }) => {
-                            if (item.systemType === 'Windows') {
-                              return sum + ((item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144);
-                            } else if (item.systemType === 'Entrance Doors') {
-                              return sum + (((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
-                                        item.dimensions.width +
-                                        (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
-                                       (item.dimensions.height + 
-                                        (item.transom?.enabled ? item.transom.height : 0)) / 144);
-                            } else if (item.systemType === 'Sliding Doors') {
-                              return sum + ((item.dimensions.width * item.dimensions.height) / 144);
-                            }
-                            return sum;
-                          }, 0);
+                          // --- New Tariff Calculation ---
+                          const totalSystemCost = pricing.items.reduce((sum, { systemCost, item }) => sum + (systemCost * (item.quantity || 1)), 0);
+                          const totalGlassCost = pricing.items.reduce((sum, { glassCost, item }) => sum + (glassCost * (item.quantity || 1)), 0);
+                          const totalLaborCost = pricing.items.reduce((sum, { laborCost, item }) => sum + (laborCost * (item.quantity || 1)), 0);
+
+                          const totalProductCost = totalSystemCost + totalGlassCost;
+                          const systemLaborShare = totalProductCost > 0 ? (totalSystemCost / totalProductCost) * totalLaborCost : 0;
+                          const glassLaborShare = totalProductCost > 0 ? (totalGlassCost / totalProductCost) * totalLaborCost : 0;
+
+                          const systemTariffBase = totalSystemCost + systemLaborShare;
+                          const glassTariffBase = totalGlassCost + glassLaborShare;
+
+                          const systemTariff = systemTariffBase * 0.658;
+                          const glassTariff = glassTariffBase * 0.138;
+                          const totalCalculatedTariff = systemTariff + glassTariff;
+                          // --- End New Tariff Calculation ---
+
+                          // Calculate total area as sum of individual system type areas
+                          const windowsArea = windowsMetrics?.totalArea || 0;
+                          const doorsArea = doorsMetrics?.totalArea || 0;
+                          const slidingArea = slidingMetrics?.totalArea || 0;
+                          const totalArea = windowsArea + doorsArea + slidingArea;
 
                           const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
-                          const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
-                          const deliveryValue = parseFloat(delivery || 0);
-                          const costBeforeMargin = baseCost + additionalCostsForMargin;
+
+                          // New Margin & Fee Calculation
                           const marginPercent = parseFloat(margin || 0);
                           const marginMultiplier = marginPercent > 0 ? 1 / (1 - (marginPercent / 100)) : 1;
-                          const subtotal = costBeforeMargin * marginMultiplier;
+                          const costWithMargin = baseCost * marginMultiplier;
+
+                          const totalAdditionalCost = totalCalculatedTariff + parseFloat(shipping || 0);
+                          const additionalCostWithFee = totalAdditionalCost * 1.05;
+
+                          const deliveryValue = parseFloat(delivery || 0);
+                          
+                          const subtotal = costWithMargin + additionalCostWithFee;
                           const finalPrice = subtotal + deliveryValue;
-                          const profit = subtotal - costBeforeMargin;
+                          const profit = costWithMargin - baseCost;
                           const costPerSqFt = totalArea > 0 ? finalPrice / totalArea : 0;
 
                           return (
                             <>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                <Typography variant="body2" color="text.secondary">Total Area:</Typography>
-                                <Typography variant="body2">{totalArea.toFixed(1)} sq ft</Typography>
+                              <Box sx={{ bgcolor: 'background.paper', p: 1.5, borderRadius: 1 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
+                                  <Typography variant="body2" color="text.secondary">Total Area:</Typography>
+                                  <Typography variant="body2" fontWeight={500}>{totalArea.toFixed(1)} sq ft</Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
+                                  <Typography variant="body2" color="text.secondary">Base Cost:</Typography>
+                                  <Typography variant="body2" fontWeight={500}>${baseCost.toFixed(2)}</Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                  <Typography variant="body2" color="text.secondary">Additional Costs:</Typography>
+                                  <Typography variant="body2" fontWeight={500}>${totalAdditionalCost.toFixed(2)}</Typography>
+                                </Box>
                               </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                <Typography variant="body2" color="text.secondary">Base Cost:</Typography>
-                                <Typography variant="body2">${baseCost.toFixed(2)}</Typography>
+
+                              <Box sx={{ 
+                                bgcolor: 'background.paper', 
+                                p: 1.5, 
+                                borderRadius: 1,
+                                borderLeft: '4px solid',
+                                borderColor: 'primary.main'
+                              }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
+                                  <Typography variant="subtitle2" color="primary" fontWeight={600}>Subtotal:</Typography>
+                                  <Typography variant="subtitle2" color="primary" fontWeight={600}>${subtotal.toFixed(2)}</Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
+                                  <Typography variant="body2" color="text.secondary">Delivery:</Typography>
+                                  <Typography variant="body2" fontWeight={500}>${deliveryValue.toFixed(2)}</Typography>
+                                </Box>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'baseline',
+                                  pt: 1.5,
+                                  mt: 1,
+                                  borderTop: '2px solid',
+                                  borderColor: 'primary.main'
+                                }}>
+                                  <Typography variant="subtitle1" color="primary" sx={{ fontWeight: 'bold' }}>Total Cost:</Typography>
+                                  <Typography variant="subtitle1" color="primary" sx={{ fontWeight: 'bold' }}>${finalPrice.toFixed(2)}</Typography>
+                                </Box>
                               </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                <Typography variant="body2" color="text.secondary">Additional Costs:</Typography>
-                                <Typography variant="body2">${additionalCostsForMargin.toFixed(2)}</Typography>
-                              </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
-                                <Typography variant="subtitle2" color="primary">Subtotal:</Typography>
-                                <Typography variant="subtitle2" color="primary">${subtotal.toFixed(2)}</Typography>
-                              </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                <Typography variant="body2" color="text.secondary">Delivery:</Typography>
-                                <Typography variant="body2">${deliveryValue.toFixed(2)}</Typography>
-                              </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '2px solid', borderColor: 'primary.main' }}>
-                                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>Total Cost:</Typography>
-                                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>${finalPrice.toFixed(2)}</Typography>
-                              </Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+
+                              <Box sx={{ 
+                                bgcolor: 'background.paper', 
+                                p: 1.5, 
+                                borderRadius: 1,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'baseline'
+                              }}>
                                 <Typography variant="body2" color="text.secondary">Cost per sq ft:</Typography>
-                                <Typography variant="body2">${costPerSqFt.toFixed(2)}</Typography>
+                                <Typography variant="body2" fontWeight={500}>${costPerSqFt.toFixed(2)}</Typography>
                               </Box>
                             </>
                           );
@@ -2894,43 +2980,77 @@ const PricingSummary = ({
                     <Paper
                       variant="outlined"
                       sx={{
-                        p: 2,
+                        p: 2.5,
                         height: '100%',
-                        bgcolor: 'background.default'
+                        bgcolor: 'background.default',
+                        position: 'relative',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '4px',
+                          background: (theme) => theme.palette.primary.main,
+                        }
                       }}
                     >
-                      <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography 
+                        variant="subtitle1" 
+                        gutterBottom 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 1,
+                          color: 'primary.main',
+                          fontWeight: 600,
+                          mb: 2
+                        }}
+                      >
                         <InventoryIcon fontSize="small" />
                         Cost Breakdown
                       </Typography>
                       <Stack spacing={2}>
                         {/* Product Costs */}
-                        <Box>
-                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        <Box sx={{ bgcolor: 'background.paper', p: 1.5, borderRadius: 1 }}>
+                          <Typography 
+                            variant="subtitle2" 
+                            color="text.secondary" 
+                            gutterBottom
+                            sx={{ mb: 1.5 }}
+                          >
                             Product Costs
                           </Typography>
                           <Stack spacing={1}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                               <Typography variant="body2" color="text.secondary">System Cost:</Typography>
-                              <Typography variant="body2">
-                                ${pricing.items.reduce((sum, { systemCost }) => sum + systemCost, 0).toFixed(2)}
+                              <Typography variant="body2" fontWeight={500}>
+                                ${pricing.items.reduce((sum, { systemCost, item }) => sum + (systemCost * (item.quantity || 1)), 0).toFixed(2)}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                               <Typography variant="body2" color="text.secondary">Glass Cost:</Typography>
-                              <Typography variant="body2">
-                                ${pricing.items.reduce((sum, { glassCost }) => sum + glassCost, 0).toFixed(2)}
+                              <Typography variant="body2" fontWeight={500}>
+                                ${pricing.items.reduce((sum, { glassCost, item }) => sum + (glassCost * (item.quantity || 1)), 0).toFixed(2)}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                               <Typography variant="body2" color="text.secondary">Labor Cost:</Typography>
-                              <Typography variant="body2">
-                                ${pricing.items.reduce((sum, { laborCost }) => sum + laborCost, 0).toFixed(2)}
+                              <Typography variant="body2" fontWeight={500}>
+                                ${pricing.items.reduce((sum, { laborCost, item }) => sum + (laborCost * (item.quantity || 1)), 0).toFixed(2)}
                               </Typography>
                             </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
-                              <Typography variant="subtitle2" color="primary">Total Product Cost:</Typography>
-                              <Typography variant="subtitle2" color="primary">
+                            <Box sx={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'baseline', 
+                              pt: 1.5,
+                              mt: 0.5,
+                              borderTop: '2px solid',
+                              borderColor: 'primary.main'
+                            }}>
+                              <Typography variant="subtitle2" color="primary" fontWeight={600}>Total Product Cost:</Typography>
+                              <Typography variant="subtitle2" color="primary" fontWeight={600}>
                                 ${pricing.items.reduce((sum, { total }) => sum + total, 0).toFixed(2)}
                               </Typography>
                             </Box>
@@ -2938,27 +3058,52 @@ const PricingSummary = ({
                         </Box>
 
                         {/* Additional Costs */}
-                        <Box>
-                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        <Box sx={{ 
+                          bgcolor: 'background.paper', 
+                          p: 1.5, 
+                          borderRadius: 1,
+                          borderLeft: '4px solid',
+                          borderColor: 'primary.main'
+                        }}>
+                          <Typography 
+                            variant="subtitle2" 
+                            color="text.secondary" 
+                            gutterBottom
+                            sx={{ mb: 1.5 }}
+                          >
                             Additional Costs
                           </Typography>
                           <Stack spacing={1}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                              <Typography variant="body2" color="text.secondary">Tariff:</Typography>
-                              <Typography variant="body2">${parseFloat(tariff || 0).toFixed(2)}</Typography>
+                              <Typography variant="body2" color="text.secondary">Calculated Tariff:</Typography>
+                              <Typography variant="body2" fontWeight={500}>
+                                ${totalCalculatedTariff.toFixed(2)}
+                              </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                               <Typography variant="body2" color="text.secondary">Shipping:</Typography>
-                              <Typography variant="body2">${parseFloat(shipping || 0).toFixed(2)}</Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                              <Typography variant="body2" color="text.secondary">Delivery:</Typography>
-                              <Typography variant="body2">${parseFloat(delivery || 0).toFixed(2)}</Typography>
+                              <Typography variant="body2" fontWeight={500}>${parseFloat(shipping || 0).toFixed(2)}</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
-                              <Typography variant="subtitle2" color="primary">Total Additional:</Typography>
-                              <Typography variant="subtitle2" color="primary">
-                                ${(parseFloat(tariff || 0) + parseFloat(shipping || 0) + parseFloat(delivery || 0)).toFixed(2)}
+                              <Typography variant="body2" color="text.secondary" fontWeight="500">Subtotal Additional:</Typography>
+                              <Typography variant="body2" fontWeight="500">${(totalCalculatedTariff + parseFloat(shipping || 0)).toFixed(2)}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <Typography variant="body2" color="text.secondary">Fee (5%):</Typography>
+                              <Typography variant="body2" fontWeight="500">${((totalCalculatedTariff + parseFloat(shipping || 0)) * 0.05).toFixed(2)}</Typography>
+                            </Box>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'baseline',
+                              pt: 1.5,
+                              mt: 0.5,
+                              borderTop: '2px solid',
+                              borderColor: 'primary.main'
+                            }}>
+                              <Typography variant="subtitle2" color="primary" fontWeight={600}>Total Additional Cost:</Typography>
+                              <Typography variant="subtitle2" color="primary" fontWeight={600}>
+                                ${((totalCalculatedTariff + parseFloat(shipping || 0)) * 1.05).toFixed(2)}
                               </Typography>
                             </Box>
                           </Stack>
@@ -2972,84 +3117,104 @@ const PricingSummary = ({
                     <Paper
                       variant="outlined"
                       sx={{
-                        p: 2,
+                        p: 2.5,
                         height: '100%',
                         bgcolor: 'background.default',
                         borderColor: 'success.main',
                         borderWidth: 2
                       }}
                     >
-                      <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.dark', fontWeight: 600, mb: 2 }}>
                         <PaidIcon fontSize="small" />
                         Final Calculation
                       </Typography>
                       <Stack spacing={2}>
                         {(() => {
                           const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
-                          const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
-                          const deliveryValue = parseFloat(delivery || 0);
-                          const costBeforeMargin = baseCost + additionalCostsForMargin;
+
                           const marginPercent = parseFloat(margin || 0);
                           const marginMultiplier = marginPercent > 0 ? 1 / (1 - (marginPercent / 100)) : 1;
-                          const subtotal = costBeforeMargin * marginMultiplier;
+                          const costWithMargin = baseCost * marginMultiplier;
+                          const profit = costWithMargin - baseCost;
+
+                          const totalAdditionalCost = totalCalculatedTariff + parseFloat(shipping || 0);
+                          const additionalCostFee = totalAdditionalCost * 0.05;
+                          const additionalCostWithFee = totalAdditionalCost + additionalCostFee;
+
+                          const subtotal = costWithMargin + additionalCostWithFee;
+                          const deliveryValue = parseFloat(delivery || 0);
                           const finalPrice = subtotal + deliveryValue;
-                          const profit = subtotal - costBeforeMargin;
                           const profitMarginPercent = marginPercent;
 
                           return (
-                            <>
-                                                              <Box>
-                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                  Cost Summary
-                                </Typography>
-                                <Stack spacing={1}>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                    <Typography variant="body2" color="text.secondary">Product Cost:</Typography>
-                                    <Typography variant="body2">${baseCost.toFixed(2)}</Typography>
-                                  </Box>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                    <Typography variant="body2" color="text.secondary">Additional Cost:</Typography>
-                                    <Typography variant="body2">${additionalCostsForMargin.toFixed(2)}</Typography>
-                                  </Box>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
-                                    <Typography variant="subtitle2" color="primary">Subtotal:</Typography>
-                                    <Typography variant="subtitle2" color="primary">${subtotal.toFixed(2)}</Typography>
-                                  </Box>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                    <Typography variant="body2" color="text.secondary">Delivery:</Typography>
-                                    <Typography variant="body2">${deliveryValue.toFixed(2)}</Typography>
-                                  </Box>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '2px solid', borderColor: 'primary.main' }}>
-                                    <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>Total Cost:</Typography>
-                                    <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }}>${finalPrice.toFixed(2)}</Typography>
-                                  </Box>
-                                </Stack>
-                              </Box>
-
-                              <Box>
-                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                  Profit Calculation
-                                </Typography>
-                                <Stack spacing={1}>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                    <Typography variant="body2" color="text.secondary">Margin Rate:</Typography>
-                                    <Typography variant="body2">{marginPercent}%</Typography>
-                                  </Box>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                    <Typography variant="body2" color="text.secondary">Profit Amount:</Typography>
-                                    <Typography variant="body2">${profit.toFixed(2)}</Typography>
-                                  </Box>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                    <Typography variant="body2" color="text.secondary">Profit Margin:</Typography>
-                                    <Typography variant="body2">{profitMarginPercent.toFixed(1)}%</Typography>
-                                  </Box>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
-                                    <Typography variant="subtitle2" color="success.main">Final Price:</Typography>
-                                    <Typography variant="subtitle2" color="success.main">${finalPrice.toFixed(2)}</Typography>
-                                  </Box>
-                                </Stack>
-                              </Box>
-                            </>
+                            <Grid container spacing={3}>
+                              <Grid item xs={12} md={6}>
+                                <Box>
+                                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Cost Summary
+                                  </Typography>
+                                  <Stack spacing={1}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                      <Typography variant="body2" color="text.secondary">Product Cost:</Typography>
+                                      <Typography variant="body2" fontWeight={500}>${baseCost.toFixed(2)}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                      <Typography variant="body2" color="text.secondary">Additional Costs:</Typography>
+                                      <Typography variant="body2" fontWeight={500}>${totalAdditionalCost.toFixed(2)}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
+                                      <Typography variant="subtitle2" color="primary">Subtotal:</Typography>
+                                      <Typography variant="subtitle2" color="primary" fontWeight={600}>${subtotal.toFixed(2)}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                      <Typography variant="body2" color="text.secondary">Delivery:</Typography>
+                                      <Typography variant="body2" fontWeight={500}>${deliveryValue.toFixed(2)}</Typography>
+                                    </Box>
+                                    <Box sx={{ 
+                                      display: 'flex', 
+                                      justifyContent: 'space-between', 
+                                      alignItems: 'baseline',
+                                      pt: 1.5,
+                                      mt: 0.5,
+                                      borderTop: '2px solid',
+                                      borderColor: 'primary.main'
+                                    }}>
+                                      <Typography variant="subtitle1" color="primary" sx={{ fontWeight: 'bold' }}>Total Price:</Typography>
+                                      <Typography variant="subtitle1" color="primary" sx={{ fontWeight: 'bold' }}>${finalPrice.toFixed(2)}</Typography>
+                                    </Box>
+                                  </Stack>
+                                </Box>
+                              </Grid>
+                              <Grid item xs={12} md={6}>
+                                <Box sx={{ pl: { md: 2 }, borderLeft: { md: '1px solid' }, borderColor: 'divider', height: '100%' }}>
+                                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Profit Summary
+                                  </Typography>
+                                  <Stack spacing={1}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                      <Typography variant="body2" color="text.secondary">Product Margin ({profitMarginPercent.toFixed(1)}%):</Typography>
+                                      <Typography variant="body2" fontWeight={500}>${profit.toFixed(2)}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                      <Typography variant="body2" color="text.secondary">Fee on Additional Costs (5%):</Typography>
+                                      <Typography variant="body2" fontWeight={500}>${additionalCostFee.toFixed(2)}</Typography>
+                                    </Box>
+                                    <Box sx={{ 
+                                      display: 'flex', 
+                                      justifyContent: 'space-between', 
+                                      alignItems: 'baseline',
+                                      pt: 1.5,
+                                      mt: 0.5,
+                                      borderTop: '2px solid',
+                                      borderColor: 'success.main'
+                                    }}>
+                                      <Typography variant="subtitle2" color="success.dark" fontWeight={600}>Total Profit:</Typography>
+                                      <Typography variant="subtitle2" color="success.dark" fontWeight={600}>${(profit + additionalCostFee).toFixed(2)}</Typography>
+                                    </Box>
+                                  </Stack>
+                                </Box>
+                              </Grid>
+                            </Grid>
                           );
                         })()}
                       </Stack>
@@ -3124,7 +3289,7 @@ const PricingSummary = ({
                     }, 0);
 
                     // Calculate proportional additional costs for this item - CONSISTENT LOGIC
-                    const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
+                    const additionalCostsForMargin = parseFloat(margin || 0) + parseFloat(shipping || 0);
                     const deliveryValue = parseFloat(delivery || 0);
                     const itemAdditionalCostsForMargin = (itemArea / totalArea) * additionalCostsForMargin;
                     const itemDeliveryCost = (itemArea / totalArea) * deliveryValue;
@@ -3153,7 +3318,7 @@ const PricingSummary = ({
                         <TableCell>{item.quantity || 1}</TableCell>
                         <TableCell>{description}</TableCell>
                         <TableCell>{item.location || '-'}</TableCell>
-                        <TableCell align="right">{itemArea.toFixed(1)}</TableCell>
+                        <TableCell align="right">{itemArea.toFixed(1)*item.quantity}</TableCell>
                         <TableCell align="right">${(baseUnitPrice / (item.quantity || 1)).toFixed(2)}</TableCell>
                         <TableCell align="right">${(finalUnitPrice / (item.quantity || 1)).toFixed(2)}</TableCell>
                         <TableCell align="right">${finalUnitPrice.toFixed(2)}</TableCell>
@@ -3174,15 +3339,15 @@ const PricingSummary = ({
                       {pricing.items.reduce((sum, { item }) => {
                         let area = 0;
                         if (item.systemType === 'Windows') {
-                          area = (item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144;
+                          area = (item.panels.reduce((w, p) => w + p.width, 0) * item.dimensions.height) / 144 * item.quantity;
                         } else if (item.systemType === 'Entrance Doors') {
                           area = ((item.leftSidelight?.enabled ? item.leftSidelight.width : 0) + 
                                  item.dimensions.width +
                                  (item.rightSidelight?.enabled ? item.rightSidelight.width : 0)) * 
                                 (item.dimensions.height + 
-                                 (item.transom?.enabled ? item.transom.height : 0)) / 144;
+                                 (item.transom?.enabled ? item.transom.height : 0)) / 144 * item.quantity;
                         } else if (item.systemType === 'Sliding Doors') {
-                          area = (item.dimensions.width * item.dimensions.height) / 144;
+                          area = (item.dimensions.width * item.dimensions.height) / 144 * item.quantity;
                         }
                         return sum + area;
                       }, 0).toFixed(1)}
@@ -3194,7 +3359,7 @@ const PricingSummary = ({
                     <TableCell align="right">
                       ${(() => {
                         const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
-                        const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
+                        const additionalCostsForMargin = parseFloat(margin || 0) + parseFloat(shipping || 0);
                         const deliveryValue = parseFloat(delivery || 0);
                         const costBeforeMargin = baseCost + additionalCostsForMargin;
                         const marginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;
@@ -3227,7 +3392,7 @@ const PricingSummary = ({
                     <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1.1em' }}>
                       ${(() => {
                         const baseCost = pricing.items.reduce((sum, { total }) => sum + total, 0);
-                        const additionalCostsForMargin = parseFloat(tariff || 0) + parseFloat(shipping || 0);
+                        const additionalCostsForMargin = parseFloat(margin || 0) + parseFloat(shipping || 0);
                         const deliveryValue = parseFloat(delivery || 0);
                         const costBeforeMargin = baseCost + additionalCostsForMargin;
                         const marginMultiplier = parseFloat(margin || 0) > 0 ? 1 / (1 - (parseFloat(margin || 0) / 100)) : 1;

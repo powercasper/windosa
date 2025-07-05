@@ -7,7 +7,7 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
 
 // Fallback glass data (simplified version for emergencies)
 const fallbackGlassData = {
-  'SKN 184': { id: 'skn-184', productCode: 'SKN 184', type: 'SKN 184 High Performance', price: 22.50 },
+  'SKN 183': { id: 'skn-183', productCode: 'SKN 183', type: 'SKN 183 High Performance', price: 22.50 },
   'SKN 154': { id: 'skn-154', productCode: 'SKN 154', type: 'SKN 154 Balanced Performance', price: 20.75 },
   '70/33': { id: '70-33', productCode: '70/33', type: 'XTREME 70/33 Maximum Light', price: 23.00 },
   '61-29': { id: '61-29', productCode: '61-29', type: 'XTREME 61-29 Balanced', price: 21.50 },
@@ -69,13 +69,64 @@ class GlassService {
   }
 
   // Get all glass options
-  async getAllGlassOptions() {
+  async getAllGlassOptions(areaSqm = null, panelInfo = null) {
     try {
-      const response = await this.apiRequest('');
+      let url = '';
+      if (areaSqm && areaSqm > 0) {
+        url = `/with-area?areaSqm=${areaSqm}`;
+        if (panelInfo) {
+          url += `&panelInfo=${encodeURIComponent(JSON.stringify(panelInfo))}`;
+        }
+      }
+      
+      const response = await this.apiRequest(url);
       return response.data;
     } catch (error) {
-      console.warn('Falling back to local glass data:', error);
-      return fallbackGlassData;
+      console.warn('Glass options request failed:', error);
+      // Return fallback glass data
+      return {
+        'SKN 183': {
+          id: 'skn-183',
+          productCode: 'SKN 183',
+          type: 'SKN 183 High Performance',
+          category: 'High Performance Glazing',
+          price: 13.25, // Updated to match factory pricing (supplier $10.60 + 25% markup)
+          specifications: {
+            lightTransmittance: 68,
+            solarHeatGainCoefficient: 0.36,
+            thermalTransmission: '0.2 W/m²K',
+            acousticRating: 'Rw 33(-1;-5) dB',
+            energyRating: 'A+'
+          },
+          description: 'Premium high-performance glass with excellent thermal and acoustic properties.'
+        },
+        'Double Pane': {
+          id: 'double-pane',
+          productCode: 'Standard Double Pane',
+          type: 'Double Pane',
+          category: 'Standard Glazing',
+          price: 12.00, // Keep standard price
+          specifications: {
+            lightTransmittance: 82,
+            solarHeatGainCoefficient: 0.76,
+            thermalTransmission: '2.8 W/m²K',
+            acousticRating: 'Rw 28 dB',
+            energyRating: 'C'
+          },
+          description: 'Standard double pane insulated glass unit for basic applications.'
+        }
+      };
+    }
+  }
+
+  // Get glass options with area-based pricing
+  async getGlassOptionsWithArea(areaSqm) {
+    try {
+      const response = await this.apiRequest(`/with-area?areaSqm=${areaSqm}`);
+      return response.data;
+    } catch (error) {
+      console.warn('Glass options with area request failed:', error);
+      throw error;
     }
   }
 
@@ -184,6 +235,78 @@ class GlassService {
     }
   }
 
+  // Get IGU configuration data
+  async getIguConfigurationData() {
+    try {
+      const response = await this.apiRequest('/igu-config');
+      return response.data;
+    } catch (error) {
+      console.warn('IGU configuration data request failed:', error);
+      // Return fallback IGU configuration data
+      return {
+        basePrice: 27.98,
+        exchangeRate: 1.18,
+        exteriorCoatings: [
+          { id: 'None', name: 'None', surcharge: 0 },
+          { id: 'SKN_165', name: 'Cool-Lite SKN 165', surcharge: 36.35 },
+          { id: 'SKN_176', name: 'Cool-Lite SKN 176', surcharge: 36.35 },
+          { id: 'SKN_183', name: 'Cool-Lite SKN 183', surcharge: 36.35 },
+          { id: 'XTREME_61_29', name: 'Cool-Lite XTREME 61/29', surcharge: 37.85 },
+          { id: 'XTREME_70_33', name: 'Cool-Lite XTREME 70/33', surcharge: 37.85 },
+        ],
+        spacers: [
+          { id: 'SWISSPACER_AD_GREY', name: 'SWISSPACER AD: titan-grey; black', surcharge: 1.50 },
+          { id: 'SWISSPACER_AD_BROWN', name: 'SWISSPACER AD: light brown, dark brown, white', surcharge: 2.50 },
+          { id: 'SWISSPACER_ULTIMATE_GREY', name: 'SWISSPACER ULTIMATE: titan-grey; black', surcharge: 2.50 },
+        ],
+        interiorGlass: [
+          { id: 'PLANITHERM_XN_4MM', name: 'PLANITHERM XN 4mm (Ug=1.1)', surcharge: 20.72 },
+          { id: 'PLANITHERM_XN_6MM', name: 'PLANITHERM XN 6mm (Ug=1.1)', surcharge: 28.34 },
+          { id: 'PLANITHERM_XN_8MM', name: 'PLANITHERM XN 8mm (Ug=1.1)', surcharge: 38.86 },
+          { id: 'PLANITHERM_XN_10MM', name: 'PLANITHERM XN 10mm (Ug=1.1)', surcharge: 38.48 },
+          { id: 'PLANITHERM_ONE_4MM', name: 'PLANITHERM ONE 4mm (Ug=1.0)', surcharge: 39.99 },
+          { id: 'PLANITHERM_ONE_6MM', name: 'PLANITHERM ONE 6mm (Ug=1.0)', surcharge: 43.32 },
+        ],
+        defaultConfiguration: {
+          type: 'Double',
+          composition: 'sgg CLIMAPLUS ECLAZ',
+          exteriorThickness: 6,
+          exteriorCoating: 'None',
+          spacer: 'SWISSPACER_AD_GREY',
+          interiorGlass: 'PLANITHERM_XN_4MM'
+        }
+      };
+    }
+  }
+
+  // Calculate IGU price
+  async calculateIguPrice(configuration, dimensions) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/glass/igu-price`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ configuration, dimensions })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'IGU price calculation failed');
+      }
+
+      return result.data;
+    } catch (error) {
+      console.warn('IGU price calculation request failed:', error);
+      throw error;
+    }
+  }
+
   // Check API health
   async checkHealth() {
     try {
@@ -228,5 +351,6 @@ export const {
   filterGlassByClimate,
   checkHealth,
   clearCache,
-  getCacheStatus
+  getCacheStatus,
+  getGlassOptionsWithArea
 } = glassService; 

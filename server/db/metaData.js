@@ -1,4 +1,4 @@
-// client/src/utils/metadata.js
+// server/db/metaData.js - Single source of truth for all metadata
 
 const systemBrands = [
   "Alumil",
@@ -13,9 +13,9 @@ const systemHierarchy = {
 
 const systemArchitecture = {
   Alumil: {
-    Windows:           ["S67","S67 PHOS","S67 Urban","S77","S77 PHOS","M9660","M9660 PHOS"],
-    "Entrance Doors":  ["SD67","SD77","SD115"],
-    "Sliding Doors":   ["SMARTIA M450","SMARTIA M630", "SUPREME S650"]
+    Windows:           ["S67 Urban","S77","S77 PHOS"],
+    "Entrance Doors":  ["SD77","SD115"],
+    "Sliding Doors":   ["SMARTIA M450", "SMARTIA M630", "SUPREME S650"]
   },
   Reynaers: {
     Windows:           ["SlimLine 38 Classic","SlimLine 38 Cube","SlimLine 38 Ferro","SlimLine 68"],
@@ -72,19 +72,10 @@ const laborRates = {
 const unitCostPerSqft = {
   Alumil: {
     // Windows
-    "S67":            { Fixed:16,   "Tilt & Turn":31,   Casement:30, Awning:28, "Tilt Only":33 },
-    "S67 PHOS":       { Fixed:16,   "Tilt & Turn":31,   Casement:31, Awning:30, "Tilt Only":33 },
     "S67 Urban":      { Fixed:17,   "Tilt & Turn":32,   Casement:31, Awning:30, "Tilt Only":33 },
     "S77":            { Fixed:17,   "Tilt & Turn":32,   Casement:32, Awning:29, "Tilt Only":33 },
     "S77 PHOS":       { Fixed:17,   "Tilt & Turn":32,   Casement:33, Awning:31, "Tilt Only":33 },
-    "M9660":          { Fixed:15,   "Tilt & Turn":30,   Casement:32, Awning:29, "Tilt Only":33 },
-    "M9660 PHOS":     { Fixed:15,   "Tilt & Turn":30,   Casement:33, Awning:31, "Tilt Only":33 },
     // Entrance Doors
-    SD67:  { 
-      "Single Door": 65,
-      "Double Door": 70,
-      "Fixed": 17 // Keep fixed panel rate for sidelights
-    },
     SD77:  { 
       "Single Door": 75,
       "Double Door": 80,
@@ -167,20 +158,10 @@ const unitCostPerSqft = {
 const unitCostPerLinearInch = {
   Alumil: {
     // Windows
-    "S67":            { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
-    "S67 PHOS":       { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
     "S67 Urban":      { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
     "S77":            { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
     "S77 PHOS":       { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
-    "M9660":          { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
-    "M9660 PHOS":     { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
     // Entrance Doors
-    SD67:  { 
-      "Single Door": 3.5,
-      "Double Door": 6,
-      grid: 0.35,
-      "Fixed": 0.77 // Keep fixed panel rate for sidelights
-    },
     SD77:  { 
       "Single Door": 3.5,
       "Double Door": 6,
@@ -235,7 +216,7 @@ const unitCostPerLinearInch = {
     },
     // Sliding Doors
     "Hi-Finity": {
-      "OX": 4.75, "XX": 5.2, "OXX": 6.35, "XXX": 6.2, "OXXO": 4.30, "OXXX": 4.60, "XXXX": 4.80,
+      "OX": 9.47, "XX": 5.2, "OXX": 12.35, "XXX": 6.2, "OXXO": 11.75, "OXXX": 4.60, "XXXX": 4.80,
       "OXXXX": 6.50,  // 1 fixed + 4 sliding
       "XXXXO": 6.50,  // 4 sliding + 1 fixed
       "OXXXO": 6.50,  // 2 fixed + 3 sliding

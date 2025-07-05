@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { FormControl, InputLabel, Select, MenuItem, FormHelperText } from '@mui/material';
 
 const SelectField = ({ 
   label, 
@@ -9,7 +9,10 @@ const SelectField = ({
   disabled = false,
   fullWidth = true,
   required = false,
-  sx = {}
+  sx = {},
+  inputProps = {},
+  error = false,
+  helperText = ''
 }) => {
   return (
     <FormControl 
@@ -17,12 +20,14 @@ const SelectField = ({
       disabled={disabled}
       required={required}
       sx={sx}
+      error={error}
     >
       <InputLabel>{label}</InputLabel>
       <Select
         value={value || ''}
         onChange={onChange}
         label={label}
+        inputProps={inputProps}
       >
         {options.map((option) => (
           <MenuItem 
@@ -34,6 +39,9 @@ const SelectField = ({
           </MenuItem>
         ))}
       </Select>
+      {helperText && (
+        <FormHelperText>{helperText}</FormHelperText>
+      )}
     </FormControl>
   );
 };
