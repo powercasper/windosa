@@ -20,7 +20,17 @@ import {
   Chip,
   Tooltip,
   Drawer,
-  Divider
+  Divider,
+  TextField,
+  Switch,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
+  FormLabel,
+  InputAdornment,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -29,7 +39,13 @@ import WindowIcon from '@mui/icons-material/Window';
 import DoorFrontIcon from '@mui/icons-material/DoorFront';
 import DoorSlidingIcon from '@mui/icons-material/DoorSliding';
 import SettingsIcon from '@mui/icons-material/Settings';
-import TextField from '@mui/material/TextField';
+import ColorLensIcon from '@mui/icons-material/ColorLens';
+import StraightIcon from '@mui/icons-material/Straight';
+import BuildIcon from '@mui/icons-material/Build';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import SystemModelSelector from '../components/SystemModelSelector';
+import { useMetadata } from '../../../../contexts/MetadataContext';
+import glassService from '../../../../services/glassService';
 
 // Available cell types for Window Wall
 const cellTypes = [
@@ -39,7 +55,13 @@ const cellTypes = [
   { value: 'Sliding Door', label: 'Sliding Door', icon: DoorSlidingIcon }
 ];
 
+// Helper function to check if a cell type should show the system model selector
+const shouldShowSystemModelSelector = (cellType) => {
+  return ['Operable Window', 'Entrance Door', 'Sliding Door'].includes(cellType);
+};
+
 const WindowWallConfiguration = ({ configuration, onUpdate }) => {
+  const { metadata } = useMetadata();
   const [addCellDialog, setAddCellDialog] = useState(false);
   const [selectedCell, setSelectedCell] = useState(null);
   const [addDirection, setAddDirection] = useState(null);
@@ -51,6 +73,10 @@ const WindowWallConfiguration = ({ configuration, onUpdate }) => {
   const [mergeEndCellId, setMergeEndCellId] = useState(null);
   const [setupRows, setSetupRows] = useState(configuration.grid?.rows || 3);
   const [setupCols, setSetupCols] = useState(configuration.grid?.columns || 3);
+  
+  // Glass options state
+  const [glassOptions, setGlassOptions] = useState([]);
+  const [loadingGlass, setLoadingGlass] = useState(false);
   
   // Enhanced selection state for rectangular area selection
   const [isDragging, setIsDragging] = useState(false);
@@ -78,6 +104,15 @@ const WindowWallConfiguration = ({ configuration, onUpdate }) => {
               width: 36,
               height: 48,
               type: 'Fixed Window',
+              systemModel: '', // Initialize systemModel for operable cell types
+              glassType: '',
+              operationType: '',
+              panels: [],
+              finish: {
+                type: 'Powder Coated',
+                color: 'Standard',
+                ralColor: '7016'
+              },
               config: {
                 systemType: 'Fixed Window',
                 dimensions: { width: 36, height: 48 },
@@ -111,6 +146,13 @@ const WindowWallConfiguration = ({ configuration, onUpdate }) => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Load glass options when editing a cell
+  useEffect(() => {
+    if (editingCell && shouldShowSystemModelSelector(editingCell.type)) {
+      loadGlassOptions(editingCell);
+    }
+  }, [editingCell]);
 
   // Helper to get cell by position
   const getCellByPosition = (row, col) => {
@@ -228,6 +270,15 @@ const WindowWallConfiguration = ({ configuration, onUpdate }) => {
       colSpan: 1,
       width: 36,
       height: 48,
+      systemModel: '', // Initialize systemModel for operable cell types
+      glassType: '',
+      operationType: '',
+      panels: [],
+      finish: {
+        type: 'Powder Coated',
+        color: 'Standard',
+        ralColor: '7016'
+      },
       config: {
         systemType: cellType,
         dimensions: { width: 36, height: 48 },
@@ -412,6 +463,12 @@ const WindowWallConfiguration = ({ configuration, onUpdate }) => {
   const handleCellPropertyChange = (field, value) => {
     if (!editingCell) return;
     const updatedCell = { ...editingCell, [field]: value };
+    
+    // Clear systemModel if cell type changes to non-operable
+    if (field === 'type' && !shouldShowSystemModelSelector(value)) {
+      updatedCell.systemModel = '';
+    }
+    
     const updatedCells = configuration.grid.cells.map(cell =>
       cell.id === editingCell.id ? updatedCell : cell
     );
@@ -491,6 +548,101 @@ const WindowWallConfiguration = ({ configuration, onUpdate }) => {
 
   // Helper to get cell by id
   const getCellById = (id) => configuration.grid.cells.find(cell => cell.id === id);
+
+  // Load glass options for a cell
+  const loadGlassOptions = async (cell) => {
+    if (!cell || !cell.width || !cell.height) return;
+    
+    try {
+      setLoadingGlass(true);
+      const glassArea = (cell.width * cell.height) / 144; // Convert to sq ft
+      const areaSqm = glassArea * 0.092903; // Convert sq ft to sqm
+      
+      const data = await glassService.getAllGlassOptions(areaSqm);
+      const optionsArray = Object.values(data);
+      setGlassOptions(optionsArray);
+    } catch (error) {
+      console.error('Failed to load glass options:', error);
+      setGlassOptions([]);
+    } finally {
+      setLoadingGlass(false);
+    }
+  };
+
+  // Handle finish change
+  const handleFinishChange = (field) => (event) => {
+    if (!editingCell) return;
+    
+    const updatedCell = { ...editingCell };
+    if (!updatedCell.finish) {
+      updatedCell.finish = { type: '', color: '', ralColor: '' };
+    }
+    
+    updatedCell.finish[field] = event.target.value;
+    
+    // Reset color when type changes
+    if (field === 'type') {
+      updatedCell.finish.color = '';
+    }
+    
+    handleCellPropertyChange('finish', updatedCell.finish);
+  };
+
+  // Handle RAL color change
+  const handleRalColorChange = (event) => {
+    if (!editingCell) return;
+    
+    const value = event.target.value;
+    if (value === '' || (/^\d{0,4}$/.test(value))) {
+      const updatedCell = { ...editingCell };
+      if (!updatedCell.finish) {
+        updatedCell.finish = { type: '', color: '', ralColor: '' };
+      }
+      updatedCell.finish.ralColor = value;
+      handleCellPropertyChange('finish', updatedCell.finish);
+    }
+  };
+
+  // Handle operation type change
+  const handleOperationTypeChange = (event) => {
+    if (!editingCell) return;
+    handleCellPropertyChange('operationType', event.target.value);
+  };
+
+  // Handle glass type change
+  const handleGlassTypeChange = (event) => {
+    if (!editingCell) return;
+    handleCellPropertyChange('glassType', event.target.value);
+  };
+
+  // Handle panel configuration
+  const handlePanelChange = (index, field, value) => {
+    if (!editingCell) return;
+    
+    const updatedPanels = [...(editingCell.panels || [])];
+    if (!updatedPanels[index]) {
+      updatedPanels[index] = { width: 0, operationType: 'Fixed' };
+    }
+    updatedPanels[index][field] = value;
+    
+    handleCellPropertyChange('panels', updatedPanels);
+  };
+
+  // Add panel
+  const addPanel = () => {
+    if (!editingCell) return;
+    
+    const updatedPanels = [...(editingCell.panels || []), { width: 0, operationType: 'Fixed' }];
+    handleCellPropertyChange('panels', updatedPanels);
+  };
+
+  // Remove panel
+  const removePanel = (index) => {
+    if (!editingCell) return;
+    
+    const updatedPanels = editingCell.panels.filter((_, i) => i !== index);
+    handleCellPropertyChange('panels', updatedPanels);
+  };
 
   // Helper to get selected cell range (rectangular)
   const getSelectedCellRange = () => {
@@ -581,6 +733,11 @@ const WindowWallConfiguration = ({ configuration, onUpdate }) => {
           width: cellWidth,
           height: cellHeight,
           type: cell.type,
+          systemModel: cell.systemModel || '', // Preserve systemModel
+          glassType: cell.glassType || '',
+          operationType: cell.operationType || '',
+          panels: cell.panels || [],
+          finish: cell.finish || { type: 'Powder Coated', color: 'Standard', ralColor: '7016' },
           config: { ...cell.config }
         });
       }
@@ -779,6 +936,27 @@ const WindowWallConfiguration = ({ configuration, onUpdate }) => {
                   return `${cellWidth}" × ${cellHeight}"`;
                 })()}
               </Typography>
+              
+              {/* Show system model for operable cells */}
+              {shouldShowSystemModelSelector(cell.type) && cell.systemModel && (
+                <Typography variant="caption" color="primary" textAlign="center" sx={{ fontSize: 11, lineHeight: 1.2, fontWeight: 'medium' }}>
+                  {cell.systemModel}
+                </Typography>
+              )}
+              
+              {/* Show glass type if selected */}
+              {cell.glassType && (
+                <Typography variant="caption" color="success.main" textAlign="center" sx={{ fontSize: 10, lineHeight: 1.2 }}>
+                  {cell.glassType}
+                </Typography>
+              )}
+              
+              {/* Show operation type for operable windows */}
+              {cell.type === 'Operable Window' && cell.operationType && (
+                <Typography variant="caption" color="info.main" textAlign="center" sx={{ fontSize: 10, lineHeight: 1.2 }}>
+                  {cell.operationType}
+                </Typography>
+              )}
               {/* Unmerge button for merged cells */}
               {(cell.rowSpan > 1 || cell.colSpan > 1) && (
                 <Button size="small" color="warning" variant="outlined" sx={{ mt: 0.5, fontSize: 11, px: 1, py: 0.2, minHeight: 0, minWidth: 0 }} onClick={e => { e.stopPropagation(); handleUnmergeCell(cell.id); }}>Unmerge</Button>
@@ -1019,10 +1197,11 @@ const WindowWallConfiguration = ({ configuration, onUpdate }) => {
               {configuration.grid.cells.map((cell) => (
                 <Chip
                   key={cell.id}
-                  label={`${cell.type} (${cell.row + 1},${cell.col + 1})`}
+                  label={`${cell.type} (${cell.row + 1},${cell.col + 1})${shouldShowSystemModelSelector(cell.type) && cell.systemModel ? ` - ${cell.systemModel}` : ''}${cell.glassType ? ` | ${cell.glassType}` : ''}${cell.type === 'Operable Window' && cell.operationType ? ` | ${cell.operationType}` : ''}`}
                   size="small"
                   variant="outlined"
                   icon={React.createElement(cellTypes.find(t => t.value === cell.type)?.icon || WindowIcon)}
+                  color={shouldShowSystemModelSelector(cell.type) && cell.systemModel ? 'primary' : 'default'}
                 />
               ))}
             </Stack>
@@ -1066,91 +1245,319 @@ const WindowWallConfiguration = ({ configuration, onUpdate }) => {
       </Dialog>
 
       <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box sx={{ width: 320, p: 3 }}>
-          <Typography variant="h6" gutterBottom>Edit Cell</Typography>
+        <Box sx={{ width: 600, p: 3, maxHeight: '100vh', overflow: 'auto' }}>
+          <Typography variant="h6" gutterBottom>Configure Cell</Typography>
           {editingCell && (
             <>
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Type</InputLabel>
-                <Select
-                  value={editingCell.type}
-                  onChange={e => handleCellPropertyChange('type', e.target.value)}
-                  label="Type"
-                >
-                  {cellTypes.map((cellType) => (
-                    <MenuItem key={cellType.value} value={cellType.value}>{cellType.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField
-                label="Width (inches)"
-                type="number"
-                fullWidth
-                sx={{ mb: 2 }}
-                value={editingCell.width}
-                onChange={e => handleCellPropertyChange('width', Math.max(1, parseFloat(e.target.value) || 1))}
-              />
-              <TextField
-                label="Height (inches)"
-                type="number"
-                fullWidth
-                sx={{ mb: 2 }}
-                value={editingCell.height}
-                onChange={e => handleCellPropertyChange('height', Math.max(1, parseFloat(e.target.value) || 1))}
-              />
-              {warning && (
-                <Typography color="error" sx={{ mb: 2 }}>{warning}</Typography>
+              {/* Basic Cell Configuration */}
+              <Accordion defaultExpanded>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SettingsIcon fontSize="small" /> Basic Configuration
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Stack spacing={2}>
+                    <FormControl fullWidth>
+                      <InputLabel>Cell Type</InputLabel>
+                      <Select
+                        value={editingCell.type}
+                        onChange={e => handleCellPropertyChange('type', e.target.value)}
+                        label="Cell Type"
+                      >
+                        {cellTypes.map((cellType) => (
+                          <MenuItem key={cellType.value} value={cellType.value}>{cellType.label}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
+                    {/* System Model Selector for operable cell types */}
+                    {shouldShowSystemModelSelector(editingCell.type) && (
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom color="primary">
+                          System Type / Model for this {editingCell.type}
+                        </Typography>
+                        <SystemModelSelector
+                          brand={configuration.brand}
+                          systemType={editingCell.type === 'Operable Window' ? 'Windows' : 
+                                     editingCell.type === 'Entrance Door' ? 'Entrance Doors' : 
+                                     editingCell.type === 'Sliding Door' ? 'Sliding Doors' : 'Windows'}
+                          systemModel={editingCell.systemModel || ''}
+                          onChange={(value) => handleCellPropertyChange('systemModel', value)}
+                          metadata={metadata}
+                          label="Model"
+                          fullWidth={true}
+                        />
+                      </Box>
+                    )}
+                    
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <TextField
+                          label="Width (inches)"
+                          type="number"
+                          fullWidth
+                          value={editingCell.width}
+                          onChange={e => handleCellPropertyChange('width', Math.max(1, parseFloat(e.target.value) || 1))}
+                        />
+                      </Grid>
+                      <Grid item xs={6}>
+                        <TextField
+                          label="Height (inches)"
+                          type="number"
+                          fullWidth
+                          value={editingCell.height}
+                          onChange={e => handleCellPropertyChange('height', Math.max(1, parseFloat(e.target.value) || 1))}
+                        />
+                      </Grid>
+                    </Grid>
+                    
+                    {warning && (
+                      <Typography color="error">{warning}</Typography>
+                    )}
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+
+              {/* Glass Options */}
+              {shouldShowSystemModelSelector(editingCell.type) && (
+                <Accordion>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <WindowIcon fontSize="small" /> Glass Options
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={2}>
+                      <FormControl fullWidth>
+                        <InputLabel>Glass Type</InputLabel>
+                        <Select
+                          value={editingCell.glassType || ''}
+                          onChange={handleGlassTypeChange}
+                          label="Glass Type"
+                          disabled={loadingGlass}
+                        >
+                          {glassOptions.map((glass) => (
+                            <MenuItem key={glass.type} value={glass.type}>
+                              {glass.type}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      
+                      {editingCell.glassType && (
+                        <Paper sx={{ p: 2, bgcolor: 'success.light', color: 'success.contrastText' }}>
+                          <Typography variant="body2">
+                            Selected: {editingCell.glassType}
+                          </Typography>
+                          <Typography variant="caption">
+                            Area: {((editingCell.width * editingCell.height) / 144).toFixed(2)} sq ft
+                          </Typography>
+                        </Paper>
+                      )}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
               )}
+
+              {/* Operation Types for Operable Windows */}
+              {editingCell.type === 'Operable Window' && (
+                <Accordion>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <BuildIcon fontSize="small" /> Operation Configuration
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={2}>
+                      <FormControl fullWidth>
+                        <InputLabel>Operation Type</InputLabel>
+                        <Select
+                          value={editingCell.operationType || ''}
+                          onChange={handleOperationTypeChange}
+                          label="Operation Type"
+                        >
+                          {metadata?.windowOperables?.map((type) => (
+                            <MenuItem key={type} value={type}>
+                              {type}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      
+                      {/* Panel Configuration for Windows */}
+                      {editingCell.operationType && editingCell.operationType !== 'Fixed' && (
+                        <Box>
+                          <Typography variant="subtitle2" gutterBottom>
+                            Panel Configuration
+                          </Typography>
+                          <Stack spacing={1}>
+                            {(editingCell.panels || []).map((panel, index) => (
+                              <Box key={index} sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <TextField
+                                  label="Width"
+                                  type="number"
+                                  size="small"
+                                  value={panel.width || 0}
+                                  onChange={(e) => handlePanelChange(index, 'width', parseFloat(e.target.value) || 0)}
+                                  sx={{ width: 100 }}
+                                />
+                                <FormControl size="small" sx={{ minWidth: 120 }}>
+                                  <InputLabel>Type</InputLabel>
+                                  <Select
+                                    value={panel.operationType || 'Fixed'}
+                                    onChange={(e) => handlePanelChange(index, 'operationType', e.target.value)}
+                                    label="Type"
+                                  >
+                                    {metadata?.windowOperables?.map((type) => (
+                                      <MenuItem key={type} value={type}>
+                                        {type}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                                <IconButton 
+                                  size="small" 
+                                  color="error" 
+                                  onClick={() => removePanel(index)}
+                                  disabled={editingCell.panels.length <= 1}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            ))}
+                            <Button 
+                              size="small" 
+                              variant="outlined" 
+                              onClick={addPanel}
+                              startIcon={<AddIcon />}
+                            >
+                              Add Panel
+                            </Button>
+                          </Stack>
+                        </Box>
+                      )}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              )}
+
+              {/* Finish Options */}
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ColorLensIcon fontSize="small" /> Finish Options
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Stack spacing={2}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Finish Type</InputLabel>
+                          <Select
+                            value={editingCell.finish?.type || ''}
+                            onChange={handleFinishChange('type')}
+                            label="Finish Type"
+                          >
+                            {Object.keys(metadata?.finishOptions || {}).map((finish) => (
+                              <MenuItem key={finish} value={finish}>
+                                {finish}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Finish Style</InputLabel>
+                          <Select
+                            value={editingCell.finish?.color || ''}
+                            onChange={handleFinishChange('color')}
+                            label="Finish Style"
+                            disabled={!editingCell.finish?.type}
+                          >
+                            {editingCell.finish?.type && metadata?.finishOptions?.[editingCell.finish.type]?.map((style) => (
+                              <MenuItem key={style} value={style}>
+                                {style}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                    </Grid>
+                    
+                    <TextField
+                      label="RAL Color Code (optional)"
+                      value={editingCell.finish?.ralColor || ''}
+                      onChange={handleRalColorChange}
+                      placeholder="e.g., 7016"
+                      helperText="Enter a 4-digit RAL color code"
+                      inputProps={{ maxLength: 4 }}
+                    />
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+
+              {/* Grid Configuration */}
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <StraightIcon fontSize="small" /> Grid Configuration
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Stack spacing={2}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Total Grid Dimensions
+                    </Typography>
+                    {configuration.grid?.columnWidths && configuration.grid?.rowHeights && (
+                      <Box sx={{ p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                          <Typography variant="body2" color="primary.main">
+                            Width: {configuration.grid.columnWidths.reduce((sum, width) => sum + width, 0)}"
+                          </Typography>
+                          <Typography variant="body2" color="primary.main">
+                            Height: {configuration.grid.rowHeights.reduce((sum, height) => sum + height, 0)}"
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
+                    
+                    <Typography variant="caption">Column Widths (inches):</Typography>
+                    <Stack direction="row" spacing={1}>
+                      {Array(configuration.grid?.columns || 1).fill(0).map((_, idx) => (
+                        <TextField
+                          key={idx}
+                          type="number"
+                          size="small"
+                          value={configuration.grid?.columnWidths?.[idx] || 36}
+                          onChange={e => handleGridSizeChange('columnWidths', idx, Math.max(1, parseFloat(e.target.value) || 1))}
+                          sx={{ width: 60 }}
+                          inputProps={{ min: 1, step: 0.5 }}
+                        />
+                      ))}
+                    </Stack>
+                    
+                    <Typography variant="caption">Row Heights (inches):</Typography>
+                    <Stack direction="row" spacing={1}>
+                      {Array(configuration.grid?.rows || 1).fill(0).map((_, idx) => (
+                        <TextField
+                          key={idx}
+                          type="number"
+                          size="small"
+                          value={configuration.grid?.rowHeights?.[idx] || 48}
+                          onChange={e => handleGridSizeChange('rowHeights', idx, Math.max(1, parseFloat(e.target.value) || 1))}
+                          sx={{ width: 60 }}
+                          inputProps={{ min: 1, step: 0.5 }}
+                        />
+                      ))}
+                    </Stack>
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
             </>
           )}
-          <Divider sx={{ my: 2 }} />
-          <Typography variant="subtitle1" gutterBottom>Edit Grid</Typography>
-          
-          {/* Total Dimensions Display */}
-          {configuration.grid?.columnWidths && configuration.grid?.rowHeights && (
-            <Box sx={{ mb: 2, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
-              <Typography variant="body2" fontWeight="medium" gutterBottom>
-                Total Grid Dimensions
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Typography variant="body2" color="primary.main">
-                  Width: {configuration.grid.columnWidths.reduce((sum, width) => sum + width, 0)}"
-                </Typography>
-                <Typography variant="body2" color="primary.main">
-                  Height: {configuration.grid.rowHeights.reduce((sum, height) => sum + height, 0)}"
-                </Typography>
-              </Box>
-            </Box>
-          )}
-          
-          <Typography variant="caption">Column Widths (inches):</Typography>
-          <Stack direction="row" spacing={1} sx={{ mb: 2, mt: 1 }}>
-            {Array(configuration.grid?.columns || 1).fill(0).map((_, idx) => (
-              <TextField
-                key={idx}
-                type="number"
-                size="small"
-                value={configuration.grid?.columnWidths?.[idx] || 36}
-                onChange={e => handleGridSizeChange('columnWidths', idx, Math.max(1, parseFloat(e.target.value) || 1))}
-                sx={{ width: 60 }}
-                inputProps={{ min: 1, step: 0.5 }}
-              />
-            ))}
-          </Stack>
-          <Typography variant="caption">Row Heights (inches):</Typography>
-          <Stack direction="row" spacing={1} sx={{ mb: 2, mt: 1 }}>
-            {Array(configuration.grid?.rows || 1).fill(0).map((_, idx) => (
-              <TextField
-                key={idx}
-                type="number"
-                size="small"
-                value={configuration.grid?.rowHeights?.[idx] || 48}
-                onChange={e => handleGridSizeChange('rowHeights', idx, Math.max(1, parseFloat(e.target.value) || 1))}
-                sx={{ width: 60 }}
-                inputProps={{ min: 1, step: 0.5 }}
-              />
-            ))}
-          </Stack>
         </Box>
       </Drawer>
     </Box>
