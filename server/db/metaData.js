@@ -8,19 +8,22 @@ const systemBrands = [
 const systemHierarchy = {
     Windows:                systemBrands,
     "Entrance Doors":       systemBrands,
-    "Sliding Doors":        systemBrands
+    "Sliding Doors":        systemBrands,
+    "Window Wall":          systemBrands
 };
 
 const systemArchitecture = {
   Alumil: {
     Windows:           ["S67 Urban","S77","S77 PHOS"],
     "Entrance Doors":  ["SD77","SD115"],
-    "Sliding Doors":   ["SMARTIA M450", "SMARTIA M630", "SUPREME S650"]
+    "Sliding Doors":   ["SMARTIA M450", "SMARTIA M630", "SUPREME S650"],
+    "Window Wall":     ["S67 Urban","S77","S77 PHOS"]
   },
   Reynaers: {
     Windows:           ["SlimLine 38 Classic","SlimLine 38 Cube","SlimLine 38 Ferro","SlimLine 68"],
     "Entrance Doors":  ["SlimLine 38", "SlimLine 68", "MasterLine 8","CS 77"],
-    "Sliding Doors":   ["Hi-Finity", "SlimPatio 68"]
+    "Sliding Doors":   ["Hi-Finity", "SlimPatio 68"],
+    "Window Wall":     ["SlimLine 38 Classic","SlimLine 38 Cube","SlimLine 38 Ferro","SlimLine 68"]
   }
 };
 

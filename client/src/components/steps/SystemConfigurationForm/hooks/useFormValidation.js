@@ -36,6 +36,14 @@ export const useFormValidation = (configuration) => {
       return hasValidDimensions && hasValidFinish && hasValidModel && hasValidOperationType && hasValidPanels;
     }
 
+    if (configuration.systemType === 'Window Wall') {
+      const hasValidGrid = configuration.grid?.cells?.length > 0;
+      const hasValidCells = configuration.grid?.cells?.every(cell => 
+        cell.type && cell.config?.dimensions?.width > 0 && cell.config?.dimensions?.height > 0
+      );
+      return hasValidDimensions && hasValidFinish && hasValidModel && hasValidGrid && hasValidCells;
+    }
+
     return false;
   }, [configuration]);
 }; 

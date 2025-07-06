@@ -4,7 +4,8 @@ import React from "react";
 const systemHierarchy = {
   Windows: ["Alumil", "Aluprof", "Cortizo", "Reynaers", "Schuco"],
     "Entrance Doors": ["Alumil", "Aluprof", "Cortizo", "Reynaers", "Schuco"],
-  "Sliding Doors": ["Alumil", "Aluprof", "Cortizo", "Reynaers", "Schuco"]
+  "Sliding Doors": ["Alumil", "Aluprof", "Cortizo", "Reynaers", "Schuco"],
+  "Window Wall": ["Alumil", "Aluprof", "Cortizo", "Reynaers", "Schuco"]
   };
   
   export const finishOptions = {

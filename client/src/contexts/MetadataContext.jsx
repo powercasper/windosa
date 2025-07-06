@@ -19,11 +19,14 @@ export const MetadataProvider = ({ children }) => {
   useEffect(() => {
     const loadMetadata = async () => {
       try {
+        console.log('🔄 MetadataContext: Loading metadata...');
         const data = await fetchMetadata();
+        console.log('✅ MetadataContext: Metadata loaded successfully:', data);
+        console.log('📊 MetadataContext: systemHierarchy keys:', Object.keys(data.systemHierarchy || {}));
         setMetadata(data);
         setLoading(false);
       } catch (err) {
-        console.error('Failed to load metadata:', err);
+        console.error('❌ MetadataContext: Failed to load metadata:', err);
         setError(err);
         setLoading(false);
       }

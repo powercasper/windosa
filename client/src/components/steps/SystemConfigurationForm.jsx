@@ -36,6 +36,7 @@ import GridOnIcon from '@mui/icons-material/GridOn';
 import ConfigurationPreviewUI from '../ConfigurationPreviewUI';
 import { useMetadata } from '../../contexts/MetadataContext';
 import InfoIcon from '@mui/icons-material/Info';
+import WindowWallConfiguration from './SystemConfigurationForm/sections/WindowWallConfiguration';
 
 const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
   const { metadata, loading, error } = useMetadata();
@@ -575,6 +576,17 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
       const isValid = hasValidDimensions && hasValidFinish && hasValidModel && hasValidOperationType;
       console.log('Sliding Doors - Form Valid:', isValid);
       return isValid;
+    } else if (configuration.systemType === 'Window Wall') {
+      const hasValidGrid = configuration.grid?.cells?.length > 0;
+      const hasValidCells = configuration.grid?.cells?.every(cell => 
+        cell.type && cell.config?.dimensions?.width > 0 && cell.config?.dimensions?.height > 0
+      );
+      console.log('Window Wall - grid:', configuration.grid);
+      console.log('Window Wall - hasValidGrid:', hasValidGrid);
+      console.log('Window Wall - hasValidCells:', hasValidCells);
+      const isValid = hasValidDimensions && hasValidFinish && hasValidModel && hasValidGrid && hasValidCells;
+      console.log('Window Wall - Form Valid:', isValid);
+      return isValid;
     }
 
     console.log('No system type matched - Form Valid: false');
@@ -968,8 +980,10 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
 
         <Divider sx={{ my: 4 }} />
 
-        {/* Window Panes Section */}
-        {configuration.systemType === 'Windows' ? (
+        {/* Window Wall Configuration */}
+        {configuration.systemType === 'Window Wall' ? (
+          <WindowWallConfiguration configuration={configuration} onUpdate={onUpdate} />
+        ) : configuration.systemType === 'Windows' ? (
           <Box sx={{ mb: 4 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <WindowIcon /> Configuration Details

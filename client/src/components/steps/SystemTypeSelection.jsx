@@ -15,16 +15,26 @@ import ViewStreamIcon from '@mui/icons-material/ViewStream';
 import ViewComfyIcon from '@mui/icons-material/ViewComfy';
 import ViewQuiltIcon from '@mui/icons-material/ViewQuilt';
 import DoorSlidingIcon from '@mui/icons-material/DoorSliding';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
 
 // Define the mapping of system types to their icons
 const iconMapping = {
   Windows: WindowIcon,
   'Entrance Doors': DoorFrontIcon,
-  'Sliding Doors': DoorSlidingIcon
+  'Sliding Doors': DoorSlidingIcon,
+  'Window Wall': ViewModuleIcon
 };
 
 const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isEditing }) => {
+  // Debug logging
+  console.log('🎯 SystemTypeSelection: Component rendered');
+  console.log('📋 SystemTypeSelection: systemTypes prop:', systemTypes);
+  console.log('🔍 SystemTypeSelection: systemTypes length:', systemTypes?.length);
+  console.log('🎨 SystemTypeSelection: iconMapping keys:', Object.keys(iconMapping));
+  console.log('🔍 SystemTypeSelection: Checking if "Window Wall" in systemTypes:', systemTypes?.includes('Window Wall'));
+  console.log('🔍 SystemTypeSelection: Checking if "Window Wall" in iconMapping:', 'Window Wall' in iconMapping);
   const handleTypeSelect = (type) => {
+    console.log('🎯 SystemTypeSelection: handleTypeSelect called with type:', type);
     const baseConfig = {
       systemType: type,
       systemModel: '',
@@ -47,6 +57,34 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isE
       additionalConfig = {
         panels: []
       };
+    } else if (type === 'Window Wall') {
+      // Initialize window wall with a single cell
+      additionalConfig = {
+        grid: {
+          rows: 1,
+          columns: 1,
+          cells: [
+            {
+              id: 'cell-1',
+              row: 0,
+              col: 0,
+              rowSpan: 1,
+              colSpan: 1,
+              type: 'Fixed Window',
+              config: {
+                systemType: 'Fixed Window',
+                dimensions: { width: 36, height: 48 },
+                finish: {
+                  type: 'Powder Coated',
+                  color: 'Standard',
+                  ralColor: '7016'
+                }
+              }
+            }
+          ]
+        },
+        dimensions: { width: 36, height: 48 }
+      };
     }
 
     onUpdate({ 
@@ -68,6 +106,8 @@ const SystemTypeSelection = ({ configuration, onUpdate, onNext, systemTypes, isE
       )}
       <Grid container spacing={3}>
         {systemTypes.map((type) => {
+          console.log('🎯 SystemTypeSelection: Rendering type:', type);
+          console.log('🎨 SystemTypeSelection: Icon for type:', type, '=', iconMapping[type]);
           const Icon = iconMapping[type];
           const isSelected = configuration.systemType === type;
           return (

@@ -4,6 +4,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api
 
 export const fetchMetadata = async () => {
   try {
+    console.log('🌐 fetchMetadata: Starting API calls...');
     const [
       laborRatesRes, 
       unitCostsRes, 
@@ -28,7 +29,9 @@ export const fetchMetadata = async () => {
       axios.get(`${API_BASE_URL}/metadata/unit-costs-linear-inch`)
     ]);
 
-    return {
+    console.log('📡 fetchMetadata: systemHierarchy response:', systemHierarchyRes.data);
+
+    const result = {
       laborRates: laborRatesRes.data.laborRates,
       unitCostPerSqft: unitCostsRes.data.unitCostPerSqft,
       systemHierarchy: systemHierarchyRes.data.systemHierarchy,
@@ -40,6 +43,11 @@ export const fetchMetadata = async () => {
       doorModelCapabilities: doorModelCapabilitiesRes.data.doorModelCapabilities,
       unitCostPerLinearInch: unitCostsLinearInchRes.data.unitCostPerLinearInch
     };
+    
+    console.log('🎯 fetchMetadata: Final result systemHierarchy:', result.systemHierarchy);
+    console.log('🎯 fetchMetadata: Final result systemHierarchy keys:', Object.keys(result.systemHierarchy || {}));
+    
+    return result;
   } catch (error) {
     console.error('Error fetching metadata:', error);
     throw error;

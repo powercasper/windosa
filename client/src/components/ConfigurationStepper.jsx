@@ -290,11 +290,21 @@ const ConfigurationStepper = ({
           isEditing={isEditingItem}
         />;
       case 2:
+        // Debug logging
+        console.log('🎯 ConfigurationStepper: Step 2 - System Type Selection');
+        console.log('📊 ConfigurationStepper: metadata object:', metadata);
+        console.log('🏗️ ConfigurationStepper: systemHierarchy:', metadata?.systemHierarchy);
+        console.log('📋 ConfigurationStepper: systemTypes array:', Object.keys(metadata?.systemHierarchy || {}));
+        console.log('🔍 ConfigurationStepper: Checking if "Window Wall" exists:', Object.keys(metadata?.systemHierarchy || {}).includes('Window Wall'));
+        
+        const systemTypes = Object.keys(metadata?.systemHierarchy || {});
+        console.log('✅ ConfigurationStepper: Final systemTypes to pass:', systemTypes);
+        
         return <SystemTypeSelection 
           configuration={currentConfiguration} 
           onUpdate={handleConfigurationUpdate}
           onNext={handleNext}
-          systemTypes={Object.keys(metadata?.systemHierarchy || {})}
+          systemTypes={systemTypes}
           isEditing={isEditingItem}
         />;
       case 3:

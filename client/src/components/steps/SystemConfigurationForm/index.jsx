@@ -5,6 +5,7 @@ import SystemDetails from './sections/SystemDetails';
 import WindowConfiguration from './sections/WindowConfiguration';
 import SlidingDoorConfiguration from './sections/SlidingDoorConfiguration';
 import EntranceDoorConfiguration from './sections/EntranceDoorConfiguration';
+import WindowWallConfiguration from './sections/WindowWallConfiguration';
 import NotesSection from './sections/NotesSection';
 import { useFormValidation } from './hooks/useFormValidation';
 
@@ -19,6 +20,8 @@ const SystemConfigurationForm = ({ configuration, onUpdate, onNext }) => {
         return <SlidingDoorConfiguration configuration={configuration} onUpdate={onUpdate} />;
       case 'Entrance Doors':
         return <EntranceDoorConfiguration configuration={configuration} onUpdate={onUpdate} />;
+      case 'Window Wall':
+        return <WindowWallConfiguration configuration={configuration} onUpdate={onUpdate} />;
       default:
         return null;
     }
