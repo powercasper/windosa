@@ -240,6 +240,30 @@ const unitCostPerLinearInch = {
   }
 };
 
+const windowHardwareOptions = [
+  {
+    type: 'ALUMIL 7mm PIN HANDLES',
+    colors: [
+      'WHITE',
+      'BROWN',
+      'BLACK MATT',
+      'LIGHT SILVER',
+      'BRONZE',
+      'TITANIUM'
+    ],
+    description: `Aluminium 7mm pin handles with Alumil Patented design and logo for opening, tilt-and-turn, sliding and curtain wall systems.\n\nSecurity Secustic® mechanism to prevent reverse (outside) rotation of the handle and offer anti-burglar protection.\nRotation from 0ο to 180ο with stop position at 90ο.\n\n4 versions available: Standard, Full metal cover, Cranked, Long.\nAvailable also in pairs for in-out application (without Secustic).\nFlush handle available for the outside.\nPin fixed on handle.\n\nMATERIALS: Full aluminium main body, Polyamide base, Base cover plastic (Standard / Long) or metal (Metal cover / Cranked), Galvanized pin.\n\nSURFACE COATING: White powder coating RAL 9016, Black powder coating RAL 9712 mat, Brown powder coating RAL 8707, Silver / Titanium / Bronze anodization, Special colors upon request.\n\nCERTIFICATION: Certified according to EN 13126-3:2012-02. Durability: Grade 3/180 -> 10,000 cycles, 15,000 cycles - Independent test. Corrosion resistance: Grade 5 -> 480 hours salt-spray test [EN 1670]. 10 Year operational Guarantee. Alumil 5 Year Guarantee.`
+  },
+  {
+    type: 'ALUMIL CREMONES',
+    colors: [
+      'WHITE',
+      'BLACK MATT',
+      'SILVER ANODIC ICE'
+    ],
+    description: `Cremones for casement and tilt/turn windows with Alumil Patented design and logo.\n\nTwo fork version for casement windows. One fork version for tilt/turn windows using the Alumil “Standard” t/t euro groove mechanism. Applicable to all Alumil 15/20 euro groove hinged systems. Engraved Alumil logo on the body.\n\nMATERIALS: Main body, lever, internal mechanism and forks made of die casted zamak (EN 1774). Inox counter plate. Inox TCEI 5MAx10mm allen screws.\n\nSURFACE COATING: White powder coating RAL 9016, Black matte powder coating RAL 9005 mat, Silver powder coating (anodic ice).\n\nCERTIFICATION: Certified according to EN 13126-3:2011. Durability: Grade 5 -> 25,000 cycles. Corrosion resistance: Grade 4 -> 240 hours salt-spray test [EN 1670]. Alumil 5 Year Guarantee.`
+  }
+];
+
 module.exports = {
   laborRates,
   systemHierarchy,
@@ -250,5 +274,6 @@ module.exports = {
   doorModelCapabilities,
   unitCostPerSqft,
   systemBrands,
-  unitCostPerLinearInch
+  unitCostPerLinearInch,
+  windowHardwareOptions
 }; 

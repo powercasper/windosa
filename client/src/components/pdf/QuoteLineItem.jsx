@@ -164,11 +164,18 @@ const QuoteLineItem = ({ item, position }) => {
           <View style={styles.specSection}>
             <Text style={styles.specTitle}>Configuration</Text>
             {item.systemType === 'Windows' && item.panels.map((panel, idx) => (
-              <Spec key={idx} label={`Panel ${idx + 1}`}>
-                {panel.operationType} ({formatDimension(panel.width)})
-                {panel.hasMosquitoNet && " + Mosquito Net"}
-                {panel.hasOpeningLimiter && " + Opening Limiter"}
-              </Spec>
+              <React.Fragment key={idx}>
+                <Spec label={`Panel ${idx + 1}`}>
+                  {panel.operationType} ({formatDimension(panel.width)})
+                  {panel.hasMosquitoNet && " + Mosquito Net"}
+                  {panel.hasOpeningLimiter && " + Opening Limiter"}
+                </Spec>
+                {panel.operationType !== 'Fixed' && (
+                  <Spec label={`Hardware ${idx + 1}`}>
+                    {panel.hardwareType || '-'}{panel.hardwareColor ? `, ${panel.hardwareColor}` : ''}
+                  </Spec>
+                )}
+              </React.Fragment>
             ))}
             {item.systemType === 'Sliding Doors' && item.panels?.map((panel, idx) => (
                <Spec key={idx} label={`Panel ${idx + 1}`}>

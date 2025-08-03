@@ -1529,18 +1529,30 @@ const PricingSummary = ({
                 )}
                   {configuration.systemType === 'Windows' && configuration.panels && (
                     configuration.panels.map((panel, idx) => (
-                      <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                          Panel {idx + 1}:
-                        </Typography>
-                        <Typography variant="body2">
-                          {panel.operationType} ({panel.width}")
-                          {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
-                          {panel.operationType !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
-                        </Typography>
-                  </Box>
+                      <Box key={idx} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1 }}>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                            Panel {idx + 1}:
+                          </Typography>
+                          <Typography variant="body2">
+                            {panel.operationType} ({panel.width}")
+                            {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
+                            {panel.operationType !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
+                          </Typography>
+                        </Box>
+                        {panel.operationType !== 'Fixed' && (
+                          <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                              Hardware:
+                            </Typography>
+                            <Typography variant="body2">
+                              {panel.hardwareType || '-'}{panel.hardwareColor ? `, ${panel.hardwareColor}` : ''}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
                     ))
-                )}
+                  )}
                   {configuration.systemType === 'Sliding Doors' && configuration.panels && (
                     configuration.panels.map((panel, idx) => {
                       let direction = panel.direction;
@@ -1918,17 +1930,29 @@ const PricingSummary = ({
                                         </Box>
                                       )}
                                 {item.panels.map((panel, idx) => (
-                                        <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
-                                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
-                                            Panel {idx + 1}:
-                                          </Typography>
-                                          <Typography variant="body2">
-                                      {panel.operationType} ({panel.width}")
-                                      {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
-                                      {panel.operationType !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
-                                          </Typography>
-                                        </Box>
-                                      ))}
+                                  <React.Fragment key={idx}>
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                      <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                        Panel {idx + 1}:
+                                      </Typography>
+                                      <Typography variant="body2">
+                                        {panel.operationType} ({panel.width}")
+                                        {panel.operationType !== 'Fixed' && panel.hasMosquitoNet && ' + Mosquito Net'}
+                                        {panel.operationType !== 'Fixed' && panel.hasOpeningLimiter && ' + Opening Limiter'}
+                                      </Typography>
+                                    </Box>
+                                    {panel.operationType !== 'Fixed' && (
+                                      <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+                                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: '100px' }}>
+                                          Hardware:
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          {panel.hardwareType || '-'}{panel.hardwareColor ? `, ${panel.hardwareColor}` : ''}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  </React.Fragment>
+                                ))}
                               </>
                             )}
                             {item.systemType === 'Sliding Doors' && (
