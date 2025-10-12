@@ -597,8 +597,8 @@ const PricingSummary = ({
   const systemLaborShare = totalProductCostForTariff > 0 ? (totalSystemCost / totalProductCostForTariff) * totalLaborCost : 0;
   const glassLaborShare = totalProductCostForTariff > 0 ? (totalGlassCost / totalProductCostForTariff) * totalLaborCost : 0;
 
-  const systemTariff = (totalSystemCost + systemLaborShare) * 0.658;
-  const glassTariff = (totalGlassCost + glassLaborShare) * 0.138;
+  const systemTariff = (totalSystemCost + systemLaborShare) * 0.558;
+  const glassTariff = (totalGlassCost + glassLaborShare) * 0.15;
   const totalCalculatedTariff = systemTariff + glassTariff;
   // --- End Tariff Calculation ---
 
@@ -2483,7 +2483,7 @@ const PricingSummary = ({
               </Typography>
               <Typography>System Cost: ${pricing.totalSystemCost.toFixed(2)}</Typography>
               <Typography>Glass Cost: ${pricing.totalGlassCost.toFixed(2)}</Typography>
-              <Typography>Labor Cost: ${pricing.totalLaborCost.toFixed(2)}</Typography>
+              {/* <Typography>Labor Cost: ${pricing.totalLaborCost.toFixed(2)}</Typography> */}
             </Grid>
             <Grid item xs={12} sm={6} sx={{ display: 'flex', flexDirection: 'column', alignItems: { sm: 'flex-end' } }}>
               <Typography variant="h5" sx={{ mb: 2 }}>

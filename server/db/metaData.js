@@ -5,49 +5,51 @@ const systemBrands = [
   "Reynaers"
 ];
 
+
+
 const systemHierarchy = {
-    Windows:                systemBrands,
+    "Windows":              systemBrands,
     "Entrance Doors":       systemBrands,
     "Sliding Doors":        systemBrands
 };
 
 const systemArchitecture = {
   Alumil: {
-    Windows:           ["S67 Urban","S77","S77 PHOS"],
-    "Entrance Doors":  ["SD77","SD115"],
-    "Sliding Doors":   ["SMARTIA M450", "SMARTIA M630", "SUPREME S650"]
+    "Windows":            ["S67 Urban", "S77", "S77 PHOS"],
+    "Entrance Doors":     ["SD77", "SD115"],
+    "Sliding Doors":      ["SMARTIA M450", "SMARTIA M630", "SUPREME S650"]
   },
   Reynaers: {
-    Windows:           ["SlimLine 38 Classic","SlimLine 38 Cube","SlimLine 38 Ferro","SlimLine 68"],
-    "Entrance Doors":  ["SlimLine 38", "SlimLine 68", "MasterLine 8","CS 77"],
-    "Sliding Doors":   ["Hi-Finity", "SlimPatio 68"]
+    "Windows":            ["SlimLine 38 Classic","SlimLine 38 Cube","SlimLine 38 Ferro","SlimLine 68"],
+    "Entrance Doors":     ["SlimLine 38", "SlimLine 68", "MasterLine 8","CS 77"],
+    "Sliding Doors":      ["Hi-Finity", "SlimPatio 68"]
   }
 };
 
 const finishOptions = {
-  "Powder Coated": ["Standard","Matte","Structura"],
-  Anodized:       ["Standard","Brushed"]
+  "Powder Coated": ["Standard", "Matte", "Structura"],
+  "Anodized":      ["Standard", "Brushed"]
 };
 
 const windowOperables = ["Fixed", "Tilt & Turn", "Casement", "Awning", "Tilt Only"];
 
-const doorModelCapabilities = {
-  "SD67": ["Single Door", "Double Door"],
-  "SD77": ["Single Door", "Double Door", "Pivot Door"],
-  "SD115": ["Pivot Door"]
-};
-
 const doorOperables = {
   openingTypes: ["Single Door", "Double Door", "Pivot Door"],
   swingDirections: {
-    "Single Door": ["Left Hand In", "Left Hand Out", "Right Hand In", "Right Hand Out"],
-    "Double Door": ["Active Left", "Active Right"],
-    "Pivot Door": ["Center Pivot", "Left Pivot", "Right Pivot"]
+    "Single Door":  ["Left Hand In", "Left Hand Out", "Right Hand In", "Right Hand Out"],
+    "Double Door":  ["Active Left", "Active Right"],
+    "Pivot Door":   ["Center Pivot", "Left Pivot", "Right Pivot"]
   },
-  handleTypes: ["Lever Handle", "Pull Handle", "Push Bar"],
-  lockTypes: ["Multi-Point Lock", "Single Point Lock", "Electric Strike", "Magnetic Lock"],
-  thresholds: ["Standard", "ADA Compliant", "Zero Threshold"],
-  hingeTypes: ["Standard", "3D Adjustable", "Concealed", "Pivot"]
+  handleTypes:  ["Lever Handle", "Pull Handle", "Push Bar"],
+  lockTypes:    ["Multi-Point Lock", "Single Point Lock", "Electric Strike", "Magnetic Lock"],
+  thresholds:   ["Standard", "ADA Compliant", "Zero Threshold"],
+  hingeTypes:   ["Standard", "3D Adjustable", "Concealed", "Pivot"]
+};
+
+const doorModelCapabilities = {
+  "SD67":   ["Single Door", "Double Door"],
+  "SD77":   ["Single Door", "Double Door", "Pivot Door"],
+  "SD115":  ["Pivot Door"]
 };
 
 const laborRates = {
@@ -165,12 +167,12 @@ const unitCostPerLinearInch = {
     SD77:  { 
       "Single Door": 3.5,
       "Double Door": 6,
-      grid: 0.35,
+      "grid": 0.35,
       "Fixed": 0.77, // Keep fixed panel rate for sidelights
       "Pivot Door": 5.85 // Added higher rate for pivot configuration
     },
     SD115: { 
-      grid: 0.35,
+      "grid": 0.35,
       "Pivot Door": 7, // Main pivot door rate
       "Fixed": 0.77 // Fixed panel rate for sidelights
     },
@@ -191,10 +193,13 @@ const unitCostPerLinearInch = {
   },
   Reynaers: {
     // Windows
-    "SlimLine 38 Classic":      { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
-    "SlimLine 38 Cube":         { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
-    "SlimLine 38 Ferro":        { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
-    "SlimLine 68 Window":       { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.35 },
+    // 
+    "MasterLine 8":             { Fixed:1.08,   "Tilt & Turn":2.77,   Casement:2.77, Awning:2.77, "Tilt Only":2.77, grid: 0.5 },
+    "ConceptSystem 77":         { Fixed:0.78,   "Tilt & Turn":2.60,   Casement:2.60, Awning:2.60, "Tilt Only":2.60, grid: 0.5 },
+    "SlimLine 38 Classic":      { Fixed:0.98,   "Tilt & Turn":2.73,   Casement:2.73, Awning:2.73, "Tilt Only":2.73, grid: 0.5 },
+    "SlimLine 38 Cube":         { Fixed:0.89,   "Tilt & Turn":2.64,   Casement:2.64, Awning:2.64, "Tilt Only":2.64, grid: 0.5 },
+    "SlimLine 38 Ferro":        { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.5 },
+    "SlimLine 68 Window":       { Fixed:0.77,   "Tilt & Turn":1.88,   Casement:1.88, Awning:1.88, "Tilt Only":1.88, grid: 0.5 },
     // Entrance Doors
     "SlimLine 38 Door":         { 
       grid: 0.35,
