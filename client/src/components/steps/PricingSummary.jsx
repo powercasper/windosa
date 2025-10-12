@@ -2483,7 +2483,7 @@ const PricingSummary = ({
               </Typography>
               <Typography>System Cost: ${pricing.totalSystemCost.toFixed(2)}</Typography>
               <Typography>Glass Cost: ${pricing.totalGlassCost.toFixed(2)}</Typography>
-              {/* <Typography>Labor Cost: ${pricing.totalLaborCost.toFixed(2)}</Typography> */}
+              <Typography>Labor Cost: ${pricing.totalLaborCost.toFixed(2)}</Typography>
             </Grid>
             <Grid item xs={12} sm={6} sx={{ display: 'flex', flexDirection: 'column', alignItems: { sm: 'flex-end' } }}>
               <Typography variant="h5" sx={{ mb: 2 }}>

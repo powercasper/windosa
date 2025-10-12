@@ -647,9 +647,9 @@ const iguConfigurationData = {
   
   exteriorCoatings: [
     { id: 'None', name: 'None', surcharge: 0 },
-    { id: 'SKN_165', name: 'Cool-Lite SKN 165', surcharge: 36.35 },
-    { id: 'SKN_176', name: 'Cool-Lite SKN 176', surcharge: 36.35 },
-    { id: 'SKN_183', name: 'Cool-Lite SKN 183', surcharge: 36.35 },
+    // { id: 'SKN_165', name: 'Cool-Lite SKN 165', surcharge: 36.35 },
+    // { id: 'SKN_176', name: 'Cool-Lite SKN 176', surcharge: 36.35 },
+    // { id: 'SKN_183', name: 'Cool-Lite SKN 183', surcharge: 36.35 },
     { id: 'XTREME_61_29', name: 'Cool-Lite XTREME 61/29', surcharge: 37.85 },
     { id: 'XTREME_70_33', name: 'Cool-Lite XTREME 70/33', surcharge: 37.85 },
   ],
