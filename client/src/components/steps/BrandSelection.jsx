@@ -3,12 +3,9 @@ import {
   Grid,
   Card,
   CardContent,
-  CardMedia,
   Typography,
   Box,
-  Radio,
   CardActionArea,
-  Paper,
   Divider,
   Chip,
   Button,
@@ -20,12 +17,6 @@ import BusinessIcon from '@mui/icons-material/Business';
 const brandLogos = {
   'Alumil': 'https://www.alumil.com/media/1455/alumil-logo.png',
   'Reynaers': 'https://www.reynaers.com/sites/default/files/styles/header_logo/public/2019-01/reynaers-aluminium-logo.png'
-};
-
-const systemTypeLabels = {
-  Windows: "Windows",
-  'Entrance Doors': "Entrance Doors",
-  'Sliding Doors': "Sliding Doors"
 };
 
 const BrandSelection = ({ configuration, onUpdate, onNext, brands, isEditing }) => {

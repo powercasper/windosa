@@ -141,7 +141,7 @@ const DefaultFinishOptions = ({ defaultFinish, onSaveDefaults }) => {
           label="RAL"
           value={finishValues.ralColor}
           onChange={handleRalColorChange}
-          error={finishValues.ralColor && finishValues.ralColor.length !== 4}
+          error={!!finishValues.ralColor && finishValues.ralColor.length !== 4}
           helperText={finishValues.ralColor && finishValues.ralColor.length !== 4 ? 
             "Must be 4 digits" : ""}
           InputProps={{
